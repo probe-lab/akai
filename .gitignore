@@ -1,0 +1,5 @@
+# build binaries
+build/
+
+# local scripts
+*.sh
