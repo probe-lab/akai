@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/aws/smithy-go/encoding/json"
 	"github.com/pkg/errors"
 )
 

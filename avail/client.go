@@ -30,7 +30,7 @@ type HttpClient struct {
 	timeout time.Duration
 }
 
-func New(ctx context.Context, opts HttpClientConfig) (*HttpClient, error) {
+func NewHttpCli(ctx context.Context, opts HttpClientConfig) (*HttpClient, error) {
 
 	// http client for the communication
 	httpCli := &http.Client{
@@ -60,10 +60,10 @@ func New(ctx context.Context, opts HttpClientConfig) (*HttpClient, error) {
 	return cli, nil
 }
 
-func (c *HttpClient) CheckConnection() error {
+func (c *HttpClient) CheckConnection(ctx context.Context) error {
 	// try the API agains the V2Version call
 
-	version, err := c.GetV2Version(c.ctx)
+	version, err := c.GetV2Version(ctx)
 	if err != nil {
 		return errors.Wrap(err, "testing connectivity")
 	}
