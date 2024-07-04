@@ -1,4 +1,4 @@
-package avail
+package api
 
 import (
 	"context"

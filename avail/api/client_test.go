@@ -1,16 +1,17 @@
-package avail
+package api
 
 import (
 	"context"
 	"testing"
 	"time"
 
+	"github.com/probe-lab/akai/config"
 	"github.com/stretchr/testify/require"
 )
 
 var (
 	localAvailTestIP   = "localhost"
-	localAvailTestPort = 5000
+	localAvailTestPort = int64(5000)
 	ConnectionTimeout  = 10 * time.Second
 )
 
@@ -68,13 +69,13 @@ func Test_AvailHttpV2BlockHeader(t *testing.T) {
 func genTestApiCli(t *testing.T) (*HttpClient, context.Context, context.CancelFunc) {
 	testMainCtx, cancel := context.WithCancel(context.Background())
 
-	opts := HttpClientConfig{
+	opts := config.AvailHttpApiClient{
 		IP:      localAvailTestIP,
 		Port:    localAvailTestPort,
 		Timeout: ConnectionTimeout,
 	}
 
-	httpCli, err := NewHttpCli(testMainCtx, opts)
+	httpCli, err := NewHttpCli(opts)
 	require.NoError(t, err)
 	return httpCli, testMainCtx, cancel
 }

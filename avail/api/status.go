@@ -1,4 +1,4 @@
-package avail
+package api
 
 import (
 	"context"
@@ -22,14 +22,6 @@ type V2Status struct {
 			Last  Block `json:"last"`
 		} `json:"available"`
 	} `json:"blocks"`
-}
-
-type AvailableBlockSummary struct {
-	Latest         Block `json:"latest"`
-	AvailableRange struct {
-		First Block `json:"first"`
-		Last  Block `json:"last"`
-	} `json:"available"`
 }
 
 func (c *HttpClient) GetV2Status(ctx context.Context) (V2Status, error) {

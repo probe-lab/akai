@@ -1,4 +1,4 @@
-package avail
+package api
 
 import (
 	"context"
@@ -10,27 +10,21 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/probe-lab/akai/config"
 	log "github.com/sirupsen/logrus"
 )
 
 // coming from Avail's API website
 // https://docs.availproject.org/docs/operate-a-node/run-a-light-client/light-client-api-reference
 
-type HttpClientConfig struct {
-	IP      string
-	Port    int
-	Timeout time.Duration
-}
-
 type HttpClient struct {
-	ctx     context.Context
 	base    *url.URL
 	address string
 	client  *http.Client
 	timeout time.Duration
 }
 
-func NewHttpCli(ctx context.Context, opts HttpClientConfig) (*HttpClient, error) {
+func NewHttpCli(opts config.AvailHttpApiClient) (*HttpClient, error) {
 
 	// http client for the communication
 	httpCli := &http.Client{
@@ -50,7 +44,6 @@ func NewHttpCli(ctx context.Context, opts HttpClientConfig) (*HttpClient, error)
 	}
 
 	cli := &HttpClient{
-		ctx:     ctx,
 		base:    urlBase,
 		address: address,
 		client:  httpCli,
@@ -58,6 +51,21 @@ func NewHttpCli(ctx context.Context, opts HttpClientConfig) (*HttpClient, error)
 	}
 
 	return cli, nil
+}
+
+func (c *HttpClient) Serve(ctx context.Context) error {
+
+	err := c.CheckConnection(ctx)
+	if err != nil {
+		log.Error("not connections with the avail-light-client", err)
+		return err
+	}
+
+	<-ctx.Done()
+
+	c.client.CloseIdleConnections()
+
+	return nil
 }
 
 func (c *HttpClient) CheckConnection(ctx context.Context) error {
@@ -122,4 +130,9 @@ func composeCallUrl(base *url.URL, endpoint, query string) *url.URL {
 	}
 
 	return &callUrl
+}
+
+func (c *HttpClient) Close() error {
+	c.client.CloseIdleConnections()
+	return nil
 }
