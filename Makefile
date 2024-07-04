@@ -1,12 +1,15 @@
+# Compiler Variables 
 GOCC=go
-
-GIT_PACKAGE=github.com/probe-lab/akai
 TARGET_PATH=./cmd/akai
 BIN_PATH=./build
 BIN=./build/akai
 
-.PHONY: install build clean
+# Git Variables
+GIT_PACKAGE=github.com/probe-lab/akai
 
+
+# Make Operations
+.PHONY: install uninstall build clean test-avail-api
 
 install:
 	$(GOCC) install $(GIT_PACKAGE)
@@ -20,3 +23,8 @@ build:
 
 clean:
 	rm -r $(BIN_PATH)
+
+test-avail-api:
+	@echo "testing avail-http-api module"; \
+	$(GOCC) test ./avail/api || @echo "the test requires an avail-light client running an http-api at the 5000 port"
+
