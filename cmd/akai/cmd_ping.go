@@ -13,11 +13,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var pingConfig = &struct {
-	Network string
-	Key     string
-	Timeout time.Duration
-}{
+var pingConfig = &config.Ping{
 	Network: string(config.NetworkAvailTurin),
 	Key:     "",
 	Timeout: 60 * time.Second,
@@ -38,7 +34,7 @@ var cmdPingFlags = []cli.Flag{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_PING_NETWORK")},
 		},
 		Usage:       "The network where the Akai will be launched.",
-		DefaultText: config.NetworkListToText(),
+		DefaultText: config.ListAllNetworks(),
 		Value:       pingConfig.Network,
 		Destination: &pingConfig.Network,
 		Action:      validateNetworkFlag,

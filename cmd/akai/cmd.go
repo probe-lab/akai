@@ -9,6 +9,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/probe-lab/akai/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
 )
@@ -17,27 +18,12 @@ const (
 	flagCategoryLogging = "Logging Configuration:"
 )
 
-var rootConfig = struct {
-	Verbose    bool
-	LogLevel   string
-	LogFormat  string
-	LogSource  bool
-	LogNoColor bool
-
-	// Functions that shut down the telemetry providers.
-	// Both block until they're done
-	metricsShutdownFunc func(ctx context.Context) error
-	tracerShutdownFunc  func(ctx context.Context) error
-}{
+var rootConfig = &config.Root{
 	Verbose:    false,
 	LogLevel:   "info",
 	LogFormat:  "text",
 	LogSource:  false,
 	LogNoColor: false,
-
-	// unexported fields are derived or initialized during startup
-	tracerShutdownFunc:  nil,
-	metricsShutdownFunc: nil,
 }
 
 var app = &cli.Command{
@@ -49,6 +35,7 @@ var app = &cli.Command{
 	Commands: []*cli.Command{
 		cmdService,
 		cmdPing,
+		cmdAvailBlockTracker,
 	},
 	After: rootAfter,
 }

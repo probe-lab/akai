@@ -10,9 +10,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var serviceConfig = &struct {
-	Network string
-}{
+var serviceConfig = &config.Service{
 	Network: string(config.NetworkAvailTurin),
 }
 
@@ -31,7 +29,7 @@ var cmdServiceFlags = []cli.Flag{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_SERVICE_NETWORK")},
 		},
 		Usage:       "The network where the Akai will be launched.",
-		DefaultText: config.NetworkListToText(),
+		DefaultText: config.ListAllNetworks(),
 		Value:       serviceConfig.Network,
 		Destination: &serviceConfig.Network,
 		Action:      validateNetworkFlag,
@@ -45,7 +43,7 @@ func validateNetworkFlag(ctx context.Context, cli *cli.Command, s string) error 
 			return nil
 		}
 	}
-	return fmt.Errorf(" given network %s not valid for supported ones %s", s, config.NetworkListToText())
+	return fmt.Errorf(" given network %s not valid for supported ones", s)
 }
 
 func cmdServiceAction(ctx context.Context, cmd *cli.Command) error {
