@@ -20,7 +20,7 @@ func (n Network) String() string {
 const (
 	NetworkUnknown    Network = "UNKNOWN"
 	NetworkIPFS       Network = "IPFS"
-	NetworkAvailTurin Network = "AVAIL_TURIN"
+	NetworkAvailTurin Network = "AVAIL_TURING"
 )
 
 func Networks() []Network {
@@ -30,8 +30,21 @@ func Networks() []Network {
 	}
 }
 
-func NetworkListToText() string {
-	networks := Networks()
+func AvailNetworks() []Network {
+	return []Network{
+		NetworkAvailTurin,
+	}
+}
+
+func ListAllNetworks() string {
+	return NetworkListToText(Networks())
+}
+
+func ListAvailNetworks() string {
+	return NetworkListToText(AvailNetworks())
+}
+
+func NetworkListToText(networks []Network) string {
 	text := ""
 	for idx, str := range networks {
 		if idx == 0 {
