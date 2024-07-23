@@ -1,12 +1,19 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+)
 
 var (
 	ClientName = "akai"
 	Maintainer = "probelab"
 )
 
-func ComposeAkaiUserAgent() string {
-	return fmt.Sprintf("%s/%s", Maintainer, ClientName)
+func ComposeAkaiUserAgent(network Network) string {
+	switch network {
+	case NetworkAvailTurin:
+		return "avail-light-client/rust-client"
+	default:
+		return fmt.Sprintf("%s/%s", Maintainer, ClientName)
+	}
 }

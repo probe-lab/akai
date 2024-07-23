@@ -18,15 +18,17 @@ func (n Network) String() string {
 }
 
 const (
-	NetworkUnknown    Network = "UNKNOWN"
-	NetworkIPFS       Network = "IPFS"
-	NetworkAvailTurin Network = "AVAIL_TURING"
+	NetworkUnknown     Network = "UNKNOWN"
+	NetworkLocalCustom Network = "Custom"
+	NetworkIPFS        Network = "IPFS"
+	NetworkAvailTurin  Network = "AVAIL_TURING"
 )
 
 func Networks() []Network {
 	return []Network{
 		NetworkIPFS,
 		NetworkAvailTurin,
+		NetworkLocalCustom,
 	}
 }
 
@@ -68,34 +70,41 @@ func NetworkFromStr(s string) Network {
 	return NetworkUnknown
 }
 
-func ConfigureNetwork(network string) ([]peer.AddrInfo, protocol.ID, error) {
+func ConfigureNetwork(network Network) ([]peer.AddrInfo, protocol.ID, string, error) {
 	var (
 		bootstrapPeers []peer.AddrInfo
 		v1protocol     protocol.ID
+		protocolPrefix string
 	)
-	switch Network(network) {
+	switch network {
 	case NetworkIPFS:
 		bootstrapPeers = kaddht.GetDefaultBootstrapPeerAddrInfos()
 		v1protocol = kaddht.ProtocolDHT
+		protocolPrefix = "/ipfs"
 	case NetworkAvailTurin:
 		bootstrapPeers = BootstrappersToMaddr(BootstrapNodesAvailTurin)
-		v1protocol = protocol.ID("/Avail/kad")
+		v1protocol = protocol.ID("/Avail/kad") // ("/avail_kad/id/1.0.0-6f0996") //
+		protocolPrefix = ""
+	case NetworkLocalCustom:
+		bootstrapPeers = BootstrappersToMaddr([]string{})
+		v1protocol = protocol.ID("/local_custom/kad")
+		protocolPrefix = ""
 	default:
-		return bootstrapPeers, v1protocol, fmt.Errorf("unknown network identifier: %s", network)
+		return bootstrapPeers, v1protocol, protocolPrefix, fmt.Errorf("unknown network identifier: %s", network)
 	}
 
-	return bootstrapPeers, v1protocol, nil
+	return bootstrapPeers, v1protocol, protocolPrefix, nil
 }
 
 func BootstrappersToMaddr(strs []string) []peer.AddrInfo {
-	bootnodeInfos := make([]peer.AddrInfo, len(strs), 0)
+	bootnodeInfos := make([]peer.AddrInfo, len(strs))
 
-	for _, addrStr := range strs {
+	for idx, addrStr := range strs {
 		bInfo, err := peer.AddrInfoFromString(addrStr)
 		if err != nil {
 			log.Panic("couldn't retrieve peer-info from bootnode maddr string", err)
 		}
-		bootnodeInfos = append(bootnodeInfos, *bInfo)
+		bootnodeInfos[idx] = *bInfo
 	}
 
 	return bootnodeInfos
