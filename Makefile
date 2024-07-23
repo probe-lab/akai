@@ -21,6 +21,10 @@ build:
 	$(GOCC) get $(TARGET_PATH)
 	$(GOCC) build -o $(BIN) $(TARGET_PATH)
 
+test: 
+	$(GOCC) test ./core
+	$(GOCC) test ./avail
+
 clean:
 	rm -r $(BIN_PATH)
 
