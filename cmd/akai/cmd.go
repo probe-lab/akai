@@ -112,7 +112,7 @@ func main() {
 	}()
 
 	if err := app.Run(ctx, os.Args); err != nil && !errors.Is(err, context.Canceled) {
-		log.Error("terminated abnormally", err)
+		log.Errorf("akai terminated abnormally %s", err.Error())
 		os.Exit(1)
 	}
 }
@@ -142,7 +142,7 @@ func rootAfter(c context.Context, cmd *cli.Command) error {
 // The function returns an error if the log level or log format is not supported.
 // Possible log formats include "tint", "hlog", "text", and "json". The default
 // logger is overwritten with the configured logger.
-func configureLogger(c context.Context, cmd *cli.Command) error {
+func configureLogger(_ context.Context, cmd *cli.Command) error {
 	// log level
 	logLevel := log.InfoLevel
 	if cmd.IsSet("log-level") {

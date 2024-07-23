@@ -4,13 +4,16 @@ import (
 	"context"
 	"time"
 
-	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
-	"github.com/probe-lab/akai/config"
-	"github.com/probe-lab/akai/host"
-	"github.com/probe-lab/akai/ipfs"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
+
+	"github.com/libp2p/go-libp2p/core/peer"
+
+	"github.com/probe-lab/akai/amino"
+	"github.com/probe-lab/akai/avail"
+	"github.com/probe-lab/akai/config"
+	"github.com/probe-lab/akai/core"
 )
 
 var pingConfig = &config.Ping{
@@ -59,7 +62,8 @@ var cmdPingFlags = []cli.Flag{
 		DefaultText: "20sec",
 		Value:       pingConfig.Timeout,
 		Destination: &pingConfig.Timeout,
-	}}
+	},
+}
 
 func cmdPingAction(ctx context.Context, cmd *cli.Command) error {
 	log.WithFields(log.Fields{
@@ -68,38 +72,59 @@ func cmdPingAction(ctx context.Context, cmd *cli.Command) error {
 		"timeout": pingConfig.Timeout,
 	}).Info("requesting key from given DHT...")
 
-	// parse key
-	key, err := ipfs.CidFromString(pingConfig.Key)
+	dhtHostOpts := core.CommonDHTOpts{
+		IP:          "0.0.0.0",        // default?
+		Port:        9020,             // default?
+		DialTimeout: 10 * time.Second, // this is the DialTimeout, not the timeout for the operation
+		DHTMode:     core.DHTClient,
+		UserAgent:   config.ComposeAkaiUserAgent(config.Network(pingConfig.Network)),
+	}
+
+	dhtHost, err := core.NewDHTHost(ctx, config.Network(pingConfig.Network), dhtHostOpts)
 	if err != nil {
-		return errors.Wrap(err, "parsing given key")
+		return errors.Wrap(err, "creating DHT host")
 	}
 
-	// get network
-	bootstapers, v1protocol, err := config.ConfigureNetwork(pingConfig.Network)
+	pingKey, err := core.ParseDHTKeyType(config.Network(pingConfig.Network), pingConfig.Key)
 	if err != nil {
-		return errors.Wrap(err, "extracting network info from given network")
+		return err
 	}
 
-	// configure the host
-	dhtHostConfig := host.DHTHostOpts{
-		IP:           "0.0.0.0",        // default?
-		Port:         9020,             // default?
-		DialTimeout:  10 * time.Second, // this is the DialTimeout, not the timeout for the operation
-		UserAgent:    config.ComposeAkaiUserAgent(),
-		Bootstrapers: bootstapers,
-		V1Protocol:   v1protocol,
+	switch config.Network(pingConfig.Network) {
+	// get providers for amino CID
+	case config.NetworkIPFS:
+		err = fetchCidProviders(ctx, dhtHost, pingKey.(amino.Cid))
+		if err != nil {
+			return err
+		}
+	// get avail cell bytes from DHT key
+	case config.NetworkAvailTurin:
+		err = fetchAvailKey(ctx, dhtHost, pingKey.(avail.Key))
+		if err != nil {
+			return err
+		}
+	default:
+		log.WithField("key", pingConfig.Key).Warn("unrecognized type for given key")
 	}
+	return nil
 
-	// create a new libp2p host
-	dhtHost, err := host.NewDHTHost(ctx, dhtHostConfig)
-	if err != nil {
-		return errors.Wrap(err, "generating dht host")
+}
+
+func listPeerIDsFromAddrsInfos(addrs []peer.AddrInfo) []peer.ID {
+	peerIDs := make([]peer.ID, len(addrs))
+
+	for i, addr := range addrs {
+		peerIDs[i] = addr.ID
 	}
+	return peerIDs
+}
 
+func fetchCidProviders(ctx context.Context, h core.DHTHost, key amino.Cid) error {
+	// request the key from the network
 	findCtx, cancel := context.WithTimeout(ctx, pingConfig.Timeout)
 	defer cancel()
 
-	opDuration, providers, err := dhtHost.FindProviders(findCtx, key)
+	opDuration, providers, err := h.FindProviders(findCtx, key.Cid())
 	if err != nil {
 		return errors.Wrap(err, "finding providers for key")
 	}
@@ -113,11 +138,40 @@ func cmdPingAction(ctx context.Context, cmd *cli.Command) error {
 	return nil
 }
 
-func listPeerIDsFromAddrsInfos(addrs []peer.AddrInfo) []peer.ID {
-	peerIDs := make([]peer.ID, len(addrs), len(addrs))
+func fetchAvailKey(ctx context.Context, h core.DHTHost, key avail.Key) error {
 
-	for i, addr := range addrs {
-		peerIDs[i] = addr.ID
+	log.WithFields(log.Fields{
+		"block":  key.Block,
+		"row":    key.Row,
+		"column": key.Column,
+	}).Info("finding providers for cell...")
+
+	// request the key from the network
+	findCtx, cancel := context.WithTimeout(ctx, pingConfig.Timeout)
+	defer cancel()
+
+	dhtKey := key.String()
+
+	findPeersDuration, closesPs, err := h.FindClosestPeers(findCtx, dhtKey)
+	if err != nil {
+		return err
 	}
-	return peerIDs
+	log.WithFields(log.Fields{
+		"duration": findPeersDuration,
+		"peers":    len(closesPs),
+		"peer_ids": closesPs,
+	}).Info("found closest peers to cell...")
+
+	findDuration, bytes, err := h.FindValue(findCtx, dhtKey)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"duration": findDuration,
+		}).Warn("no cell found for block...")
+	} else {
+		log.WithFields(log.Fields{
+			"duration": findDuration,
+			"bytes":    string(bytes),
+		}).Info("found block cell...")
+	}
+	return nil
 }
