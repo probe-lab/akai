@@ -110,7 +110,7 @@ func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 			}
 
 		case <-ctx.Done():
-			log.Info("context died while waiting for first proposal")
+			log.Info("context died while waiting for next proposal")
 			return
 		}
 	}
