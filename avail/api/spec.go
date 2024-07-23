@@ -6,6 +6,13 @@ import (
 	"github.com/probe-lab/akai/config"
 )
 
+// DHT specs
+const (
+	KeyDelimiter      string = ":"
+	CoordinatesPerKey int    = 3
+)
+
+// Chain specs
 const (
 	BlockIntervalTarget = 20 * time.Second
 )
