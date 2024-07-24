@@ -16,7 +16,7 @@ type BlockOption func(*Block) error
 type Block struct {
 	Hash           mh.Multihash
 	ParentHash     mh.Multihash
-	Number         api.Block
+	Number         uint64
 	StateRoot      mh.Multihash
 	ExtrinsicsRoot mh.Multihash
 	Extension      BlockExtension
@@ -70,7 +70,7 @@ func (b *Block) Cid() cid.Cid {
 func FromAPIBlockHeader(blockHeader api.V2BlockHeader) BlockOption {
 	return func(block *Block) (err error) {
 		// parse block-number
-		block.Number = api.Block(blockHeader.Number)
+		block.Number = blockHeader.Number
 
 		// parse hashes
 		block.Hash, err = MultihashFromHexString(blockHeader.Hash)

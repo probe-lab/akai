@@ -15,7 +15,7 @@ type BlockRequester struct {
 	httpApiCli *api.HttpClient
 
 	genesisTime      time.Time
-	lastBlockTracked api.Block
+	lastBlockTracked uint64
 
 	consumers []BlockConsumer
 }
@@ -29,7 +29,7 @@ func NewBlockRequester(apiCli *api.HttpClient, network config.Network, consumers
 	return &BlockRequester{
 		httpApiCli:       apiCli,
 		genesisTime:      genTime,
-		lastBlockTracked: api.Block(0),
+		lastBlockTracked: uint64(0),
 		consumers:        consumers,
 	}, nil
 }
@@ -132,16 +132,16 @@ func (r *BlockRequester) processNewBlock(ctx context.Context, blockHeader api.V2
 	return nil
 }
 
-func (r *BlockRequester) requestLastState(ctx context.Context) (api.Block, api.Block, error) {
+func (r *BlockRequester) requestLastState(ctx context.Context) (uint64, uint64, error) {
 	// request the genesis info
 	availStatus, err := r.httpApiCli.GetV2Status(ctx)
 	if err != nil {
-		return api.Block(0), api.Block(0), err
+		return uint64(0), uint64(0), err
 	}
 	return availStatus.Blocks.Latest, availStatus.Blocks.AvailableRange.Last, nil
 }
 
-func (r *BlockRequester) isBlockNew(block api.Block) bool {
+func (r *BlockRequester) isBlockNew(block uint64) bool {
 	return block > r.lastBlockTracked
 }
 

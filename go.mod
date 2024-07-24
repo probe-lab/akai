@@ -144,4 +144,4 @@ require (
 	lukechampine.com/blake3 v1.3.0 // indirect
 )
 
-// replace github.com/libp2p/go-libp2p-kad-dht => ./go-libp2p-kad-dht
+replace github.com/libp2p/go-libp2p-kad-dht => ./go-libp2p-kad-dht

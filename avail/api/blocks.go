@@ -19,7 +19,7 @@ type V2BlockStatus struct {
 	Confidence float64 `json:"confidence"`
 }
 
-func (c *HttpClient) GetV2BlockStatus(ctx context.Context, block Block) (V2BlockStatus, error) {
+func (c *HttpClient) GetV2BlockStatus(ctx context.Context, block uint64) (V2BlockStatus, error) {
 	resp, err := c.get(ctx, fmt.Sprintf(V2BlockStatusEndpoint, block), "")
 	if err != nil {
 		return V2BlockStatus{}, errors.Wrap(err, "requesting v2-block-status")
@@ -38,7 +38,7 @@ func (c *HttpClient) GetV2BlockStatus(ctx context.Context, block Block) (V2Block
 type V2BlockHeader struct {
 	Hash           string `json:"hash"`
 	ParentHash     string `json:"parent_hash"`
-	Number         Block  `json:"number"`
+	Number         uint64 `json:"number"`
 	StateRoot      string `json:"state_root"`
 	ExtrinsicsRoot string `json:"extrinsics_root"`
 	Extension      struct {
@@ -56,7 +56,7 @@ type V2BlockHeader struct {
 	} `json:"extension"`
 }
 
-func (c *HttpClient) GetV2BlockHeader(ctx context.Context, block Block) (V2BlockHeader, error) {
+func (c *HttpClient) GetV2BlockHeader(ctx context.Context, block uint64) (V2BlockHeader, error) {
 	resp, err := c.get(ctx, fmt.Sprintf(V2BlockHeaderEndpoint, block), "")
 	if err != nil {
 		return V2BlockHeader{}, errors.Wrap(err, "requesting v2-block-header")

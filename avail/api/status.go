@@ -16,10 +16,10 @@ type V2Status struct {
 	GenesisHash string   `json:"genesis_hash"`
 	Network     string   `json:"network"`
 	Blocks      struct {
-		Latest         Block `json:"latest"`
+		Latest         uint64 `json:"latest"`
 		AvailableRange struct {
-			First Block `json:"first"`
-			Last  Block `json:"last"`
+			First uint64 `json:"first"`
+			Last  uint64 `json:"last"`
 		} `json:"available"`
 	} `json:"blocks"`
 }
