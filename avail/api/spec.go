@@ -22,12 +22,10 @@ var (
 	TuringTestnetGenesisTime = time.Unix(int64(1711605040), int64(0))
 )
 
-type Block uint64
-
 func GenesisTimeFromNetwork(network config.Network) time.Time {
 	var genTime time.Time
-	switch network {
-	case config.NetworkAvailTurin:
+	switch network.NetworkName {
+	case config.NetworkNameAvailTuring:
 		genTime = TuringTestnetGenesisTime
 	default:
 	}

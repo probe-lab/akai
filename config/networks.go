@@ -11,48 +11,82 @@ import (
 	kaddht "github.com/libp2p/go-libp2p-kad-dht"
 )
 
-type Network string
+type Network struct {
+	NetworkID   int16
+	Protocol    string
+	NetworkName string
+}
 
 func (n Network) String() string {
-	return string(n)
+	return fmt.Sprintf("%s_%s", n.Protocol, n.NetworkName)
 }
 
+func (n Network) FromString(s string) Network {
+	parts := strings.Split(s, "_")
+	protocol := strings.ToUpper(parts[0]) // the protocol goes always first
+	network := "MAIN_NET"
+	if len(parts) >= 2 {
+		network = strings.ToUpper(parts[1])
+	}
+	return Network{
+		Protocol:    protocol,
+		NetworkName: network,
+	}
+}
+
+// Protocols
 const (
-	NetworkUnknown     Network = "UNKNOWN"
-	NetworkLocalCustom Network = "Custom"
-	NetworkIPFS        Network = "IPFS"
-	NetworkAvailTurin  Network = "AVAIL_TURING"
+	ProtocolUnknown     string = "UNKNOWN"
+	ProtocolLocalCustom string = "LOCAL"
+	ProtocolIPFS        string = "IPFS"
+	ProtocolAvail       string = "AVAIL"
 )
 
-func Networks() []Network {
-	return []Network{
-		NetworkIPFS,
-		NetworkAvailTurin,
-		NetworkLocalCustom,
+// Networks
+const (
+	NetworkNameIPFSAmino   string = "AMINO"
+	NetworkNameAvailTuring string = "TURING"
+	NetworkNameLocalCustom string = "CUSTOM"
+)
+
+var AvailableProtocols map[string][]string = map[string][]string{
+	ProtocolIPFS: {
+		NetworkNameIPFSAmino,
+	},
+	ProtocolAvail: {
+		NetworkNameAvailTuring,
+	},
+	ProtocolLocalCustom: {
+		NetworkNameLocalCustom,
+	},
+}
+
+func ListAllNetworkCombinations() string {
+	var networks string
+	for protocol := range AvailableProtocols {
+		if networks == "" {
+			networks = ListNetworksForProtocol(protocol)
+		} else {
+			networks = networks + ListNetworksForProtocol(protocol)
+		}
 	}
+	return networks
 }
 
-func AvailNetworks() []Network {
-	return []Network{
-		NetworkAvailTurin,
+func ListNetworksForProtocol(protocol string) string {
+	networks := make([]string, 0)
+	for _, networkName := range AvailableProtocols[protocol] {
+		net := Network{Protocol: protocol, NetworkName: networkName}
+		networks = append(networks, net.String())
 	}
+	return "[" + NetworkListToText(networks) + "]"
 }
 
-func ListAllNetworks() string {
-	return NetworkListToText(Networks())
-}
-
-func ListAvailNetworks() string {
-	return NetworkListToText(AvailNetworks())
-}
-
-func NetworkListToText(networks []Network) string {
+func NetworkListToText(networks []string) string {
 	text := ""
 	for idx, str := range networks {
 		if idx == 0 {
-			text = fmt.Sprintf("[%s", str)
-		} else if idx == len(networks)-1 {
-			text = fmt.Sprintf("%s, %s]", text, str)
+			text = str
 		} else {
 			text = fmt.Sprintf("%s, %s", text, str)
 		}
@@ -61,13 +95,9 @@ func NetworkListToText(networks []Network) string {
 }
 
 func NetworkFromStr(s string) Network {
-	networks := Networks()
-	for _, value := range networks {
-		if strings.ToUpper(s) == string(value) {
-			return value
-		}
-	}
-	return NetworkUnknown
+	network := Network{}
+	network.FromString(s)
+	return network
 }
 
 func ConfigureNetwork(network Network) ([]peer.AddrInfo, protocol.ID, string, error) {
@@ -76,21 +106,39 @@ func ConfigureNetwork(network Network) ([]peer.AddrInfo, protocol.ID, string, er
 		v1protocol     protocol.ID
 		protocolPrefix string
 	)
-	switch network {
-	case NetworkIPFS:
-		bootstrapPeers = kaddht.GetDefaultBootstrapPeerAddrInfos()
-		v1protocol = kaddht.ProtocolDHT
-		protocolPrefix = "/ipfs"
-	case NetworkAvailTurin:
-		bootstrapPeers = BootstrappersToMaddr(BootstrapNodesAvailTurin)
-		v1protocol = protocol.ID("/Avail/kad") // ("/avail_kad/id/1.0.0-6f0996") //
-		protocolPrefix = ""
-	case NetworkLocalCustom:
-		bootstrapPeers = BootstrappersToMaddr([]string{})
-		v1protocol = protocol.ID("/local_custom/kad")
-		protocolPrefix = ""
+	switch network.Protocol {
+	case ProtocolIPFS:
+		switch network.NetworkName {
+		case NetworkNameIPFSAmino:
+			bootstrapPeers = kaddht.GetDefaultBootstrapPeerAddrInfos()
+			v1protocol = kaddht.ProtocolDHT
+			protocolPrefix = "/ipfs"
+		default:
+			return bootstrapPeers, v1protocol, protocolPrefix, fmt.Errorf("unknown network identifier %s for protocol %s", network.NetworkName, network.Protocol)
+		}
+
+	case ProtocolAvail:
+		switch network.NetworkName {
+		case NetworkNameAvailTuring:
+			bootstrapPeers = BootstrappersToMaddr(BootstrapNodesAvailTurin)
+			v1protocol = protocol.ID("/Avail/kad") // ("/avail_kad/id/1.0.0-6f0996") //
+			protocolPrefix = ""
+		default:
+			return bootstrapPeers, v1protocol, protocolPrefix, fmt.Errorf("unknown network identifier %s for protocol %s", network.NetworkName, network.Protocol)
+		}
+
+	case ProtocolLocalCustom:
+		switch network.NetworkName {
+		case NetworkNameLocalCustom:
+			bootstrapPeers = BootstrappersToMaddr([]string{})
+			v1protocol = protocol.ID("/local_custom/kad")
+			protocolPrefix = ""
+		default:
+			return bootstrapPeers, v1protocol, protocolPrefix, fmt.Errorf("unknown network identifier %s for protocol %s", network.NetworkName, network.Protocol)
+		}
+
 	default:
-		return bootstrapPeers, v1protocol, protocolPrefix, fmt.Errorf("unknown network identifier: %s", network)
+		return bootstrapPeers, v1protocol, protocolPrefix, fmt.Errorf("unknown protocol identifier: %s", network.Protocol)
 	}
 
 	return bootstrapPeers, v1protocol, protocolPrefix, nil

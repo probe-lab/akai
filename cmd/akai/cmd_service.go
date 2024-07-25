@@ -11,7 +11,7 @@ import (
 )
 
 var serviceConfig = &config.Service{
-	Network: string(config.NetworkAvailTurin),
+	Network: config.Network{Protocol: config.ProtocolIPFS, NetworkName: config.NetworkNameIPFSAmino}.String(),
 }
 
 var cmdService = &cli.Command{
@@ -29,7 +29,7 @@ var cmdServiceFlags = []cli.Flag{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_SERVICE_NETWORK")},
 		},
 		Usage:       "The network where the Akai will be launched.",
-		DefaultText: config.ListAllNetworks(),
+		DefaultText: config.ListAllNetworkCombinations(),
 		Value:       serviceConfig.Network,
 		Destination: &serviceConfig.Network,
 		Action:      validateNetworkFlag,
@@ -37,10 +37,12 @@ var cmdServiceFlags = []cli.Flag{
 }
 
 func validateNetworkFlag(ctx context.Context, cli *cli.Command, s string) error {
-	networks := config.Networks()
-	for _, value := range networks {
-		if strings.ToUpper(s) == string(value) {
-			return nil
+	for protocol, networkNames := range config.AvailableProtocols {
+		for _, networkName := range networkNames {
+			network := config.Network{Protocol: protocol, NetworkName: networkName}
+			if strings.ToUpper(s) == network.String() {
+				return nil
+			}
 		}
 	}
 	return fmt.Errorf(" given network %s not valid for supported ones", s)

@@ -23,7 +23,7 @@ type BlockRequester struct {
 func NewBlockRequester(apiCli *api.HttpClient, network config.Network, consumers []BlockConsumer) (*BlockRequester, error) {
 	genTime := api.GenesisTimeFromNetwork(network)
 	if genTime.IsZero() {
-		return nil, fmt.Errorf("empty genesis time (%s) for network %s", genTime, network)
+		return nil, fmt.Errorf("empty genesis time (%s) for network %s", genTime, network.String())
 	}
 
 	return &BlockRequester{

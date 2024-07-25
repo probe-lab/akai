@@ -17,7 +17,7 @@ import (
 )
 
 var pingConfig = &config.Ping{
-	Network: string(config.NetworkAvailTurin),
+	Network: config.Network{Protocol: config.ProtocolIPFS, NetworkName: config.NetworkNameIPFSAmino}.String(),
 	Key:     "",
 	Timeout: 60 * time.Second,
 }
@@ -37,7 +37,7 @@ var cmdPingFlags = []cli.Flag{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_PING_NETWORK")},
 		},
 		Usage:       "The network where the Akai will be launched.",
-		DefaultText: config.ListAllNetworks(),
+		DefaultText: config.ListAllNetworkCombinations(),
 		Value:       pingConfig.Network,
 		Destination: &pingConfig.Network,
 		Action:      validateNetworkFlag,
@@ -72,33 +72,35 @@ func cmdPingAction(ctx context.Context, cmd *cli.Command) error {
 		"timeout": pingConfig.Timeout,
 	}).Info("requesting key from given DHT...")
 
+	network := config.Network{}.FromString(pingConfig.Network)
+
 	dhtHostOpts := core.CommonDHTOpts{
 		IP:          "0.0.0.0",        // default?
 		Port:        9020,             // default?
 		DialTimeout: 10 * time.Second, // this is the DialTimeout, not the timeout for the operation
 		DHTMode:     core.DHTClient,
-		UserAgent:   config.ComposeAkaiUserAgent(config.Network(pingConfig.Network)),
+		UserAgent:   config.ComposeAkaiUserAgent(network),
 	}
 
-	dhtHost, err := core.NewDHTHost(ctx, config.Network(pingConfig.Network), dhtHostOpts)
+	dhtHost, err := core.NewDHTHost(ctx, config.Network(network), dhtHostOpts)
 	if err != nil {
 		return errors.Wrap(err, "creating DHT host")
 	}
 
-	pingKey, err := core.ParseDHTKeyType(config.Network(pingConfig.Network), pingConfig.Key)
+	pingKey, err := core.ParseDHTKeyType(config.Network(network), pingConfig.Key)
 	if err != nil {
 		return err
 	}
 
-	switch config.Network(pingConfig.Network) {
+	switch network.Protocol {
 	// get providers for amino CID
-	case config.NetworkIPFS:
+	case config.ProtocolIPFS:
 		err = fetchCidProviders(ctx, dhtHost, pingKey.(amino.Cid))
 		if err != nil {
 			return err
 		}
 	// get avail cell bytes from DHT key
-	case config.NetworkAvailTurin:
+	case config.ProtocolAvail:
 		err = fetchAvailKey(ctx, dhtHost, pingKey.(avail.Key))
 		if err != nil {
 			return err

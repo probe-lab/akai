@@ -35,7 +35,8 @@ func NewBlockTracker(cfg config.AvailBlockTracker) (*BlockTracker, error) {
 	}
 
 	// block requester
-	blockReq, err := NewBlockRequester(httpApiCli, config.Network(cfg.Network), blockConsumers)
+	network := config.Network{}.FromString(cfg.Network)
+	blockReq, err := NewBlockRequester(httpApiCli, network, blockConsumers)
 	if err != nil {
 		return nil, err
 	}

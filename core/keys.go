@@ -14,12 +14,12 @@ var (
 )
 
 func ParseDHTKeyType(network config.Network, key string) (any, error) {
-	switch network {
-	case config.NetworkAvailTurin:
+	switch network.Protocol {
+	case config.ProtocolAvail:
 		return avail.KeyFromString(key)
-	case config.NetworkIPFS:
+	case config.ProtocolIPFS:
 		return amino.CidFromString(key)
-	case config.NetworkLocalCustom:
+	case config.ProtocolLocalCustom:
 		return avail.KeyFromString(key)
 
 	default:

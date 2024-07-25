@@ -48,8 +48,8 @@ func NewDHTHost(ctx context.Context, network config.Network, cfg CommonDHTOpts) 
 }
 
 func composeHostForNetwork(ctx context.Context, network config.Network, commonCfg CommonDHTOpts) (DHTHost, error) {
-	switch network {
-	case config.NetworkIPFS:
+	switch network.Protocol {
+	case config.ProtocolIPFS:
 		// configure amino DHT
 		bootstapers, v1protocol, _, err := config.ConfigureNetwork(network)
 		if err != nil {
@@ -68,7 +68,7 @@ func composeHostForNetwork(ctx context.Context, network config.Network, commonCf
 		}
 		return amino.NewDHTHost(ctx, aminoDHTHostConfig)
 
-	case config.NetworkAvailTurin, config.NetworkLocalCustom:
+	case config.ProtocolAvail:
 		// configure amino DHT
 		bootstapers, v1protocol, protoPrefix, err := config.ConfigureNetwork(network)
 		if err != nil {

@@ -12,7 +12,7 @@ import (
 
 var availBlockTrackerConf = &config.AvailBlockTracker{
 	TextConsumer: true,
-	Network:      config.NetworkAvailTurin.String(),
+	Network:      config.Network{Protocol: config.ProtocolAvail, NetworkName: config.NetworkNameAvailTuring}.String(),
 	AvailHttpApiClient: config.AvailHttpApiClient{
 		IP:      "localhost",
 		Port:    5000,
@@ -35,7 +35,7 @@ var cmdAvailBlockTrackerFlags = []cli.Flag{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_BLOCK_TRACKER_NETWORK")},
 		},
 		Usage:       "The network where the Akai will be launched.",
-		DefaultText: config.ListAvailNetworks(),
+		DefaultText: config.ListNetworksForProtocol(config.ProtocolAvail),
 		Value:       availBlockTrackerConf.Network,
 		Destination: &availBlockTrackerConf.Network,
 		Action:      validateNetworkFlag,
