@@ -31,12 +31,12 @@ type ClickHouseDB struct {
 
 	// pointers for all the query batchers
 	qBatchers struct {
-		network *queryBatcher[mdb.Network]
+		network *queryBatcher[mdb.Network] // just an example
 	}
 
 	// caches to speedup queries
-	networkIDs   *lru.Cache
-	blockCellIDs *lru.Cache
+	currentNetwork mdb.Network
+	blockCellIDs   *lru.Cache
 
 	// reference to all relevant db telemetry
 	// telemetry *telemetry
@@ -44,9 +44,10 @@ type ClickHouseDB struct {
 
 var _ db.Database = (*ClickHouseDB)(nil)
 
-func NewClickHouseDB(conDetails ConnectionDetails) (*ClickHouseDB, error) {
+func NewClickHouseDB(conDetails ConnectionDetails, network mdb.Network) (*ClickHouseDB, error) {
 	db := &ClickHouseDB{
 		conDetails:       conDetails,
+		currentNetwork:   network,
 		lowLevelConnPool: make(map[string]*lowLevelConn),
 	}
 	return db, nil
@@ -71,14 +72,43 @@ func (db *ClickHouseDB) Init(ctx context.Context, tableNames map[string]struct{}
 	}
 
 	// make a batcher for each of the subscribed tables
-	return db.composeBatchersForTables(tableNames)
+	err = db.composeBatchersForTables(tableNames)
+	if err != nil {
+		return errors.Wrap(err, "setting up batchers")
+	}
+	return nil
 }
 
-func (db *ClickHouseDB) Run(context.Context) error {
-	// TODO: generate all the batchers for the each tag and table
-	// TODO: make the state machine from new events
+func (db *ClickHouseDB) Run(ctx context.Context) error {
+
+	// ensure that our current network is in the db list
+	networks, err := db.GetNetworks(ctx)
+	if err != nil {
+		return errors.Wrap(err, "getting recorded networks")
+	}
+	present := false
+	for _, network := range networks {
+		if network.Protocol == db.currentNetwork.Protocol && network.NetworkName == db.currentNetwork.NetworkName {
+			db.currentNetwork.NetworkID = network.NetworkID
+			present = true
+		}
+	}
+	if !present {
+		db.currentNetwork.NetworkID = uint16(len(networks))
+		db.qBatchers.network.addItem(db.currentNetwork)
+		err = db.flushBatcherIfNeeded(ctx, db.qBatchers.network)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
+}
+
+func (db *ClickHouseDB) GetAllTables() map[string]struct{} {
+	return map[string]struct{}{
+		mdb.NetworkTableName: {},
+	}
 }
 
 func (db *ClickHouseDB) makeConnections(ctx context.Context, tableNames map[string]connectableTable) error {
@@ -163,7 +193,7 @@ func (db *ClickHouseDB) composeBatchersForTables(tables map[string]struct{}) err
 		switch table {
 		case mdb.NetworkTableName:
 			driver := networkTableDriver
-			batcher, err := newQueryBatcher[mdb.Network](driver, mdb.Network{}.BatchingSize())
+			batcher, err := newQueryBatcher[mdb.Network](driver, mdb.MaxFlushInterval, mdb.Network{}.BatchingSize())
 			if err != nil {
 				return err
 			}
@@ -178,6 +208,9 @@ func (db *ClickHouseDB) composeBatchersForTables(tables map[string]struct{}) err
 }
 
 func (db *ClickHouseDB) Close() error {
+	// flush all the batchers
+
+	// close the connections with the db
 	db.closeLowLevelConns()
 	err := db.highLevelClient.Close()
 	if err != nil {
@@ -223,6 +256,37 @@ func (db *ClickHouseDB) persistBatch(
 	}
 
 	log.Infof("query submitted in %s", elapsedTime)
+	return nil
+}
+
+func (db *ClickHouseDB) flushBatcherIfNeeded(ctx context.Context, batcher flusheableBatcher) error {
+
+	if batcher.isFull() || batcher.isFlusheable() {
+		defer batcher.resetBatcher()
+		persistable, itemsN := batcher.getPersistable()
+		if itemsN <= 0 {
+			return nil
+		}
+
+		log.WithFields(log.Fields{
+			"table":      batcher.TableName(),
+			"tag":        batcher.Tag(),
+			"full":       batcher.isFull(),
+			"flusheable": batcher.isFlusheable(),
+			"items":      itemsN,
+		}).Debug("flushing batcher...")
+
+		err := db.persistBatch(
+			ctx,
+			batcher.Tag(),
+			batcher.BaseQuery(),
+			batcher.TableName(),
+			persistable,
+		)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("flushing %d itmes for table %s", batcher.currentLen(), batcher.TableName()))
+		}
+	}
 	return nil
 }
 

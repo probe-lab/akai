@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/probe-lab/akai/config"
-	"github.com/probe-lab/akai/db"
+	mdb "github.com/probe-lab/akai/db"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,14 +17,14 @@ func Test_NetworksTable(t *testing.T) {
 
 	maxSize := 1
 	networkTable := make(map[string]struct{}, 0)
-	networkTable[db.Network{}.TableName()] = struct{}{}
+	networkTable[mdb.Network{}.TableName()] = struct{}{}
 
 	dbCli := generateClickhouseDatabase(t, mainCtx, networkTable)
-	batcher, err := newQueryBatcher[db.Network](networkTableDriver, maxSize)
+	batcher, err := newQueryBatcher[mdb.Network](networkTableDriver, mdb.MaxFlushInterval, maxSize)
 	require.NoError(t, err)
 	require.Equal(t, batcher.maxSize, maxSize)
 	require.Equal(t, batcher.currentLen(), 0)
-	require.Equal(t, batcher.baseQuery(), networkTableDriver.baseQuery)
+	require.Equal(t, batcher.BaseQuery(), networkTableDriver.baseQuery)
 	require.Equal(t, batcher.isFull(), false)
 
 	// drop anything existing in the testing DB
@@ -34,7 +34,7 @@ func Test_NetworksTable(t *testing.T) {
 	dbCli.highMu.Unlock()
 
 	// test data insert
-	network := db.Network{
+	network := mdb.Network{
 		NetworkID:   uint16(1),
 		Protocol:    config.ProtocolAvail,
 		NetworkName: config.NetworkNameAvailTuring,

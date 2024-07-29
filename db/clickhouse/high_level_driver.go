@@ -14,7 +14,7 @@ import (
 )
 
 func (s *ClickHouseDB) getHighLevelConnection(
-	ctx context.Context,
+	_ context.Context,
 	conDetails ConnectionDetails) (driver.Conn, error) {
 
 	var dialCount int
