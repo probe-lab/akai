@@ -9,7 +9,7 @@ GIT_PACKAGE=github.com/probe-lab/akai
 
 
 # Make Operations
-.PHONY: install uninstall build clean test-avail-api test-db
+.PHONY: install uninstall build clean tidy audit test-avail-api test-db
 
 install:
 	$(GOCC) install $(GIT_PACKAGE)
@@ -23,6 +23,16 @@ build:
 
 clean:
 	rm -r $(BIN_PATH)
+
+tidy:
+	$(GOCC) fmt $(TARGET_PATH)
+	$(GOCC) mod tidy -v
+
+audit:
+	$(GOCC) mod verify
+	$(GOCC) vet $(TARGET_PATH)
+	$(GOCC) run honnef.co/go/tools/cmd/staticcheck@latest $(TARGET_PATH)
+	$(GOCC) test -race -buildvcs -vet=off $(TARGET_PATH)
 
 test: 
 	$(GOCC) test -v ./core

@@ -3,35 +3,30 @@ module github.com/probe-lab/akai
 go 1.22
 
 require (
-	github.com/btcsuite/btcutil v1.0.2
-	github.com/iand/pontium v0.3.14
+	github.com/ClickHouse/ch-go v0.62.0
+	github.com/ClickHouse/clickhouse-go/v2 v2.26.0
+	github.com/golang-migrate/migrate/v4 v4.17.1
+	github.com/hashicorp/golang-lru v0.5.4
 	github.com/ipfs/go-cid v0.4.1
 	github.com/libp2p/go-libp2p v0.35.4
-	github.com/libp2p/go-libp2p-core v0.20.1
 	github.com/libp2p/go-libp2p-kad-dht v0.25.2
 	github.com/libp2p/go-libp2p-mplex v0.9.0
 	github.com/libp2p/go-libp2p-record v0.2.0
-	github.com/lmittmann/tint v1.0.4
-	github.com/minio/sha256-simd v1.0.1
-	github.com/mr-tron/base58 v1.2.0
 	github.com/multiformats/go-multiaddr v0.13.0
 	github.com/multiformats/go-multicodec v0.9.0
 	github.com/multiformats/go-multihash v0.2.3
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
+	github.com/stretchr/testify v1.9.0
 	github.com/thejerf/suture/v4 v4.0.5
 	github.com/urfave/cli/v3 v3.0.0-alpha9
 )
 
 require (
-	github.com/ClickHouse/ch-go v0.62.0 // indirect
-	github.com/ClickHouse/clickhouse-go v1.5.4 // indirect
-	github.com/ClickHouse/clickhouse-go/v2 v2.26.0 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cloudflare/golz4 v0.0.0-20150217214814-ef862a3cdc58 // indirect
 	github.com/containerd/cgroups v1.1.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -46,12 +41,9 @@ require (
 	github.com/go-faster/errors v0.7.1 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-migrate/migrate v3.5.4+incompatible // indirect
-	github.com/golang-migrate/migrate/v4 v4.17.1 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/pprof v0.0.0-20240721033354-7089f98c1d14 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -59,7 +51,6 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-version v1.6.0 // indirect
-	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/huin/goupnp v1.3.0 // indirect
 	github.com/ipfs/boxo v0.10.0 // indirect
 	github.com/ipfs/go-datastore v0.6.0 // indirect
@@ -89,6 +80,8 @@ require (
 	github.com/miekg/dns v1.1.61 // indirect
 	github.com/mikioh/tcpinfo v0.0.0-20190314235526-30a79bb1804b // indirect
 	github.com/mikioh/tcpopt v0.0.0-20190314235656-172688c1accc // indirect
+	github.com/minio/sha256-simd v1.0.1 // indirect
+	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/multiformats/go-base32 v0.1.0 // indirect
 	github.com/multiformats/go-base36 v0.2.0 // indirect
 	github.com/multiformats/go-multiaddr-dns v0.3.1 // indirect
@@ -133,8 +126,6 @@ require (
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
-	github.com/stretchr/testify v1.9.0 // indirect
-	github.com/thejerf/suture v4.0.5+incompatible // indirect
 	github.com/whyrusleeping/go-keyspace v0.0.0-20160322163242-5b898ac5add1 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
 	go.opencensus.io v0.24.0 // indirect

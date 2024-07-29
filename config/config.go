@@ -6,6 +6,8 @@ import (
 )
 
 // commands
+
+// Root
 type Root struct {
 	Verbose    bool
 	LogLevel   string
@@ -24,7 +26,7 @@ type Service struct {
 	Network string
 }
 
-// Database
+// Database defines the basic configuration of a database
 type Database struct {
 	// File path to the JSON output directory
 	JSONOut string

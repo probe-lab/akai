@@ -16,7 +16,7 @@ type V2Version struct {
 	NetworkVersion string `json:"networ_kversion"`
 }
 
-func (c *HttpClient) GetV2Version(ctx context.Context) (V2Version, error) {
+func (c *HTTPClient) GetV2Version(ctx context.Context) (V2Version, error) {
 	// make Http request
 	resp, err := c.get(ctx, V2VersionEndpoint, "")
 	if err != nil {

@@ -17,14 +17,14 @@ import (
 // coming from Avail's API website
 // https://docs.availproject.org/docs/operate-a-node/run-a-light-client/light-client-api-reference
 
-type HttpClient struct {
+type HTTPClient struct {
 	base    *url.URL
 	address string
 	client  *http.Client
 	timeout time.Duration
 }
 
-func NewHttpCli(opts config.AvailHttpApiClient) (*HttpClient, error) {
+func NewHTTPCli(opts config.AvailHttpAPIClient) (*HTTPClient, error) {
 
 	// http client for the communication
 	httpCli := &http.Client{
@@ -43,7 +43,7 @@ func NewHttpCli(opts config.AvailHttpApiClient) (*HttpClient, error) {
 		return nil, errors.Wrap(err, "composing Avail API's base URL")
 	}
 
-	cli := &HttpClient{
+	cli := &HTTPClient{
 		base:    urlBase,
 		address: address,
 		client:  httpCli,
@@ -53,7 +53,7 @@ func NewHttpCli(opts config.AvailHttpApiClient) (*HttpClient, error) {
 	return cli, nil
 }
 
-func (c *HttpClient) Serve(ctx context.Context) error {
+func (c *HTTPClient) Serve(ctx context.Context) error {
 
 	err := c.CheckConnection(ctx)
 	if err != nil {
@@ -68,7 +68,7 @@ func (c *HttpClient) Serve(ctx context.Context) error {
 	return nil
 }
 
-func (c *HttpClient) CheckConnection(ctx context.Context) error {
+func (c *HTTPClient) CheckConnection(ctx context.Context) error {
 	// try the API agains the V2Version call
 
 	version, err := c.GetV2Version(ctx)
@@ -84,7 +84,7 @@ func (c *HttpClient) CheckConnection(ctx context.Context) error {
 	return nil
 }
 
-func (c *HttpClient) get(
+func (c *HTTPClient) get(
 	ctx context.Context,
 	endpoint string,
 	query string) ([]byte, error) {
@@ -95,9 +95,9 @@ func (c *HttpClient) get(
 	opCtx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
-	callUrl := composeCallUrl(c.base, endpoint, query)
+	callURL := composeCallURL(c.base, endpoint, query)
 
-	req, err := http.NewRequestWithContext(opCtx, http.MethodGet, callUrl.String(), nil)
+	req, err := http.NewRequestWithContext(opCtx, http.MethodGet, callURL.String(), nil)
 	if err != nil {
 		return []byte{}, errors.Wrap(err, "unable to compose call URL")
 	}
@@ -107,7 +107,7 @@ func (c *HttpClient) get(
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return respBody, errors.Wrap(err, fmt.Sprintf("unable to request URL %s", callUrl.String()))
+		return respBody, errors.Wrap(err, fmt.Sprintf("unable to request URL %s", callURL.String()))
 	}
 	defer resp.Body.Close()
 
@@ -120,19 +120,19 @@ func (c *HttpClient) get(
 	return respBody, nil
 }
 
-func composeCallUrl(base *url.URL, endpoint, query string) *url.URL {
-	callUrl := *base
-	callUrl.Path += endpoint
-	if callUrl.RawQuery == "" {
-		callUrl.RawQuery = query
+func composeCallURL(base *url.URL, endpoint, query string) *url.URL {
+	callURL := *base
+	callURL.Path += endpoint
+	if callURL.RawQuery == "" {
+		callURL.RawQuery = query
 	} else if query != "" {
-		callUrl.RawQuery = fmt.Sprintf("%s&%s", callUrl.RawQuery, query)
+		callURL.RawQuery = fmt.Sprintf("%s&%s", callURL.RawQuery, query)
 	}
 
-	return &callUrl
+	return &callURL
 }
 
-func (c *HttpClient) Close() error {
+func (c *HTTPClient) Close() error {
 	c.client.CloseIdleConnections()
 	return nil
 }

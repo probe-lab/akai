@@ -12,7 +12,7 @@ import (
 )
 
 type BlockRequester struct {
-	httpApiCli *api.HttpClient
+	httpAPICli *api.HTTPClient
 
 	genesisTime      time.Time
 	lastBlockTracked uint64
@@ -20,14 +20,14 @@ type BlockRequester struct {
 	consumers []BlockConsumer
 }
 
-func NewBlockRequester(apiCli *api.HttpClient, network db.Network, consumers []BlockConsumer) (*BlockRequester, error) {
+func NewBlockRequester(apiCli *api.HTTPClient, network db.Network, consumers []BlockConsumer) (*BlockRequester, error) {
 	genTime := api.GenesisTimeFromNetwork(network)
 	if genTime.IsZero() {
 		return nil, fmt.Errorf("empty genesis time (%s) for network %s", genTime, network.String())
 	}
 
 	return &BlockRequester{
-		httpApiCli:       apiCli,
+		httpAPICli:       apiCli,
 		genesisTime:      genTime,
 		lastBlockTracked: uint64(0),
 		consumers:        consumers,
@@ -43,7 +43,7 @@ func (r *BlockRequester) Serve(ctx context.Context) error {
 
 func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 	// request the genesis info
-	availStatus, err := r.httpApiCli.GetV2Status(ctx)
+	availStatus, err := r.httpAPICli.GetV2Status(ctx)
 	if err != nil {
 		log.Panic("requesting status to start block-requester", err)
 	}
@@ -92,7 +92,7 @@ func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 
 			} else {
 				for blockToRequest := r.lastBlockTracked + 1; blockToRequest <= lastBlock; blockToRequest++ {
-					blockHeader, err := r.httpApiCli.GetV2BlockHeader(ctx, blockToRequest)
+					blockHeader, err := r.httpAPICli.GetV2BlockHeader(ctx, blockToRequest)
 					if err != nil {
 						log.WithField(
 							"requested_block", blockToRequest,
@@ -134,7 +134,7 @@ func (r *BlockRequester) processNewBlock(ctx context.Context, blockHeader api.V2
 
 func (r *BlockRequester) requestLastState(ctx context.Context) (uint64, uint64, error) {
 	// request the genesis info
-	availStatus, err := r.httpApiCli.GetV2Status(ctx)
+	availStatus, err := r.httpAPICli.GetV2Status(ctx)
 	if err != nil {
 		return uint64(0), uint64(0), err
 	}

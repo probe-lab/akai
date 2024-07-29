@@ -6,13 +6,12 @@ import (
 
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
-	"github.com/probe-lab/akai/db"
 	mdb "github.com/probe-lab/akai/db"
 	log "github.com/sirupsen/logrus"
 )
 
-var networkTableDriver = tableDriver[db.Network]{
-	tableName:      db.NetworkTableName,
+var networkTableDriver = tableDriver[mdb.Network]{
+	tableName:      mdb.NetworkTableName,
 	tag:            "insert_new_network",
 	baseQuery:      insertNetworkQueryBase(),
 	inputConverter: convertNetworkToInput,
@@ -28,7 +27,7 @@ func insertNetworkQueryBase() string {
 	return query
 }
 
-func convertNetworkToInput(networks []db.Network) proto.Input {
+func convertNetworkToInput(networks []mdb.Network) proto.Input {
 	// one item per column, which can ingests an entire array
 	var (
 		networkIDs   proto.ColUInt16

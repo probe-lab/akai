@@ -14,7 +14,7 @@ import (
 var availBlockTrackerConf = &config.AvailBlockTracker{
 	TextConsumer: true,
 	Network:      db.Network{Protocol: config.ProtocolAvail, NetworkName: config.NetworkNameAvailTuring}.String(),
-	AvailHttpApiClient: config.AvailHttpApiClient{
+	AvailHttpAPIClient: config.AvailHttpAPIClient{
 		IP:      "localhost",
 		Port:    5000,
 		Timeout: 10 * time.Second,
@@ -97,7 +97,7 @@ func cmdAvailBlockTrackerAction(ctx context.Context, cmd *cli.Command) error {
 	blockTrackerConfig := config.AvailBlockTracker{
 		TextConsumer: availBlockTrackerConf.TextConsumer,
 		Network:      availBlockTrackerConf.Network,
-		AvailHttpApiClient: config.AvailHttpApiClient{
+		AvailHttpAPIClient: config.AvailHttpAPIClient{
 			IP:      availBlockTrackerConf.IP,
 			Port:    availBlockTrackerConf.Port,
 			Timeout: availBlockTrackerConf.Timeout,

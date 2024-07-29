@@ -13,14 +13,14 @@ import (
 type BlockTracker struct {
 	sup *suture.Supervisor
 
-	httpApiCli     *api.HttpClient
+	httpAPICli     *api.HTTPClient
 	BlockRequester *BlockRequester
 	blockConsumers []BlockConsumer
 }
 
 func NewBlockTracker(cfg config.AvailBlockTracker) (*BlockTracker, error) {
 	// api
-	httpApiCli, err := api.NewHttpCli(cfg.AvailHttpApiClient)
+	httpAPICli, err := api.NewHTTPCli(cfg.AvailHttpAPIClient)
 	if err != nil {
 		return nil, err
 	}
@@ -37,14 +37,14 @@ func NewBlockTracker(cfg config.AvailBlockTracker) (*BlockTracker, error) {
 
 	// block requester
 	network := db.Network{}.FromString(cfg.Network)
-	blockReq, err := NewBlockRequester(httpApiCli, network, blockConsumers)
+	blockReq, err := NewBlockRequester(httpAPICli, network, blockConsumers)
 	if err != nil {
 		return nil, err
 	}
 
 	bTracker := &BlockTracker{
 		sup:            suture.NewSimple("avail-block-tracker"),
-		httpApiCli:     httpApiCli,
+		httpAPICli:     httpAPICli,
 		BlockRequester: blockReq,
 		blockConsumers: blockConsumers,
 	}
@@ -62,7 +62,7 @@ func (t *BlockTracker) Start(ctx context.Context) error {
 	for _, consumer := range t.blockConsumers {
 		t.sup.Add(consumer)
 	}
-	t.sup.Add(t.httpApiCli)
+	t.sup.Add(t.httpAPICli)
 	t.sup.Add(t.BlockRequester)
 	return t.sup.Serve(ctx)
 }

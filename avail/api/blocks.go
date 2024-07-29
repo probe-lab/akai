@@ -14,12 +14,13 @@ var (
 )
 
 // API docs: https://docs.availproject.org/docs/operate-a-node/run-a-light-client/light-client-api-reference#v2blocksblock_number
+
 type V2BlockStatus struct {
 	Status     string  `json:"status"`
 	Confidence float64 `json:"confidence"`
 }
 
-func (c *HttpClient) GetV2BlockStatus(ctx context.Context, block uint64) (V2BlockStatus, error) {
+func (c *HTTPClient) GetV2BlockStatus(ctx context.Context, block uint64) (V2BlockStatus, error) {
 	resp, err := c.get(ctx, fmt.Sprintf(V2BlockStatusEndpoint, block), "")
 	if err != nil {
 		return V2BlockStatus{}, errors.Wrap(err, "requesting v2-block-status")
@@ -35,6 +36,7 @@ func (c *HttpClient) GetV2BlockStatus(ctx context.Context, block uint64) (V2Bloc
 }
 
 // API docs: https://docs.availproject.org/docs/operate-a-node/run-a-light-client/light-client-api-reference#v2blocksblock_numberheader
+
 type V2BlockHeader struct {
 	Hash           string `json:"hash"`
 	ParentHash     string `json:"parent_hash"`
@@ -56,7 +58,7 @@ type V2BlockHeader struct {
 	} `json:"extension"`
 }
 
-func (c *HttpClient) GetV2BlockHeader(ctx context.Context, block uint64) (V2BlockHeader, error) {
+func (c *HTTPClient) GetV2BlockHeader(ctx context.Context, block uint64) (V2BlockHeader, error) {
 	resp, err := c.get(ctx, fmt.Sprintf(V2BlockHeaderEndpoint, block), "")
 	if err != nil {
 		return V2BlockHeader{}, errors.Wrap(err, "requesting v2-block-header")

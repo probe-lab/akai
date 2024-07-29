@@ -15,6 +15,8 @@ var serviceConfig = &config.Service{
 	Network: db.Network{Protocol: config.ProtocolIPFS, NetworkName: config.NetworkNameIPFSAmino}.String(),
 }
 
+var _ = serviceConfig
+
 var cmdService = &cli.Command{
 	Name:   "service",
 	Usage:  "Listen to gossipsub topics of the Ethereum network",

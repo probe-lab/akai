@@ -49,6 +49,7 @@ func (k *Key) Bytes() []byte {
 	return []byte(k.String())
 }
 
+// DHTKey returns the string representation of the of the DHT Key
 // TODO: This is likely to be deprecated as k.String() should be the right dht key
 func (k *Key) DHTKey() string {
 	bytes32 := [32]byte{}

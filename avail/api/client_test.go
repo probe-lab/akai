@@ -16,8 +16,8 @@ var (
 )
 
 // API connection
-func Test_AvailHttpApiClient(t *testing.T) {
-	httpCli, testMainCtx, cancel := genTestApiCli(t)
+func Test_AvailHttpAPIClient(t *testing.T) {
+	httpCli, testMainCtx, cancel := genTestAPICli(t)
 	defer cancel()
 
 	err := httpCli.CheckConnection(testMainCtx)
@@ -26,7 +26,7 @@ func Test_AvailHttpApiClient(t *testing.T) {
 
 // API endpoints
 func Test_AvailHttpV2Version(t *testing.T) {
-	httpCli, testMainCtx, cancel := genTestApiCli(t)
+	httpCli, testMainCtx, cancel := genTestAPICli(t)
 	defer cancel()
 
 	_, err := httpCli.GetV2Version(testMainCtx)
@@ -34,7 +34,7 @@ func Test_AvailHttpV2Version(t *testing.T) {
 }
 
 func Test_AvailHttpV2Status(t *testing.T) {
-	httpCli, testMainCtx, cancel := genTestApiCli(t)
+	httpCli, testMainCtx, cancel := genTestAPICli(t)
 	defer cancel()
 
 	_, err := httpCli.GetV2Status(testMainCtx)
@@ -42,7 +42,7 @@ func Test_AvailHttpV2Status(t *testing.T) {
 }
 
 func Test_AvailHttpV2BlockStatus(t *testing.T) {
-	httpCli, testMainCtx, cancel := genTestApiCli(t)
+	httpCli, testMainCtx, cancel := genTestAPICli(t)
 	defer cancel()
 
 	status, err := httpCli.GetV2Status(testMainCtx)
@@ -54,7 +54,7 @@ func Test_AvailHttpV2BlockStatus(t *testing.T) {
 }
 
 func Test_AvailHttpV2BlockHeader(t *testing.T) {
-	httpCli, testMainCtx, cancel := genTestApiCli(t)
+	httpCli, testMainCtx, cancel := genTestAPICli(t)
 	defer cancel()
 
 	status, err := httpCli.GetV2Status(testMainCtx)
@@ -66,16 +66,16 @@ func Test_AvailHttpV2BlockHeader(t *testing.T) {
 }
 
 // generics
-func genTestApiCli(t *testing.T) (*HttpClient, context.Context, context.CancelFunc) {
+func genTestAPICli(t *testing.T) (*HTTPClient, context.Context, context.CancelFunc) {
 	testMainCtx, cancel := context.WithCancel(context.Background())
 
-	opts := config.AvailHttpApiClient{
+	opts := config.AvailHttpAPIClient{
 		IP:      localAvailTestIP,
 		Port:    localAvailTestPort,
 		Timeout: ConnectionTimeout,
 	}
 
-	httpCli, err := NewHttpCli(opts)
+	httpCli, err := NewHTTPCli(opts)
 	require.NoError(t, err)
 	return httpCli, testMainCtx, cancel
 }

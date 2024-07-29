@@ -8,10 +8,10 @@ type AvailBlockTracker struct {
 	Network      string
 
 	// for the API interaction
-	AvailHttpApiClient
+	AvailHttpAPIClient
 }
 
-type AvailHttpApiClient struct {
+type AvailHttpAPIClient struct {
 	IP      string
 	Port    int64
 	Timeout time.Duration

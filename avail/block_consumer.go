@@ -33,7 +33,7 @@ func getTypesFromBlockConsumers(consumers []BlockConsumer) []ConsumerType {
 	return types
 }
 
-// text consumer
+// TextConsumer (most simple text logger consumer)
 type TextConsumer struct{}
 
 var _ BlockConsumer = (*TextConsumer)(nil)

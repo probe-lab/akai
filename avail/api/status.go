@@ -24,7 +24,7 @@ type V2Status struct {
 	} `json:"blocks"`
 }
 
-func (c *HttpClient) GetV2Status(ctx context.Context) (V2Status, error) {
+func (c *HTTPClient) GetV2Status(ctx context.Context) (V2Status, error) {
 	// make Http request
 	resp, err := c.get(ctx, V2StatusEndpoint, "")
 	if err != nil {

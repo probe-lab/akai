@@ -248,11 +248,11 @@ func (h *DHTHost) GetMAddrsOfPeer(p peer.ID) []ma.Multiaddr {
 }
 
 // conside moving this to the Host
-func (h *DHTHost) isPeerConnected(pId peer.ID) bool {
+func (h *DHTHost) isPeerConnected(pID peer.ID) bool {
 	// check if we already have a connection open to the peer
 	peerList := h.host.Network().Peers()
 	for _, p := range peerList {
-		if p == pId {
+		if p == pID {
 			return true
 		}
 	}

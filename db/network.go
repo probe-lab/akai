@@ -5,7 +5,8 @@ import (
 	"strings"
 )
 
-// names for the DB tables
+// DB table names
+
 var NetworkTableName = "networks"
 var networkBatcherSize = 1
 

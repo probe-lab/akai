@@ -9,7 +9,6 @@ import (
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/pkg/errors"
-	"github.com/probe-lab/akai/db"
 	mdb "github.com/probe-lab/akai/db"
 	log "github.com/sirupsen/logrus"
 
@@ -30,7 +29,7 @@ type ClickHouseDB struct {
 
 	// pointers for all the query batchers
 	qBatchers struct {
-		network *queryBatcher[db.Network]
+		network *queryBatcher[mdb.Network]
 	}
 
 	// caches to speedup queries
@@ -156,7 +155,7 @@ func (db *ClickHouseDB) getConnectableDrivers(tables map[string]struct{}) map[st
 	return drivers
 }
 
-// returns a bat
+// composeBatchersForTables
 func (db *ClickHouseDB) composeBatchersForTables(tables map[string]struct{}) error {
 	for table := range tables {
 		switch table {
