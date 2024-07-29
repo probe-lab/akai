@@ -9,7 +9,7 @@ GIT_PACKAGE=github.com/probe-lab/akai
 
 
 # Make Operations
-.PHONY: install uninstall build clean test-avail-api
+.PHONY: install uninstall build clean test-avail-api test-db
 
 install:
 	$(GOCC) install $(GIT_PACKAGE)
@@ -21,14 +21,18 @@ build:
 	$(GOCC) get $(TARGET_PATH)
 	$(GOCC) build -o $(BIN) $(TARGET_PATH)
 
+clean:
+	rm -r $(BIN_PATH)
+
 test: 
 	$(GOCC) test ./core
 	$(GOCC) test ./avail
 
-clean:
-	rm -r $(BIN_PATH)
+test-db:
+	@echo "go test ./db/clickhouse"; \
+	$(GOCC) test ./db/clickhouse || @echo "the test requires a clickhouse db"
 
 test-avail-api:
-	@echo "testing avail-http-api module"; \
+	@echo "go test ./avail/api"; \
 	$(GOCC) test ./avail/api || @echo "the test requires an avail-light client running an http-api at the 5000 port"
 

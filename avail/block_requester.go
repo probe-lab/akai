@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/probe-lab/akai/avail/api"
-	"github.com/probe-lab/akai/config"
+	"github.com/probe-lab/akai/db"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -20,7 +20,7 @@ type BlockRequester struct {
 	consumers []BlockConsumer
 }
 
-func NewBlockRequester(apiCli *api.HttpClient, network config.Network, consumers []BlockConsumer) (*BlockRequester, error) {
+func NewBlockRequester(apiCli *api.HttpClient, network db.Network, consumers []BlockConsumer) (*BlockRequester, error) {
 	genTime := api.GenesisTimeFromNetwork(network)
 	if genTime.IsZero() {
 		return nil, fmt.Errorf("empty genesis time (%s) for network %s", genTime, network.String())

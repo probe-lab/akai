@@ -7,11 +7,12 @@ import (
 	"strings"
 
 	"github.com/probe-lab/akai/config"
+	"github.com/probe-lab/akai/db"
 	"github.com/urfave/cli/v3"
 )
 
 var serviceConfig = &config.Service{
-	Network: config.Network{Protocol: config.ProtocolIPFS, NetworkName: config.NetworkNameIPFSAmino}.String(),
+	Network: db.Network{Protocol: config.ProtocolIPFS, NetworkName: config.NetworkNameIPFSAmino}.String(),
 }
 
 var cmdService = &cli.Command{
@@ -30,8 +31,8 @@ var cmdServiceFlags = []cli.Flag{
 		},
 		Usage:       "The network where the Akai will be launched.",
 		DefaultText: config.ListAllNetworkCombinations(),
-		Value:       serviceConfig.Network,
-		Destination: &serviceConfig.Network,
+		Value:       pingConfig.Network,
+		Destination: &pingConfig.Network,
 		Action:      validateNetworkFlag,
 	},
 }
@@ -39,7 +40,7 @@ var cmdServiceFlags = []cli.Flag{
 func validateNetworkFlag(ctx context.Context, cli *cli.Command, s string) error {
 	for protocol, networkNames := range config.AvailableProtocols {
 		for _, networkName := range networkNames {
-			network := config.Network{Protocol: protocol, NetworkName: networkName}
+			network := db.Network{Protocol: protocol, NetworkName: networkName}
 			if strings.ToUpper(s) == network.String() {
 				return nil
 			}
@@ -49,7 +50,7 @@ func validateNetworkFlag(ctx context.Context, cli *cli.Command, s string) error 
 }
 
 func cmdServiceAction(ctx context.Context, cmd *cli.Command) error {
-	network := config.NetworkFromStr(serviceConfig.Network)
+	network := config.NetworkFromStr(pingConfig.Network)
 	slog.Info(fmt.Sprintf("running Akai on %s network", network))
 
 	return nil

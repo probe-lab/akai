@@ -6,13 +6,14 @@ import (
 
 	"github.com/probe-lab/akai/avail"
 	"github.com/probe-lab/akai/config"
+	"github.com/probe-lab/akai/db"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
 )
 
 var availBlockTrackerConf = &config.AvailBlockTracker{
 	TextConsumer: true,
-	Network:      config.Network{Protocol: config.ProtocolAvail, NetworkName: config.NetworkNameAvailTuring}.String(),
+	Network:      db.Network{Protocol: config.ProtocolAvail, NetworkName: config.NetworkNameAvailTuring}.String(),
 	AvailHttpApiClient: config.AvailHttpApiClient{
 		IP:      "localhost",
 		Port:    5000,

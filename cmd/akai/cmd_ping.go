@@ -14,10 +14,11 @@ import (
 	"github.com/probe-lab/akai/avail"
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/core"
+	"github.com/probe-lab/akai/db"
 )
 
 var pingConfig = &config.Ping{
-	Network: config.Network{Protocol: config.ProtocolIPFS, NetworkName: config.NetworkNameIPFSAmino}.String(),
+	Network: db.Network{Protocol: config.ProtocolIPFS, NetworkName: config.NetworkNameIPFSAmino}.String(),
 	Key:     "",
 	Timeout: 60 * time.Second,
 }
@@ -72,7 +73,7 @@ func cmdPingAction(ctx context.Context, cmd *cli.Command) error {
 		"timeout": pingConfig.Timeout,
 	}).Info("requesting key from given DHT...")
 
-	network := config.Network{}.FromString(pingConfig.Network)
+	network := db.Network{}.FromString(pingConfig.Network)
 
 	dhtHostOpts := core.CommonDHTOpts{
 		IP:          "0.0.0.0",        // default?
@@ -82,12 +83,12 @@ func cmdPingAction(ctx context.Context, cmd *cli.Command) error {
 		UserAgent:   config.ComposeAkaiUserAgent(network),
 	}
 
-	dhtHost, err := core.NewDHTHost(ctx, config.Network(network), dhtHostOpts)
+	dhtHost, err := core.NewDHTHost(ctx, db.Network(network), dhtHostOpts)
 	if err != nil {
 		return errors.Wrap(err, "creating DHT host")
 	}
 
-	pingKey, err := core.ParseDHTKeyType(config.Network(network), pingConfig.Key)
+	pingKey, err := core.ParseDHTKeyType(db.Network(network), pingConfig.Key)
 	if err != nil {
 		return err
 	}

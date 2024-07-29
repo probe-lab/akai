@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/probe-lab/akai/config"
+	"github.com/probe-lab/akai/db"
 )
 
 // DHT specs
@@ -22,7 +23,7 @@ var (
 	TuringTestnetGenesisTime = time.Unix(int64(1711605040), int64(0))
 )
 
-func GenesisTimeFromNetwork(network config.Network) time.Time {
+func GenesisTimeFromNetwork(network db.Network) time.Time {
 	var genTime time.Time
 	switch network.NetworkName {
 	case config.NetworkNameAvailTuring:

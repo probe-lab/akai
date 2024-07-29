@@ -14,6 +14,7 @@ import (
 	"github.com/probe-lab/akai/amino"
 	"github.com/probe-lab/akai/avail"
 	"github.com/probe-lab/akai/config"
+	"github.com/probe-lab/akai/db"
 )
 
 type DHTHostType int8
@@ -43,11 +44,11 @@ type DHTHost interface {
 
 var _ DHTHost = (*amino.DHTHost)(nil)
 
-func NewDHTHost(ctx context.Context, network config.Network, cfg CommonDHTOpts) (DHTHost, error) {
+func NewDHTHost(ctx context.Context, network db.Network, cfg CommonDHTOpts) (DHTHost, error) {
 	return composeHostForNetwork(ctx, network, cfg)
 }
 
-func composeHostForNetwork(ctx context.Context, network config.Network, commonCfg CommonDHTOpts) (DHTHost, error) {
+func composeHostForNetwork(ctx context.Context, network db.Network, commonCfg CommonDHTOpts) (DHTHost, error) {
 	switch network.Protocol {
 	case config.ProtocolIPFS:
 		// configure amino DHT
@@ -68,7 +69,7 @@ func composeHostForNetwork(ctx context.Context, network config.Network, commonCf
 		}
 		return amino.NewDHTHost(ctx, aminoDHTHostConfig)
 
-	case config.ProtocolAvail:
+	case config.ProtocolAvail, config.ProtocolLocalCustom:
 		// configure amino DHT
 		bootstapers, v1protocol, protoPrefix, err := config.ConfigureNetwork(network)
 		if err != nil {

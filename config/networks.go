@@ -3,36 +3,14 @@ package config
 import (
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
 
 	kaddht "github.com/libp2p/go-libp2p-kad-dht"
+
+	"github.com/probe-lab/akai/db"
 )
-
-type Network struct {
-	NetworkID   int16
-	Protocol    string
-	NetworkName string
-}
-
-func (n Network) String() string {
-	return fmt.Sprintf("%s_%s", n.Protocol, n.NetworkName)
-}
-
-func (n Network) FromString(s string) Network {
-	parts := strings.Split(s, "_")
-	protocol := strings.ToUpper(parts[0]) // the protocol goes always first
-	network := "MAIN_NET"
-	if len(parts) >= 2 {
-		network = strings.ToUpper(parts[1])
-	}
-	return Network{
-		Protocol:    protocol,
-		NetworkName: network,
-	}
-}
 
 // Protocols
 const (
@@ -76,7 +54,7 @@ func ListAllNetworkCombinations() string {
 func ListNetworksForProtocol(protocol string) string {
 	networks := make([]string, 0)
 	for _, networkName := range AvailableProtocols[protocol] {
-		net := Network{Protocol: protocol, NetworkName: networkName}
+		net := db.Network{Protocol: protocol, NetworkName: networkName}
 		networks = append(networks, net.String())
 	}
 	return "[" + NetworkListToText(networks) + "]"
@@ -94,13 +72,13 @@ func NetworkListToText(networks []string) string {
 	return text
 }
 
-func NetworkFromStr(s string) Network {
-	network := Network{}
+func NetworkFromStr(s string) db.Network {
+	network := db.Network{}
 	network.FromString(s)
 	return network
 }
 
-func ConfigureNetwork(network Network) ([]peer.AddrInfo, protocol.ID, string, error) {
+func ConfigureNetwork(network db.Network) ([]peer.AddrInfo, protocol.ID, string, error) {
 	var (
 		bootstrapPeers []peer.AddrInfo
 		v1protocol     protocol.ID

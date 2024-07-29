@@ -11,6 +11,7 @@ import (
 
 	"github.com/probe-lab/akai/avail"
 	"github.com/probe-lab/akai/config"
+	"github.com/probe-lab/akai/db"
 
 	"github.com/stretchr/testify/require"
 )
@@ -79,14 +80,15 @@ func composeDemoDHTNetwork(ctx context.Context, t *testing.T, nodeNumbers int64)
 }
 
 func composeDHTHost(t *testing.T, ctx context.Context, port int64, mode DHTHostType) DHTHost {
+	network := db.Network{Protocol: config.ProtocolLocalCustom, NetworkName: config.NetworkNameLocalCustom}
 	dhtHostOpts := CommonDHTOpts{
 		IP:          "127.0.0.1",      // default?
 		Port:        port,             // default?
 		DialTimeout: 10 * time.Second, // this is the DialTimeout, not the timeout for the operation
 		DHTMode:     mode,
-		UserAgent:   fmt.Sprintf("%s_%d", config.ComposeAkaiUserAgent(config.NetworkLocalCustom), port),
+		UserAgent:   fmt.Sprintf("%s_%d", config.ComposeAkaiUserAgent(network), port),
 	}
-	dhtHost, err := NewDHTHost(ctx, config.Network(config.NetworkLocalCustom), dhtHostOpts)
+	dhtHost, err := NewDHTHost(ctx, db.Network(network), dhtHostOpts)
 	require.NoError(t, err)
 
 	return dhtHost

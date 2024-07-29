@@ -5,6 +5,7 @@ import (
 
 	"github.com/probe-lab/akai/avail/api"
 	"github.com/probe-lab/akai/config"
+	"github.com/probe-lab/akai/db"
 	log "github.com/sirupsen/logrus"
 	"github.com/thejerf/suture/v4"
 )
@@ -35,7 +36,7 @@ func NewBlockTracker(cfg config.AvailBlockTracker) (*BlockTracker, error) {
 	}
 
 	// block requester
-	network := config.Network{}.FromString(cfg.Network)
+	network := db.Network{}.FromString(cfg.Network)
 	blockReq, err := NewBlockRequester(httpApiCli, network, blockConsumers)
 	if err != nil {
 		return nil, err
