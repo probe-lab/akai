@@ -1,10 +1,12 @@
 name: Go Tests
 
-on:
-  pull_request:
-  push:
-    branches: ["main"]
-  workflow_dispatch:
+on: [push, merge_group]
+
+
+env:
+  CH_USER: username
+  CH_PASSWORD: password
+  CH_DATABASE: akai_test
 
 jobs:
   build:
@@ -17,13 +19,13 @@ jobs:
     services:
       image: clickhouse/clickhouse-server
         env:
-          CLICKHOUSE_DB: ${{ env.PG_DATABASE }}
-          CLICKHOUSE_USER: ${{ env.PG_USER }}
+          CLICKHOUSE_DB: ${{ env.CH_DATABASE }}
+          CLICKHOUSE_USER: ${{ env.CH_USER }}
           CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
-          CLICKHOUSE_PASSWORD: ${{ env.PGPASSWORD }}
+          CLICKHOUSE_PASSWORD: ${{ env.CH_PASSWORD }}
         ports:
-          - "8123:8123"
-          - "9000:9000"
+          - "127.0.0.1:8123:8123"
+          - "127.0.0.1:9000:9000"
 
     steps:
       - uses: actions/checkout@v4
