@@ -7,16 +7,15 @@ import (
 )
 
 type Database interface {
-	Init(context.Context) error
+	Init(context.Context, map[string]struct{}) error
 	Run(context.Context) error
-	Stop() error
+	Close() error
 	// tables's perspective
 	// networks
-	EnsureNetworks()
-	GetNetworks() ([]Network, error)
+	GetNetworks(context.Context) ([]Network, error)
 	// blocks
-	PersistNewBlock() error
-	GetSampleableBlocks() ([]models.AgnosticBlock, error)
+	PersistNewBlock(context.Context) error
+	GetSampleableBlocks(context.Context) ([]models.AgnosticBlock, error)
 	// cell visists
-	PersistNewCellVisit() error
+	PersistNewCellVisit(context.Context) error
 }

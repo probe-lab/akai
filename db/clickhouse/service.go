@@ -9,7 +9,9 @@ import (
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/pkg/errors"
+	"github.com/probe-lab/akai/db"
 	mdb "github.com/probe-lab/akai/db"
+	"github.com/probe-lab/akai/models"
 	log "github.com/sirupsen/logrus"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -40,7 +42,7 @@ type ClickHouseDB struct {
 	// telemetry *telemetry
 }
 
-// var _ db.Database = (*ClickHouseDB)(nil)
+var _ db.Database = (*ClickHouseDB)(nil)
 
 func NewClickHouseDB(conDetails ConnectionDetails) (*ClickHouseDB, error) {
 	db := &ClickHouseDB{
@@ -175,10 +177,14 @@ func (db *ClickHouseDB) composeBatchersForTables(tables map[string]struct{}) err
 	return nil
 }
 
-func (db *ClickHouseDB) Close() {
+func (db *ClickHouseDB) Close() error {
 	db.closeLowLevelConns()
-	db.highLevelClient.Close()
+	err := db.highLevelClient.Close()
+	if err != nil {
+		log.Errorf("closing high level connection - %s", err.Error())
+	}
 	log.Infof("connection to clichouse database closed...")
+	return nil
 }
 
 func (db *ClickHouseDB) persistBatch(
@@ -217,5 +223,25 @@ func (db *ClickHouseDB) persistBatch(
 	}
 
 	log.Infof("query submitted in %s", elapsedTime)
+	return nil
+}
+
+func (db *ClickHouseDB) GetNetworks(ctx context.Context) ([]mdb.Network, error) {
+	db.highMu.Lock()
+	networks, err := requestNetworks(ctx, db.highLevelClient)
+	db.highMu.Unlock()
+	return networks, err
+}
+
+func (db *ClickHouseDB) PersistNewBlock(ctx context.Context) error {
+	return nil
+}
+
+func (db *ClickHouseDB) GetSampleableBlocks(ctx context.Context) ([]models.AgnosticBlock, error) {
+	blocks := make([]models.AgnosticBlock, 0)
+	return blocks, nil
+}
+
+func (db *ClickHouseDB) PersistNewCellVisit(ctx context.Context) error {
 	return nil
 }
