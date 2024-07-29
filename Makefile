@@ -25,14 +25,14 @@ clean:
 	rm -r $(BIN_PATH)
 
 test: 
-	$(GOCC) test ./core
-	$(GOCC) test ./avail
+	$(GOCC) test -v ./core
+	$(GOCC) test -v ./avail
 
 test-db:
 	@echo "go test ./db/clickhouse"; \
-	$(GOCC) test ./db/clickhouse || @echo "the test requires a clickhouse db"
+	$(GOCC) test -v ./db/clickhouse || @echo "the test requires a clickhouse db"
 
 test-avail-api:
 	@echo "go test ./avail/api"; \
-	$(GOCC) test ./avail/api || @echo "the test requires an avail-light client running an http-api at the 5000 port"
+	$(GOCC) test -v ./avail/api || @echo "the test requires an avail-light client running an http-api at the 5000 port"
 
