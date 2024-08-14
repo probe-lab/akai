@@ -11,9 +11,9 @@ var NetworkTableName = "networks"
 var networkBatcherSize = 1
 
 type Network struct {
-	NetworkID   uint16 `ch:"network_id"`
-	Protocol    string `ch:"protocol"`
-	NetworkName string `ch:"network_name"`
+	NetworkID   uint16 `ch:"network_id" json:"network_id"`
+	Protocol    string `ch:"protocol" json:"protocol"`
+	NetworkName string `ch:"network_name" json:"network_name"`
 }
 
 func (n Network) String() string {
