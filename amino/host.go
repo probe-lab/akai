@@ -87,27 +87,6 @@ func NewDHTHost(ctx context.Context, opts DHTHostConfig) (*DHTHost, error) {
 		libp2p.Transport(quic.NewTransport),
 		libp2p.Muxer(mplex.ID, mplex.DefaultTransport),
 		libp2p.Muxer(yamux.ID, yamux.DefaultTransport),
-		// libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-		// 	var err error
-		// 	// DHT routing
-		// 	dhtOpts := []kaddht.Option{
-		// 		kaddht.Mode(opts.DHTMode),
-		// 		kaddht.BootstrapPeers(opts.Bootstrapers...),
-		// 		kaddht.V1ProtocolOverride(opts.V1Protocol),
-		// 	}
-		// 	// is there any need for a custom key-value validator?
-		// 	if opts.CustomValidator != nil {
-		// 		dhtOpts = append(dhtOpts, kaddht.Validator(opts.CustomValidator))
-		// 	}
-
-		// 	// is there a custom protocol-prefix?
-		// 	if opts.CustomProtocolPrefix != nil {
-		// 		dhtOpts = append(dhtOpts, kaddht.ProtocolPrefix(protocol.ID(*opts.CustomProtocolPrefix)))
-
-		// 	}
-		// 	dhtCli, err = kaddht.New(ctx, h, dhtOpts...)
-		// 	return dhtCli, err
-		// }),
 	)
 	if err != nil {
 		return nil, err
@@ -248,16 +227,16 @@ func (h *DHTHost) GetMAddrsOfPeer(p peer.ID) []ma.Multiaddr {
 }
 
 // conside moving this to the Host
-func (h *DHTHost) isPeerConnected(pID peer.ID) bool {
-	// check if we already have a connection open to the peer
-	peerList := h.host.Network().Peers()
-	for _, p := range peerList {
-		if p == pID {
-			return true
-		}
-	}
-	return false
-}
+// func (h *DHTHost) isPeerConnected(pID peer.ID) bool {
+// 	// check if we already have a connection open to the peer
+// 	peerList := h.host.Network().Peers()
+// 	for _, p := range peerList {
+// 		if p == pID {
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }
 
 func (h *DHTHost) FindClosestPeers(ctx context.Context, key string) (time.Duration, []peer.ID, error) {
 	log.WithFields(log.Fields{

@@ -12,6 +12,12 @@ import (
 	"github.com/probe-lab/akai/db"
 )
 
+var DefaultNetwork = db.Network{
+	Protocol:    ProtocolAvail,
+	NetworkName: NetworkNameAvailTuring,
+	NetworkID:   0,
+}
+
 // Protocols
 const (
 	ProtocolUnknown     string = "UNKNOWN"

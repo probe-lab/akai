@@ -2,21 +2,25 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/probe-lab/akai/models"
 )
 
+var (
+	MaxFlushInterval = 5 * time.Second
+)
+
 type Database interface {
-	Init(context.Context) error
-	Run(context.Context) error
-	Stop() error
+	Init(context.Context, map[string]struct{}) error
+	Close() error
 	// tables's perspective
+	GetAllTables() map[string]struct{}
 	// networks
-	EnsureNetworks()
-	GetNetworks() ([]Network, error)
+	GetNetworks(context.Context) ([]Network, error)
 	// blocks
-	PersistNewBlock() error
-	GetSampleableBlocks() ([]models.AgnosticBlock, error)
+	PersistNewBlock(context.Context) error
+	GetSampleableBlocks(context.Context) ([]models.AgnosticBlock, error)
 	// cell visists
-	PersistNewCellVisit() error
+	PersistNewCellVisit(context.Context) error
 }

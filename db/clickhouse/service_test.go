@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/probe-lab/akai/config"
+	"github.com/probe-lab/akai/db"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,8 +26,13 @@ func generateClickhouseDatabase(t *testing.T, ctx context.Context, tables map[st
 		Database: "akai_test",
 		Params:   "",
 	}
+	network := db.Network{
+		NetworkID:   0,
+		Protocol:    config.ProtocolLocalCustom,
+		NetworkName: config.NetworkNameLocalCustom,
+	}
 	// generate new connection
-	clickhouseDB, err := NewClickHouseDB(conDetails)
+	clickhouseDB, err := NewClickHouseDB(conDetails, network)
 	require.NoError(t, err)
 
 	err = clickhouseDB.Init(ctx, tables)

@@ -6,8 +6,6 @@ import (
 	"github.com/ClickHouse/ch-go/proto"
 )
 
-const ()
-
 type ConnectionDetails struct {
 	Driver   string
 	Address  string

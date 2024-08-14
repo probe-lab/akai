@@ -34,9 +34,10 @@ audit:
 	$(GOCC) run honnef.co/go/tools/cmd/staticcheck@latest $(TARGET_PATH)
 	$(GOCC) test -race -buildvcs -vet=off $(TARGET_PATH)
 
-test: 
+test:
 	$(GOCC) test -v ./core
 	$(GOCC) test -v ./avail
+	$(GOCC) test -v ./api
 
 test-db:
 	@echo "go test ./db/clickhouse"; \
