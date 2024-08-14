@@ -37,6 +37,7 @@ audit:
 test: 
 	$(GOCC) test -v ./core
 	$(GOCC) test -v ./avail
+	$(GOCC) test -v ./api
 
 test-db:
 	@echo "go test ./db/clickhouse"; \
