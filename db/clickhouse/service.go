@@ -9,12 +9,9 @@ import (
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/pkg/errors"
-	"github.com/probe-lab/akai/db"
 	mdb "github.com/probe-lab/akai/db"
 	"github.com/probe-lab/akai/models"
 	log "github.com/sirupsen/logrus"
-
-	lru "github.com/hashicorp/golang-lru"
 )
 
 type ClickHouseDB struct {
@@ -34,15 +31,15 @@ type ClickHouseDB struct {
 		network *queryBatcher[mdb.Network] // just an example
 	}
 
-	// caches to speedup queries
+	// caches to speedup querides
 	currentNetwork mdb.Network
-	blockCellIDs   *lru.Cache
+	// blockCellIDs   *lru.Cache
 
 	// reference to all relevant db telemetry
 	// telemetry *telemetry
 }
 
-var _ db.Database = (*ClickHouseDB)(nil)
+var _ mdb.Database = (*ClickHouseDB)(nil)
 
 func NewClickHouseDB(conDetails ConnectionDetails, network mdb.Network) (*ClickHouseDB, error) {
 	db := &ClickHouseDB{

@@ -227,16 +227,16 @@ func (h *DHTHost) GetMAddrsOfPeer(p peer.ID) []ma.Multiaddr {
 }
 
 // conside moving this to the Host
-func (h *DHTHost) isPeerConnected(pID peer.ID) bool {
-	// check if we already have a connection open to the peer
-	peerList := h.host.Network().Peers()
-	for _, p := range peerList {
-		if p == pID {
-			return true
-		}
-	}
-	return false
-}
+// func (h *DHTHost) isPeerConnected(pID peer.ID) bool {
+// 	// check if we already have a connection open to the peer
+// 	peerList := h.host.Network().Peers()
+// 	for _, p := range peerList {
+// 		if p == pID {
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }
 
 func (h *DHTHost) FindClosestPeers(ctx context.Context, key string) (time.Duration, []peer.ID, error) {
 	log.WithFields(log.Fields{
