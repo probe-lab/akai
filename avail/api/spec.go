@@ -16,6 +16,7 @@ const (
 // Chain specs
 const (
 	BlockIntervalTarget = 20 * time.Second
+	BlockTTL            = 24 * time.Hour
 )
 
 var (

@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS blobs (
     block_number UInt64,
     rows UInt32,
     columns UInt32,
-    tracking_ttl DateTime
+    sample_until DateTime
 )
 ENGINE = MergeTree()
 PRIMARY KEY (hash, block_number);
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS segments (
     key String,
     row UInt32,
     column UInt32,
-    tracking_tll DateTime
+    sample_until DateTime
 )
 ENGINE = MergeTree()
 PRIMARY KEY (block_number, key);

@@ -3,6 +3,7 @@ package avail
 import (
 	"encoding/hex"
 	"strings"
+	"time"
 
 	"github.com/ipfs/go-cid"
 	mc "github.com/multiformats/go-multicodec"
@@ -71,6 +72,7 @@ func (b *Block) Cid() cid.Cid {
 
 func (b *Block) ToAkaiAPIBlob(network models.Network, fillSegments bool) akai_api.Blob {
 	blob := akai_api.Blob{
+		Timestamp:    time.Now(),
 		Network:      network,
 		Number:       b.Number,
 		Hash:         b.Hash.HexString(),
@@ -79,6 +81,7 @@ func (b *Block) ToAkaiAPIBlob(network models.Network, fillSegments bool) akai_ap
 		Columns:      b.Extension.Columns,
 		BlobSegments: akai_api.BlobSegments{Segments: make([]akai_api.BlobSegment, 0)},
 		Metadata:     make(map[string]any, 0),
+		SampleUntil:  time.Now().Add(api.BlockTTL),
 	}
 	// if needed, add all the inner segments into the blob struct for the API (make 1 single API call)
 	if fillSegments {

@@ -11,13 +11,13 @@ type AgnosticSegment struct {
 	Key         string    `ch:"key" json:"key"`
 	Row         uint32    `ch:"rows" json:"row"`
 	Column      uint32    `ch:"columns" json:"column"`
-	TrackingTTL time.Time `ch:"tracking_ttl" json:"tracking_ttl"`
+	SampleUntil time.Time `ch:"sample_until" json:"sample_until"`
 }
 
 func (b AgnosticSegment) IsComplete() bool {
 	return b.BlockNumber > 0 &&
 		b.Key != "" &&
-		!b.TrackingTTL.IsZero()
+		!b.SampleUntil.IsZero()
 }
 
 func (b AgnosticSegment) TableName() string {
@@ -31,7 +31,7 @@ func (b AgnosticSegment) QueryValues() map[string]any {
 		"block_number": b.BlockNumber,
 		"row":          b.Row,
 		"column":       b.Column,
-		"tracking_ttl": b.TrackingTTL,
+		"sample_until": b.SampleUntil,
 	}
 }
 

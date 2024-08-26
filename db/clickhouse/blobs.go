@@ -27,7 +27,7 @@ func insertBlobQueryBase() string {
 		key,
 		rows,
 		columns,
-		tracking_ttl)
+		sample_until)
 	VALUES`
 	return query
 }
@@ -41,7 +41,7 @@ func convertBlobToInput(blobs []models.AgnosticBlob) proto.Input {
 		blockNumbers proto.ColUInt64
 		rows         proto.ColUInt32
 		columns      proto.ColUInt32
-		trackingTTLs proto.ColDateTime
+		sampleUntil  proto.ColDateTime
 	)
 
 	for _, blob := range blobs {
@@ -52,7 +52,7 @@ func convertBlobToInput(blobs []models.AgnosticBlob) proto.Input {
 		keys.Append(blob.Key)
 		rows.Append(blob.Rows)
 		columns.Append(blob.Columns)
-		trackingTTLs.Append(blob.TrackingTTL)
+		sampleUntil.Append(blob.SampleUntil)
 	}
 
 	return proto.Input{
@@ -63,7 +63,7 @@ func convertBlobToInput(blobs []models.AgnosticBlob) proto.Input {
 		{Name: "block_number", Data: blockNumbers},
 		{Name: "rows", Data: rows},
 		{Name: "columns", Data: columns},
-		{Name: "tracking_ttl", Data: trackingTTLs},
+		{Name: "sample_until", Data: sampleUntil},
 	}
 }
 
@@ -77,7 +77,7 @@ func requestBlobWithCondition(ctx context.Context, highLevelConn driver.Conn, co
 			block_number,
 			rows,
 			columns,
-			tracking_ttl,
+			sample_until,
 		FROM %s
 		%s
 		ORDER BY block_number;
@@ -105,7 +105,7 @@ func requestBlobsOnTTL(ctx context.Context, highLevelConn driver.Conn) ([]models
 		"table":      blobTableDriver.tableName,
 		"query_type": "selecting items on TTL",
 	}).Debugf("requesting from the clickhouse db")
-	return requestBlobWithCondition(ctx, highLevelConn, "WHERE tracking_ttl > now()")
+	return requestBlobWithCondition(ctx, highLevelConn, "WHERE sample_until > now()")
 }
 
 func dropAllBlobsTable(ctx context.Context, highLevelConn driver.Conn) error {

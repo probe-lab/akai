@@ -25,7 +25,7 @@ func insertSegmentQueryBase() string {
 		key,
 		row,
 		column,
-		tracking_ttl)
+		sample_until)
 	VALUES`
 	return query
 }
@@ -37,7 +37,7 @@ func convertSegmentToInput(segments []models.AgnosticSegment) proto.Input {
 		keys         proto.ColStr
 		rows         proto.ColUInt32
 		columns      proto.ColUInt32
-		trackingTTLs proto.ColDateTime
+		sampleUntil  proto.ColDateTime
 	)
 
 	for _, segment := range segments {
@@ -46,7 +46,7 @@ func convertSegmentToInput(segments []models.AgnosticSegment) proto.Input {
 		keys.Append(segment.Key)
 		rows.Append(segment.Row)
 		columns.Append(segment.Column)
-		trackingTTLs.Append(segment.TrackingTTL)
+		sampleUntil.Append(segment.SampleUntil)
 	}
 
 	return proto.Input{
@@ -55,7 +55,7 @@ func convertSegmentToInput(segments []models.AgnosticSegment) proto.Input {
 		{Name: "key", Data: keys},
 		{Name: "row", Data: rows},
 		{Name: "column", Data: columns},
-		{Name: "tracking_ttl", Data: trackingTTLs},
+		{Name: "sample_until", Data: sampleUntil},
 	}
 }
 
@@ -67,7 +67,7 @@ func requestSegmentWithCondition(ctx context.Context, highLevelConn driver.Conn,
 			key,
 			row,
 			column,
-			tracking_ttl,
+			sample_until,
 		FROM %s
 		%s
 		ORDER BY block_number, row, column;
@@ -95,7 +95,7 @@ func requestSegmentsOnTTL(ctx context.Context, highLevelConn driver.Conn) ([]mod
 		"table":      segmentTableDriver.tableName,
 		"query_type": "selecting items on TTL",
 	}).Debugf("requesting from the clickhouse db")
-	return requestSegmentWithCondition(ctx, highLevelConn, "WHERE tracking_ttl > now()")
+	return requestSegmentWithCondition(ctx, highLevelConn, "WHERE sample_until > now()")
 }
 
 func dropAllSegmentsTable(ctx context.Context, highLevelConn driver.Conn) error {

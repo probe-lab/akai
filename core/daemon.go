@@ -165,23 +165,23 @@ func (d *Daemon) newSegmentsHandler(ctx context.Context, segments []api.BlobSegm
 func (d *Daemon) newAgnosticBlobFromAPIblob(blob api.Blob) models.AgnosticBlob {
 	return models.AgnosticBlob{
 		NetworkID:   d.network.NetworkID,
-		Timestamp:   time.Now(),
+		Timestamp:   blob.Timestamp,
 		Hash:        blob.Hash,
 		BlockNumber: blob.Number,
 		Rows:        uint32(blob.Rows),
 		Columns:     uint32(blob.Columns),
-		TrackingTTL: time.Now().Add(d.config.DataSamplerConfig.SampleTTL), // sample untill TTL
+		SampleUntil: blob.SampleUntil,
 	}
 }
 
 func (d *Daemon) newAgnosticSegmentFromAPIsegment(segment api.BlobSegment) models.AgnosticSegment {
 	return models.AgnosticSegment{
-		Timestamp:   time.Now(),
+		Timestamp:   segment.Timestamp,
 		Key:         segment.Key,
 		BlockNumber: segment.BlockNumber,
 		Row:         uint32(segment.Row),
 		Column:      uint32(segment.Column),
-		TrackingTTL: time.Now().Add(d.config.DataSamplerConfig.SampleTTL), // sample untill TTL
+		SampleUntil: segment.SampleUntil,
 	}
 }
 

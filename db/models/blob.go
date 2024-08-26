@@ -13,13 +13,13 @@ type AgnosticBlob struct {
 	BlockNumber uint64    `ch:"blob_number" json:"blob_number"`
 	Rows        uint32    `ch:"rows" json:"rows"`
 	Columns     uint32    `ch:"columns" json:"columns"`
-	TrackingTTL time.Time `ch:"tracking_ttl" json:"tracking_ttl"`
+	SampleUntil time.Time `ch:"sample_until" json:"sample_until"`
 }
 
 func (b AgnosticBlob) IsComplete() bool {
 	return b.BlockNumber > 0 &&
 		b.NetworkID > 0 &&
-		!b.TrackingTTL.IsZero()
+		!b.SampleUntil.IsZero()
 }
 
 func (b AgnosticBlob) TableName() string {
@@ -35,7 +35,7 @@ func (b AgnosticBlob) QueryValues() map[string]any {
 		"block_number": b.BlockNumber,
 		"rows":         b.Rows,
 		"columns":      b.Columns,
-		"tracking_ttl": b.TrackingTTL,
+		"sample_until": b.SampleUntil,
 	}
 }
 

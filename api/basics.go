@@ -1,6 +1,10 @@
 package api
 
-import "github.com/probe-lab/akai/db/models"
+import (
+	"time"
+
+	"github.com/probe-lab/akai/db/models"
+)
 
 type ACK struct {
 	Status string `json:"status"`
@@ -16,6 +20,7 @@ type SupportedNetworks struct {
 }
 
 type Blob struct {
+	Timestamp    time.Time      `json:"timestamp"`
 	Network      models.Network `json:"network"`
 	Number       uint64         `json:"number"`
 	Hash         string         `json:"hash"`
@@ -24,14 +29,17 @@ type Blob struct {
 	Columns      uint64         `json:"columns"`
 	BlobSegments BlobSegments   `json:"segments"`
 	Metadata     map[string]any `json:"metadata"`
+	SampleUntil  time.Time      `json:"sample_until"`
 }
 
 type BlobSegment struct {
-	BlockNumber uint64 `json:"block-number"`
-	Key         string `json:"key"`
-	Row         uint64 `json:"row"`
-	Column      uint64 `json:"column"`
-	Bytes       []byte `json:"bytes"`
+	Timestamp   time.Time `json:"timestamp"`
+	BlockNumber uint64    `json:"block-number"`
+	Key         string    `json:"key"`
+	Row         uint64    `json:"row"`
+	Column      uint64    `json:"column"`
+	Bytes       []byte    `json:"bytes"`
+	SampleUntil time.Time `json:"sample_until"`
 }
 
 type BlobSegments struct {
