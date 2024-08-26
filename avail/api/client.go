@@ -24,7 +24,7 @@ type HTTPClient struct {
 	timeout time.Duration
 }
 
-func NewHTTPCli(opts config.AvailHttpAPIClient) (*HTTPClient, error) {
+func NewHTTPCli(opts config.AvailAPIConfig) (*HTTPClient, error) {
 
 	// http client for the communication
 	httpCli := &http.Client{
@@ -37,7 +37,7 @@ func NewHTTPCli(opts config.AvailHttpAPIClient) (*HTTPClient, error) {
 		},
 	}
 
-	address := fmt.Sprintf("%s:%d", opts.IP, opts.Port)
+	address := fmt.Sprintf("%s:%d", opts.Host, opts.Port)
 	urlBase, err := url.Parse(fmt.Sprintf("http://%s", address))
 	if err != nil {
 		return nil, errors.Wrap(err, "composing Avail API's base URL")

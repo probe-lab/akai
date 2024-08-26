@@ -12,17 +12,11 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/probe-lab/akai/config"
 	log "github.com/sirupsen/logrus"
 )
 
-type ClientConfig struct {
-	Host       string
-	Port       uint
-	PrefixPath string
-	Timeout    time.Duration
-}
-
-var DefaultClientConfig = ClientConfig{
+var DefaultClientConfig = config.AkaiAPIClientConfig{
 	Host:       "127.0.0.1",
 	Port:       8080,
 	PrefixPath: "api/" + APIversion,
@@ -30,14 +24,14 @@ var DefaultClientConfig = ClientConfig{
 }
 
 type Client struct {
-	config ClientConfig
+	config config.AkaiAPIClientConfig
 
 	base    *url.URL
 	address string
 	client  *http.Client
 }
 
-func NewClient(cfg ClientConfig) (*Client, error) {
+func NewClient(cfg config.AkaiAPIClientConfig) (*Client, error) {
 
 	// http client for the communication
 	httpCli := &http.Client{
@@ -62,16 +56,25 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 		client:  httpCli,
 	}
 
+	// test connection
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
+	defer cancel()
+	err = apiCli.CheckConnection(ctx)
+	if err != nil {
+		log.Error("not connections with the akai-api-server", err)
+		return nil, err
+	}
+
+	log.WithFields(log.Fields{
+		"host":   cfg.Host,
+		"port":   cfg.Port,
+		"prefix": cfg.PrefixPath,
+	}).Info("successful conenction to akai-api-server")
+
 	return apiCli, nil
 }
 
 func (c *Client) Serve(ctx context.Context) error {
-	// only to make it compatible with Suture processes
-	err := c.CheckConnection(ctx)
-	if err != nil {
-		log.Error("not connections with the avail-light-client", err)
-		return err
-	}
 	<-ctx.Done()
 	c.client.CloseIdleConnections()
 	return nil
@@ -79,12 +82,9 @@ func (c *Client) Serve(ctx context.Context) error {
 
 func (c *Client) CheckConnection(ctx context.Context) error {
 	// try the API agains the V2Version call
-
 	if err := c.Ping(ctx); err != nil {
 		return errors.Wrap(err, "testing connectivity")
 	}
-
-	log.Info("successfull connection to Akai's API server")
 	return nil
 }
 

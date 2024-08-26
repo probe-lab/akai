@@ -6,13 +6,12 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/probe-lab/akai/db/models"
 
 	kaddht "github.com/libp2p/go-libp2p-kad-dht"
-
-	"github.com/probe-lab/akai/db"
 )
 
-var DefaultNetwork = db.Network{
+var DefaultNetwork = models.Network{
 	Protocol:    ProtocolAvail,
 	NetworkName: NetworkNameAvailTuring,
 	NetworkID:   0,
@@ -28,9 +27,10 @@ const (
 
 // Networks
 const (
-	NetworkNameIPFSAmino   string = "AMINO"
-	NetworkNameAvailTuring string = "TURING"
-	NetworkNameLocalCustom string = "CUSTOM"
+	NetworkNameIPFSAmino    string = "AMINO"
+	NetworkNameAvailTuring  string = "TURING"
+	NetworkNameAvailMainnet string = "MAINNET"
+	NetworkNameLocalCustom  string = "CUSTOM"
 )
 
 var AvailableProtocols map[string][]string = map[string][]string{
@@ -39,6 +39,7 @@ var AvailableProtocols map[string][]string = map[string][]string{
 	},
 	ProtocolAvail: {
 		NetworkNameAvailTuring,
+		NetworkNameAvailMainnet,
 	},
 	ProtocolLocalCustom: {
 		NetworkNameLocalCustom,
@@ -60,7 +61,7 @@ func ListAllNetworkCombinations() string {
 func ListNetworksForProtocol(protocol string) string {
 	networks := make([]string, 0)
 	for _, networkName := range AvailableProtocols[protocol] {
-		net := db.Network{Protocol: protocol, NetworkName: networkName}
+		net := models.Network{Protocol: protocol, NetworkName: networkName}
 		networks = append(networks, net.String())
 	}
 	return "[" + NetworkListToText(networks) + "]"
@@ -78,13 +79,7 @@ func NetworkListToText(networks []string) string {
 	return text
 }
 
-func NetworkFromStr(s string) db.Network {
-	network := db.Network{}
-	network.FromString(s)
-	return network
-}
-
-func ConfigureNetwork(network db.Network) ([]peer.AddrInfo, protocol.ID, string, error) {
+func ConfigureNetwork(network models.Network) ([]peer.AddrInfo, protocol.ID, string, error) {
 	var (
 		bootstrapPeers []peer.AddrInfo
 		v1protocol     protocol.ID
@@ -105,7 +100,11 @@ func ConfigureNetwork(network db.Network) ([]peer.AddrInfo, protocol.ID, string,
 		switch network.NetworkName {
 		case NetworkNameAvailTuring:
 			bootstrapPeers = BootstrappersToMaddr(BootstrapNodesAvailTurin)
-			v1protocol = protocol.ID("/Avail/kad") // ("/avail_kad/id/1.0.0-6f0996") //
+			v1protocol = protocol.ID("/Avail/kad")
+			protocolPrefix = ""
+		case NetworkNameAvailMainnet:
+			bootstrapPeers = BootstrappersToMaddr(BootstrapNodesAvailMainnet)
+			v1protocol = protocol.ID("/Avail/kad")
 			protocolPrefix = ""
 		default:
 			return bootstrapPeers, v1protocol, protocolPrefix, fmt.Errorf("unknown network identifier %s for protocol %s", network.NetworkName, network.Protocol)

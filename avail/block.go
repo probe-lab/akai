@@ -8,7 +8,9 @@ import (
 	mc "github.com/multiformats/go-multicodec"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/pkg/errors"
+	akai_api "github.com/probe-lab/akai/api"
 	"github.com/probe-lab/akai/avail/api"
+	"github.com/probe-lab/akai/db/models"
 )
 
 type BlockOption func(*Block) error
@@ -65,6 +67,40 @@ func NewBlock(opts ...BlockOption) (*Block, error) {
 
 func (b *Block) Cid() cid.Cid {
 	return cid.NewCidV1(uint64(mc.Raw), b.Hash)
+}
+
+func (b *Block) ToAkaiAPIBlob(network models.Network, fillSegments bool) akai_api.Blob {
+	blob := akai_api.Blob{
+		Network:      network,
+		Number:       b.Number,
+		Hash:         b.Hash.HexString(),
+		ParentHash:   b.ParentHash.HexString(),
+		Rows:         b.Extension.Rows,
+		Columns:      b.Extension.Columns,
+		BlobSegments: akai_api.BlobSegments{Segments: make([]akai_api.BlobSegment, 0)},
+		Metadata:     make(map[string]any, 0),
+	}
+	// if needed, add all the inner segments into the blob struct for the API (make 1 single API call)
+	if fillSegments {
+		for row := 0; row < int(blob.Rows); row++ {
+			for col := 0; col < int(blob.Columns); col++ {
+				segmentKey := Key{
+					Block:  blob.Number,
+					Row:    uint64(row),
+					Column: uint64(col),
+				}
+				segment := akai_api.BlobSegment{
+					BlockNumber: segmentKey.Block,
+					Row:         segmentKey.Row,
+					Column:      segmentKey.Column,
+					Key:         segmentKey.String(),
+					Bytes:       make([]byte, 0),
+				}
+				blob.BlobSegments.Segments = append(blob.BlobSegments.Segments, segment)
+			}
+		}
+	}
+	return blob
 }
 
 func FromAPIBlockHeader(blockHeader api.V2BlockHeader) BlockOption {

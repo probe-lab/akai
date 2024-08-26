@@ -6,12 +6,12 @@ import (
 
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
-	mdb "github.com/probe-lab/akai/db"
+	"github.com/probe-lab/akai/db/models"
 	log "github.com/sirupsen/logrus"
 )
 
-var networkTableDriver = tableDriver[mdb.Network]{
-	tableName:      mdb.NetworkTableName,
+var networkTableDriver = tableDriver[models.Network]{
+	tableName:      models.NetworkTableName,
 	tag:            "insert_new_network",
 	baseQuery:      insertNetworkQueryBase(),
 	inputConverter: convertNetworkToInput,
@@ -27,7 +27,7 @@ func insertNetworkQueryBase() string {
 	return query
 }
 
-func convertNetworkToInput(networks []mdb.Network) proto.Input {
+func convertNetworkToInput(networks []models.Network) proto.Input {
 	// one item per column, which can ingests an entire array
 	var (
 		networkIDs   proto.ColUInt16
@@ -48,9 +48,9 @@ func convertNetworkToInput(networks []mdb.Network) proto.Input {
 	}
 }
 
-func requestNetworks(ctx context.Context, highLevelConn driver.Conn) ([]mdb.Network, error) {
+func requestNetworks(ctx context.Context, highLevelConn driver.Conn) ([]models.Network, error) {
 	log.WithFields(log.Fields{
-		"table":      mdb.NetworkTableName,
+		"table":      models.NetworkTableName,
 		"query_type": "selecting all content",
 	}).Debugf("requesting from the clickhouse db")
 
@@ -62,17 +62,17 @@ func requestNetworks(ctx context.Context, highLevelConn driver.Conn) ([]mdb.Netw
 		FROM %s
 		ORDER BY network_id;
 		`,
-		mdb.NetworkTableName)
+		models.NetworkTableName)
 
 	// lock the connection
-	var response []mdb.Network
+	var response []models.Network
 	err := highLevelConn.Select(ctx, &response, query)
 	return response, err
 }
 
 func dropValuesNetworksTable(ctx context.Context, highLevelConn driver.Conn) error {
 	log.WithFields(log.Fields{
-		"table":      mdb.NetworkTableName,
+		"table":      models.NetworkTableName,
 		"query_type": "deleting all content",
 	}).Debugf("deleting network from the clickhouse db")
 

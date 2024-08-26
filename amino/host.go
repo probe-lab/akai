@@ -271,12 +271,12 @@ func (h *DHTHost) FindValue(
 	}).Info("looking for providers")
 
 	startT := time.Now()
-	providers, err := h.dhtCli.GetValue(
+	value, err := h.dhtCli.GetValue(
 		ctx,
 		key,
 		kaddht.Quorum(1),
 	)
-	return time.Since(startT), providers, err
+	return time.Since(startT), value, err
 }
 
 func (h *DHTHost) PutValue(

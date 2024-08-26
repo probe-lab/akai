@@ -5,37 +5,38 @@ import (
 	"testing"
 	"time"
 
+	"github.com/probe-lab/akai/db/models"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_Service(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, cli := basicServiceAndClient(t)
+	_, cli := basicServiceAndClient(t, ctx)
 	ensureClientServerConnection(t, ctx, cli)
 }
 
 func Test_SupportedNetworks(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, cli := basicServiceAndClient(t)
+	_, cli := basicServiceAndClient(t, ctx)
 	ensureClientServerConnection(t, ctx, cli)
 
 	serverNet := DefaulServiceConfig.Network
 	network, err := cli.GetSupportedNetworks(ctx)
 	require.NoError(t, err)
-	require.Equal(t, serverNet.String(), network.Network.String())
+	require.Equal(t, serverNet, network.Network.String())
 }
 
 func Test_PostNewBlob(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, cli := basicServiceAndClient(t)
+	_, cli := basicServiceAndClient(t, ctx)
 	ensureClientServerConnection(t, ctx, cli)
 
 	// send a valid item
 	blob := Blob{
-		Network:      DefaulServiceConfig.Network,
+		Network:      models.NetworkFromStr(DefaulServiceConfig.Network),
 		Number:       1,
 		Hash:         "0xHASH",
 		ParentHash:   "OxPARENTHASH",
@@ -51,7 +52,7 @@ func Test_PostNewBlob(t *testing.T) {
 func Test_PostNewSegment(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, cli := basicServiceAndClient(t)
+	_, cli := basicServiceAndClient(t, ctx)
 	ensureClientServerConnection(t, ctx, cli)
 
 	segment := BlobSegment{
@@ -68,7 +69,7 @@ func Test_PostNewSegment(t *testing.T) {
 func Test_PostNewSegments(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, cli := basicServiceAndClient(t)
+	_, cli := basicServiceAndClient(t, ctx)
 	ensureClientServerConnection(t, ctx, cli)
 
 	segments := BlobSegments{
@@ -99,12 +100,12 @@ func ensureClientServerConnection(t *testing.T, ctx context.Context, cli *Client
 	require.NoError(t, err)
 }
 
-func basicServiceAndClient(t *testing.T) (*Service, *Client) {
+func basicServiceAndClient(t *testing.T, ctx context.Context) (*Service, *Client) {
 	// create and init the API server
 	serCfg := DefaulServiceConfig
 	ser, err := NewService(serCfg)
 	require.NoError(t, err)
-	go ser.Serve("release")
+	go ser.Serve(ctx)
 	time.Sleep(1 * time.Second) // make sure we give enough time to init the host
 
 	// create and init the API client

@@ -1,7 +1,7 @@
 package clickhouse
 
 import (
-	"context"
+	"fmt"
 
 	_ "github.com/ClickHouse/clickhouse-go/v2"
 
@@ -12,12 +12,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func (s *ClickHouseDB) makeMigrations(ctx context.Context) error {
+func (s *ClickHouseDB) makeMigrations() error {
 	log.Infof("applying database migrations...")
 	// point to the migrations folder
 	s.conDetails.Params = s.conDetails.Params + "?x-multi-statement=true" // allow multistatements for the migrations
-	m, err := migrate.New("file://migrations", s.conDetails.String())
+	m, err := migrate.New("file://./db/clickhouse/migrations", s.conDetails.String())
 	if err != nil {
+		fmt.Println("error - ")
 		log.Errorf(err.Error())
 		return err
 	}

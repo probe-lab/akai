@@ -1,6 +1,6 @@
 package api
 
-import "github.com/probe-lab/akai/db"
+import "github.com/probe-lab/akai/db/models"
 
 type ACK struct {
 	Status string `json:"status"`
@@ -12,11 +12,11 @@ type PongReply struct {
 }
 
 type SupportedNetworks struct {
-	Network db.Network `json:"Networks"`
+	Network models.Network `json:"Networks"`
 }
 
 type Blob struct {
-	Network      db.Network     `json:"network"`
+	Network      models.Network `json:"network"`
 	Number       uint64         `json:"number"`
 	Hash         string         `json:"hash"`
 	ParentHash   string         `json:"parent-hash"`

@@ -2,13 +2,20 @@ package avail
 
 import (
 	"context"
+	"time"
 
 	"github.com/probe-lab/akai/avail/api"
 	"github.com/probe-lab/akai/config"
-	"github.com/probe-lab/akai/db"
+	"github.com/probe-lab/akai/db/models"
 	log "github.com/sirupsen/logrus"
 	"github.com/thejerf/suture/v4"
 )
+
+var DefaultClientConfig = config.AvailAPIConfig{
+	Host:    "localhost",
+	Port:    5000,
+	Timeout: 10 * time.Second,
+}
 
 type BlockTracker struct {
 	sup *suture.Supervisor
@@ -20,13 +27,14 @@ type BlockTracker struct {
 
 func NewBlockTracker(cfg config.AvailBlockTracker) (*BlockTracker, error) {
 	// api
-	httpAPICli, err := api.NewHTTPCli(cfg.AvailHttpAPIClient)
+	httpAPICli, err := api.NewHTTPCli(cfg.AvailAPIconfig)
 	if err != nil {
 		return nil, err
 	}
 
-	// compose block consumers
-	var blockConsumers []BlockConsumer
+	network := models.NetworkFromStr(cfg.Network)
+	// compose block consumers (Text, Akai_Api)
+	blockConsumers := make([]BlockConsumer, 0)
 	if cfg.TextConsumer {
 		textConsumer, err := NewTextConsumer()
 		if err != nil {
@@ -34,9 +42,15 @@ func NewBlockTracker(cfg config.AvailBlockTracker) (*BlockTracker, error) {
 		}
 		blockConsumers = append(blockConsumers, textConsumer)
 	}
+	if cfg.AkaiAPIconsumer {
+		akaiAPIconsumer, err := NewAkaiAPIconsumer(network, cfg.AkaiAPIconfig)
+		if err != nil {
+			return nil, err
+		}
+		blockConsumers = append(blockConsumers, akaiAPIconsumer)
+	}
 
 	// block requester
-	network := db.Network{}.FromString(cfg.Network)
 	blockReq, err := NewBlockRequester(httpAPICli, network, blockConsumers)
 	if err != nil {
 		return nil, err
@@ -64,5 +78,9 @@ func (t *BlockTracker) Start(ctx context.Context) error {
 	}
 	t.sup.Add(t.httpAPICli)
 	t.sup.Add(t.BlockRequester)
+	// add all the existing consumers to the suture
+	for _, consumer := range t.blockConsumers {
+		t.sup.Add(consumer)
+	}
 	return t.sup.Serve(ctx)
 }
