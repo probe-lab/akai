@@ -80,7 +80,7 @@ func requestBlobWithCondition(ctx context.Context, highLevelConn driver.Conn, co
 			sample_until,
 		FROM %s
 		%s
-		ORDER BY block_number;
+		ORDER BY block_number DESC;
 		`,
 		blobTableDriver.tableName,
 		condition,
@@ -90,6 +90,19 @@ func requestBlobWithCondition(ctx context.Context, highLevelConn driver.Conn, co
 	var response []models.AgnosticBlob
 	err := highLevelConn.Select(ctx, &response, query)
 	return response, err
+}
+
+func requestLatestBlob(ctx context.Context, highLevelConn driver.Conn) (models.AgnosticBlob, error) {
+	log.WithFields(log.Fields{
+		"table":      blobTableDriver.tableName,
+		"query_type": "selecting latest blob",
+	}).Debugf("requesting from the clickhouse db")
+
+	blobs, err := requestBlobWithCondition(ctx, highLevelConn, "LIMIT 1")
+	if err != nil {
+		return models.AgnosticBlob{}, err
+	}
+	return blobs[0], nil
 }
 
 func requestAllBlobs(ctx context.Context, highLevelConn driver.Conn) ([]models.AgnosticBlob, error) {

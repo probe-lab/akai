@@ -7,10 +7,6 @@ import (
 	"github.com/probe-lab/akai/db/models"
 )
 
-var (
-	BlobsSetCacheSize int = 10_000 // TODO: define better values (or at least reason them)
-)
-
 type AkaiPing struct {
 	Network string
 	Key     string
@@ -34,21 +30,6 @@ type AkaiAPIServiceConfig struct {
 
 	// configuration
 	Network string
-}
-
-type AkaiDaemonConfig struct {
-	Network           string
-	APIconfig         AkaiAPIServiceConfig
-	DBconfig          DatabaseDetails
-	DataSamplerConfig AkaiDataSamplerConfig
-}
-
-type AkaiDataSamplerConfig struct {
-	Network         string
-	Workers         int
-	SamplingTimeout time.Duration
-	DBsyncInterval  time.Duration
-	SampleTTL       time.Duration
 }
 
 var (

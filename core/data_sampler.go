@@ -34,13 +34,27 @@ func NewDataSampler(
 }
 
 func (ds *DataSampler) Serve(ctx context.Context) error {
+
+	// start the orchester
+	go ds.runSampleOrchester(ctx)
+
+	// start the workers
+	for workerID := 1; workerID <= ds.cfg.Workers; workerID++ {
+		go ds.runSampleWorker(ctx, workerID)
+	}
+
 	<-ctx.Done()
 	return nil
 }
 
-func (ds *DataSampler) Init(ctx context.Context) error {
+func (ds *DataSampler) runSampleOrchester(ctx context.Context) {
 
-	return nil
+	<-ctx.Done()
+}
+
+func (ds *DataSampler) runSampleWorker(ctx context.Context, workerID int) {
+
+	<-ctx.Done()
 }
 
 func (ds *DataSampler) syncWithDatabase(ctx context.Context) error {

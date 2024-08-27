@@ -20,16 +20,16 @@ type SupportedNetworks struct {
 }
 
 type Blob struct {
-	Timestamp    time.Time      `json:"timestamp"`
-	Network      models.Network `json:"network"`
-	Number       uint64         `json:"number"`
-	Hash         string         `json:"hash"`
-	ParentHash   string         `json:"parent-hash"`
-	Rows         uint64         `json:"rows"`
-	Columns      uint64         `json:"columns"`
-	BlobSegments BlobSegments   `json:"segments"`
-	Metadata     map[string]any `json:"metadata"`
-	SampleUntil  time.Time      `json:"sample_until"`
+	Timestamp   time.Time      `json:"timestamp"`
+	Network     models.Network `json:"network"`
+	Number      uint64         `json:"number"`
+	Hash        string         `json:"hash"`
+	ParentHash  string         `json:"parent-hash"`
+	Rows        uint64         `json:"rows"`
+	Columns     uint64         `json:"columns"`
+	Segments    []BlobSegment  `json:"segments"`
+	Metadata    map[string]any `json:"metadata"`
+	SampleUntil time.Time      `json:"sample_until"`
 }
 
 type BlobSegment struct {
@@ -40,8 +40,4 @@ type BlobSegment struct {
 	Column      uint64    `json:"column"`
 	Bytes       []byte    `json:"bytes"`
 	SampleUntil time.Time `json:"sample_until"`
-}
-
-type BlobSegments struct {
-	Segments []BlobSegment `json:"segments"`
 }

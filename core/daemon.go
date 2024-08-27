@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	lru "github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/pkg/errors"
 	"github.com/probe-lab/akai/api"
 	"github.com/probe-lab/akai/config"
@@ -25,8 +25,9 @@ type Daemon struct {
 	db          db.Database
 	dataSampler *DataSampler
 
-	network models.Network
-	blobIDs *lru.Cache
+	network     models.Network
+	blobIDs     *lru.Cache[uint64, *models.AgnosticBlob]
+	segmentsIDs *lru.Cache[uint64, *models.AgnosticSegment]
 }
 
 func NewDaemon(
@@ -35,18 +36,23 @@ func NewDaemon(
 	dataSampler *DataSampler,
 	apiServ *api.Service) (*Daemon, error) {
 
-	blobsCache, err := lru.New(config.BlobsSetCacheSize)
+	segmentsCache, err := lru.New[uint64, *models.AgnosticSegment](cfg.SegmentsSetCacheSize) // <block_number>, <block_ID_in_DB>
+	if err != nil {
+		return nil, err
+	}
+	blobsCache, err := lru.New[uint64, *models.AgnosticBlob](cfg.BlobsSetCacheSize) // <block_number>, <block_ID_in_DB>
 	if err != nil {
 		return nil, err
 	}
 
 	daemon := &Daemon{
-		config:  cfg,
-		api:     apiServ,
-		db:      dbServ,
-		sup:     suture.NewSimple("akai-daemon"),
-		network: models.NetworkFromStr(cfg.Network),
-		blobIDs: blobsCache,
+		config:      cfg,
+		api:         apiServ,
+		db:          dbServ,
+		sup:         suture.NewSimple("akai-daemon"),
+		network:     models.NetworkFromStr(cfg.Network),
+		blobIDs:     blobsCache,
+		segmentsIDs: segmentsCache,
 	}
 
 	// once everything is in place, we MUST override the appHandlers at the ApiServer
@@ -106,6 +112,14 @@ func (d *Daemon) configureInternalCaches() error {
 	}
 
 	// populate the cache of IDs for the ongoing blobs
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	lastBlob, err := d.db.GetLastestBlob(ctx)
+	if err != nil {
+		return err
+	}
+
+	d.blobIDs.Add(lastBlob.BlockNumber, &lastBlob)
 
 	// populate the cache of IDs for the ongoing segments
 	return nil
@@ -121,8 +135,17 @@ func (d *Daemon) newBlobHandler(ctx context.Context, blob api.Blob) error {
 		"hash":  blob.Hash,
 	}).Info("new blob arrived to the daemon")
 
+	// check blob in cache, add it if it's new
+	_, ok := d.blobIDs.Get(blob.Number)
+	if ok {
+		// we already processed the blob
+		return nil
+	}
+	agBlob := d.newAgnosticBlobFromAPIblob(blob)
+	d.blobIDs.Add(agBlob.BlockNumber, &agBlob)
+
 	// add the blob info to the DB
-	err := d.db.PersistNewBlob(ctx, d.newAgnosticBlobFromAPIblob(blob))
+	err := d.db.PersistNewBlob(ctx, agBlob)
 	if err != nil {
 		return err
 	}

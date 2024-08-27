@@ -36,14 +36,14 @@ func Test_PostNewBlob(t *testing.T) {
 
 	// send a valid item
 	blob := Blob{
-		Network:      models.NetworkFromStr(DefaulServiceConfig.Network),
-		Number:       1,
-		Hash:         "0xHASH",
-		ParentHash:   "OxPARENTHASH",
-		Rows:         1,
-		Columns:      1,
-		BlobSegments: BlobSegments{},
-		Metadata:     make(map[string]any),
+		Network:    models.NetworkFromStr(DefaulServiceConfig.Network),
+		Number:     1,
+		Hash:       "0xHASH",
+		ParentHash: "OxPARENTHASH",
+		Rows:       1,
+		Columns:    1,
+		Segments:   make([]BlobSegment, 0),
+		Metadata:   make(map[string]any),
 	}
 	err := cli.PostNewBlob(ctx, blob)
 	require.NoError(t, err)
@@ -72,22 +72,20 @@ func Test_PostNewSegments(t *testing.T) {
 	_, cli := basicServiceAndClient(t, ctx)
 	ensureClientServerConnection(t, ctx, cli)
 
-	segments := BlobSegments{
-		Segments: []BlobSegment{
-			{
-				BlockNumber: 1,
-				Row:         1,
-				Column:      1,
-				Key:         "0xSEGMENT",
-				Bytes:       make([]byte, 0),
-			},
-			{
-				BlockNumber: 2,
-				Row:         1,
-				Column:      1,
-				Key:         "0xSEGMENT_2",
-				Bytes:       make([]byte, 0),
-			},
+	segments := []BlobSegment{
+		{
+			BlockNumber: 1,
+			Row:         1,
+			Column:      1,
+			Key:         "0xSEGMENT",
+			Bytes:       make([]byte, 0),
+		},
+		{
+			BlockNumber: 2,
+			Row:         1,
+			Column:      1,
+			Key:         "0xSEGMENT_2",
+			Bytes:       make([]byte, 0),
 		},
 	}
 

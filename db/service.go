@@ -31,6 +31,7 @@ type Database interface {
 	PersistNewBlob(context.Context, models.AgnosticBlob) error
 	GetSampleableBlobs(context.Context) ([]models.AgnosticBlob, error)
 	GetAllBlobs(context.Context) ([]models.AgnosticBlob, error)
+	GetLastestBlob(context.Context) (models.AgnosticBlob, error)
 	// samples
 	PersistNewSegment(context.Context, models.AgnosticSegment) error
 	PersistNewSegments(context.Context, []models.AgnosticSegment) error

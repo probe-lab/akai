@@ -400,6 +400,12 @@ func (db *ClickHouseDB) GetSampleableBlobs(ctx context.Context) ([]models.Agnost
 	return requestBlobsOnTTL(ctx, db.highLevelClient)
 }
 
+func (db *ClickHouseDB) GetLastestBlob(ctx context.Context) (models.AgnosticBlob, error) {
+	db.highMu.Lock()
+	defer db.highMu.Unlock()
+	return requestLatestBlob(ctx, db.highLevelClient)
+}
+
 func (db *ClickHouseDB) PersistNewSegments(ctx context.Context, segments []models.AgnosticSegment) error {
 	for _, seg := range segments {
 		flushable := db.qBatchers.segments.addItem(seg)

@@ -128,7 +128,7 @@ func validateNetworkFlag(ctx context.Context, cli *cli.Command, s string) error 
 	return fmt.Errorf(" given network %s not valid for supported ones", s)
 }
 
-func cmdDaemonAction(ctx context.Context, cmd *cli.Command) error {
+func cmdDaemonAction(ctx context.Context, cmd *cli.Command) (err error) {
 	log.WithFields(log.Fields{
 		"network":           daemonConfig.Network,
 		"database-driver":   daemonConfig.DBconfig.Driver,
@@ -144,6 +144,10 @@ func cmdDaemonAction(ctx context.Context, cmd *cli.Command) error {
 	// set all network to be on the same one as the given one
 	network := models.NetworkFromStr(daemonConfig.Network)
 	daemonConfig.APIconfig.Network = daemonConfig.Network
+	daemonConfig.BlobsSetCacheSize, daemonConfig.SegmentsSetCacheSize, err = config.DaemonConfigForNetwork(network)
+	if err != nil {
+		return err
+	}
 
 	// start the database
 	dbSer, err := db.NewDatabase(daemonConfig.DBconfig, network)

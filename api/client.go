@@ -252,7 +252,7 @@ func (c *Client) PostNewSegment(ctx context.Context, segment BlobSegment) error 
 	return nil
 }
 
-func (c *Client) PostNewSegments(ctx context.Context, segments BlobSegments) error {
+func (c *Client) PostNewSegments(ctx context.Context, segments []BlobSegment) error {
 	// make Http request
 	resp, err := c.post(ctx, "/new-segments", segments)
 	if err != nil {

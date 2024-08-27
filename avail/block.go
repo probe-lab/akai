@@ -72,16 +72,16 @@ func (b *Block) Cid() cid.Cid {
 
 func (b *Block) ToAkaiAPIBlob(network models.Network, fillSegments bool) akai_api.Blob {
 	blob := akai_api.Blob{
-		Timestamp:    time.Now(),
-		Network:      network,
-		Number:       b.Number,
-		Hash:         b.Hash.HexString(),
-		ParentHash:   b.ParentHash.HexString(),
-		Rows:         b.Extension.Rows,
-		Columns:      b.Extension.Columns,
-		BlobSegments: akai_api.BlobSegments{Segments: make([]akai_api.BlobSegment, 0)},
-		Metadata:     make(map[string]any, 0),
-		SampleUntil:  time.Now().Add(api.BlockTTL),
+		Timestamp:   time.Now(),
+		Network:     network,
+		Number:      b.Number,
+		Hash:        b.Hash.HexString(),
+		ParentHash:  b.ParentHash.HexString(),
+		Rows:        b.Extension.Rows,
+		Columns:     b.Extension.Columns,
+		Segments:    make([]akai_api.BlobSegment, 0),
+		Metadata:    make(map[string]any, 0),
+		SampleUntil: time.Now().Add(api.BlockTTL),
 	}
 	// if needed, add all the inner segments into the blob struct for the API (make 1 single API call)
 	if fillSegments {
@@ -99,7 +99,7 @@ func (b *Block) ToAkaiAPIBlob(network models.Network, fillSegments bool) akai_ap
 					Key:         segmentKey.String(),
 					Bytes:       make([]byte, 0),
 				}
-				blob.BlobSegments.Segments = append(blob.BlobSegments.Segments, segment)
+				blob.Segments = append(blob.Segments, segment)
 			}
 		}
 	}

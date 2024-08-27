@@ -151,8 +151,8 @@ func (s *Service) postNewBlobHandler(c *gin.Context) {
 	}
 
 	// if the block already includes Segments, process them
-	if blob.BlobSegments.Segments != nil {
-		if err := s.appNewSegmentsHandler(c.Request.Context(), blob.BlobSegments.Segments); err != nil {
+	if blob.Segments != nil {
+		if err := s.appNewSegmentsHandler(c.Request.Context(), blob.Segments); err != nil {
 			c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
 			hlog.Error(err)
 		}
@@ -193,9 +193,7 @@ func (s *Service) postNewSegmentsHandler(c *gin.Context) {
 	})
 	hlog.Debug("new api-request")
 
-	segments := BlobSegments{
-		Segments: make([]BlobSegment, 0),
-	}
+	segments := make([]BlobSegment, 0)
 	if err := c.BindJSON(&segments); err != nil {
 		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
 		hlog.Error(err)
@@ -204,7 +202,7 @@ func (s *Service) postNewSegmentsHandler(c *gin.Context) {
 
 	// assume that the segment is correct
 	// make app specific
-	if err := s.appNewSegmentsHandler(c.Request.Context(), segments.Segments); err != nil {
+	if err := s.appNewSegmentsHandler(c.Request.Context(), segments); err != nil {
 		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
 		hlog.Error(err)
 	}
