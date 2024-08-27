@@ -12,32 +12,36 @@ CREATE TABLE IF NOT EXISTS blobs (
     timestamp DateTime,
     hash String,
     key String,
-    block_number UInt64,
+    blob_number UInt64,
     rows UInt32,
     columns UInt32,
     sample_until DateTime
 )
 ENGINE = MergeTree()
-PRIMARY KEY (hash, block_number);
+PRIMARY KEY (hash, blob_number);
 
 
 CREATE TABLE IF NOT EXISTS segments (
     timestamp DateTime,
-    block_number UInt64,
+    blob_number UInt64,
     key String,
     row UInt32,
     column UInt32,
     sample_until DateTime
 )
 ENGINE = MergeTree()
-PRIMARY KEY (block_number, key);
+PRIMARY KEY (blob_number, key);
 
 
 CREATE TABLE IF NOT EXISTS visits (
     timestamp DateTime,
     key String,
+    blob_number UInt64,
+    row UInt32,
+    column UInt32,
     duration_ms Int64,
-    is_retrievable Bool
+    is_retrievable Bool,
+    error String
 )
 ENGINE = MergeTree()
 PRIMARY KEY (key);

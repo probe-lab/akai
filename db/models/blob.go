@@ -10,20 +10,20 @@ type AgnosticBlob struct {
 	Timestamp   time.Time `ch:"timestamp" json:"timestamp"`
 	Hash        string    `ch:"hash" json:"hash"`
 	Key         string    `ch:"key" json:"key"`
-	BlockNumber uint64    `ch:"blob_number" json:"blob_number"`
+	BlobNumber  uint64    `ch:"blob_number" json:"blob_number"`
 	Rows        uint32    `ch:"rows" json:"rows"`
 	Columns     uint32    `ch:"columns" json:"columns"`
 	SampleUntil time.Time `ch:"sample_until" json:"sample_until"`
 }
 
 func (b AgnosticBlob) IsComplete() bool {
-	return b.BlockNumber > 0 &&
+	return b.BlobNumber > 0 &&
 		b.NetworkID > 0 &&
 		!b.SampleUntil.IsZero()
 }
 
 func (b AgnosticBlob) TableName() string {
-	return NetworkTableName
+	return BlobTableName
 }
 
 func (b AgnosticBlob) QueryValues() map[string]any {
@@ -32,7 +32,7 @@ func (b AgnosticBlob) QueryValues() map[string]any {
 		"timestamp":    b.Timestamp,
 		"hash":         b.Hash,
 		"key":          b.Key,
-		"block_number": b.BlockNumber,
+		"blob_number":  b.BlobNumber,
 		"rows":         b.Rows,
 		"columns":      b.Columns,
 		"sample_until": b.SampleUntil,

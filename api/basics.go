@@ -34,7 +34,7 @@ type Blob struct {
 
 type BlobSegment struct {
 	Timestamp   time.Time `json:"timestamp"`
-	BlockNumber uint64    `json:"block-number"`
+	BlobNumber  uint64    `json:"blob-number"`
 	Key         string    `json:"key"`
 	Row         uint64    `json:"row"`
 	Column      uint64    `json:"column"`

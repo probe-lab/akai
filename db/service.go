@@ -31,13 +31,13 @@ type Database interface {
 	PersistNewBlob(context.Context, models.AgnosticBlob) error
 	GetSampleableBlobs(context.Context) ([]models.AgnosticBlob, error)
 	GetAllBlobs(context.Context) ([]models.AgnosticBlob, error)
-	GetLastestBlob(context.Context) (models.AgnosticBlob, error)
+	GetLatestBlob(context.Context) (models.AgnosticBlob, error)
 	// samples
 	PersistNewSegment(context.Context, models.AgnosticSegment) error
 	PersistNewSegments(context.Context, []models.AgnosticSegment) error
 	GetSampleableSegments(context.Context) ([]models.AgnosticSegment, error)
 	// cell visists
-	PersistNewSegmentVisit(context.Context) error
+	PersistNewSegmentVisit(context.Context, models.AgnosticVisit) error
 }
 
 var _ Database = (*clickhouse.ClickHouseDB)(nil)

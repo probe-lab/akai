@@ -56,11 +56,11 @@ func Test_PostNewSegment(t *testing.T) {
 	ensureClientServerConnection(t, ctx, cli)
 
 	segment := BlobSegment{
-		BlockNumber: 1,
-		Row:         1,
-		Column:      1,
-		Key:         "0xSEGMENT",
-		Bytes:       make([]byte, 0),
+		BlobNumber: 1,
+		Row:        1,
+		Column:     1,
+		Key:        "0xSEGMENT",
+		Bytes:      make([]byte, 0),
 	}
 	err := cli.PostNewSegment(ctx, segment)
 	require.NoError(t, err)
@@ -74,18 +74,18 @@ func Test_PostNewSegments(t *testing.T) {
 
 	segments := []BlobSegment{
 		{
-			BlockNumber: 1,
-			Row:         1,
-			Column:      1,
-			Key:         "0xSEGMENT",
-			Bytes:       make([]byte, 0),
+			BlobNumber: 1,
+			Row:        1,
+			Column:     1,
+			Key:        "0xSEGMENT",
+			Bytes:      make([]byte, 0),
 		},
 		{
-			BlockNumber: 2,
-			Row:         1,
-			Column:      1,
-			Key:         "0xSEGMENT_2",
-			Bytes:       make([]byte, 0),
+			BlobNumber: 2,
+			Row:        1,
+			Column:     1,
+			Key:        "0xSEGMENT_2",
+			Bytes:      make([]byte, 0),
 		},
 	}
 

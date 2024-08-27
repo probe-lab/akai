@@ -24,20 +24,20 @@ type AkaiDaemonConfig struct {
 	APIconfig         AkaiAPIServiceConfig
 	DBconfig          DatabaseDetails
 	DataSamplerConfig AkaiDataSamplerConfig
-
-	BlobsSetCacheSize    int
-	SegmentsSetCacheSize int
+	DHTHostConfig     CommonDHTOpts
 }
 
 type AkaiDataSamplerConfig struct {
-	Network         string
-	Workers         int
-	SamplingTimeout time.Duration
-	DBsyncInterval  time.Duration
-	SampleTTL       time.Duration
+	Network              string
+	Workers              int
+	BlobsSetCacheSize    int
+	SegmentsSetCacheSize int
+	SamplingTimeout      time.Duration
+	DBsyncInterval       time.Duration
+	SampleTTL            time.Duration
 }
 
-func DaemonConfigForNetwork(network models.Network) (blobSetSize int, segmentSetSize int, err error) {
+func SamplingConfigForNetwork(network models.Network) (blobSetSize int, segmentSetSize int, err error) {
 	switch network.Protocol {
 	case ProtocolIPFS:
 		blobSetSize = AvailBlobsSetCacheSize

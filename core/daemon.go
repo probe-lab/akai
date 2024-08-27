@@ -27,7 +27,7 @@ type Daemon struct {
 
 	network     models.Network
 	blobIDs     *lru.Cache[uint64, *models.AgnosticBlob]
-	segmentsIDs *lru.Cache[uint64, *models.AgnosticSegment]
+	segmentsIDs *lru.Cache[string, *models.AgnosticSegment]
 }
 
 func NewDaemon(
@@ -36,14 +36,8 @@ func NewDaemon(
 	dataSampler *DataSampler,
 	apiServ *api.Service) (*Daemon, error) {
 
-	segmentsCache, err := lru.New[uint64, *models.AgnosticSegment](cfg.SegmentsSetCacheSize) // <block_number>, <block_ID_in_DB>
-	if err != nil {
-		return nil, err
-	}
-	blobsCache, err := lru.New[uint64, *models.AgnosticBlob](cfg.BlobsSetCacheSize) // <block_number>, <block_ID_in_DB>
-	if err != nil {
-		return nil, err
-	}
+	blobsCache := dataSampler.BlobsCache()
+	segmentsCache := dataSampler.SegmentsCache()
 
 	daemon := &Daemon{
 		config:      cfg,
@@ -114,18 +108,18 @@ func (d *Daemon) configureInternalCaches() error {
 	// populate the cache of IDs for the ongoing blobs
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	lastBlob, err := d.db.GetLastestBlob(ctx)
+	lastBlob, err := d.db.GetLatestBlob(ctx)
 	if err != nil {
 		return err
 	}
 	if lastBlob.IsComplete() {
-		log.Info("synced with the DB at blob", lastBlob.BlockNumber)
-		d.blobIDs.Add(lastBlob.BlockNumber, &lastBlob)
+		log.Info("synced with the DB at blob", lastBlob.BlobNumber)
+		d.blobIDs.Add(lastBlob.BlobNumber, &lastBlob)
 	} else {
 		log.Warn("no blob was found at DB")
 	}
 
-	// populate the cache of IDs for the ongoing segments
+	// no need to cache the segments at daemon level (blobs should be enough)
 	return nil
 }
 
@@ -146,7 +140,7 @@ func (d *Daemon) newBlobHandler(ctx context.Context, blob api.Blob) error {
 		return nil
 	}
 	agBlob := d.newAgnosticBlobFromAPIblob(blob)
-	d.blobIDs.Add(agBlob.BlockNumber, &agBlob)
+	d.blobIDs.Add(agBlob.BlobNumber, &agBlob)
 
 	// add the blob info to the DB
 	err := d.db.PersistNewBlob(ctx, agBlob)
@@ -165,7 +159,7 @@ func (d *Daemon) newBlobHandler(ctx context.Context, blob api.Blob) error {
 
 func (d *Daemon) newSegmentHandler(ctx context.Context, segment api.BlobSegment) error {
 	log.WithFields(log.Fields{
-		"block": segment.BlockNumber,
+		"block": segment.BlobNumber,
 		"key":   segment.Key,
 	}).Info("new segment arrived to the daemon")
 	// add the segment info to the DB
@@ -198,7 +192,7 @@ func (d *Daemon) newAgnosticBlobFromAPIblob(blob api.Blob) models.AgnosticBlob {
 		NetworkID:   d.network.NetworkID,
 		Timestamp:   blob.Timestamp,
 		Hash:        blob.Hash,
-		BlockNumber: blob.Number,
+		BlobNumber:  blob.Number,
 		Rows:        uint32(blob.Rows),
 		Columns:     uint32(blob.Columns),
 		SampleUntil: blob.SampleUntil,
@@ -209,7 +203,7 @@ func (d *Daemon) newAgnosticSegmentFromAPIsegment(segment api.BlobSegment) model
 	return models.AgnosticSegment{
 		Timestamp:   segment.Timestamp,
 		Key:         segment.Key,
-		BlockNumber: segment.BlockNumber,
+		BlobNumber:  segment.BlobNumber,
 		Row:         uint32(segment.Row),
 		Column:      uint32(segment.Column),
 		SampleUntil: segment.SampleUntil,

@@ -400,7 +400,7 @@ func (db *ClickHouseDB) GetSampleableBlobs(ctx context.Context) ([]models.Agnost
 	return requestBlobsOnTTL(ctx, db.highLevelClient)
 }
 
-func (db *ClickHouseDB) GetLastestBlob(ctx context.Context) (models.AgnosticBlob, error) {
+func (db *ClickHouseDB) GetLatestBlob(ctx context.Context) (models.AgnosticBlob, error) {
 	db.highMu.Lock()
 	defer db.highMu.Unlock()
 	return requestLatestBlob(ctx, db.highLevelClient)
@@ -431,11 +431,18 @@ func (db *ClickHouseDB) PersistNewSegment(ctx context.Context, segment models.Ag
 }
 
 func (db *ClickHouseDB) GetSampleableSegments(ctx context.Context) ([]models.AgnosticSegment, error) {
-	// TODO: simplify the query to only the sampleable segments
-	return nil, nil
+	db.highMu.Lock()
+	defer db.highMu.Unlock()
+	return requestSegmentsOnTTL(ctx, db.highLevelClient)
 }
 
-func (db *ClickHouseDB) PersistNewSegmentVisit(ctx context.Context) error {
-	// TODO:
+func (db *ClickHouseDB) PersistNewSegmentVisit(ctx context.Context, visit models.AgnosticVisit) error {
+	flushable := db.qBatchers.visits.addItem(visit)
+	if flushable {
+		err := db.flushBatcherIfNeeded(ctx, db.qBatchers.visits)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }

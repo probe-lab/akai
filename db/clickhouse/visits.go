@@ -13,7 +13,7 @@ import (
 var visistsTableDriver = tableDriver[models.AgnosticVisit]{
 	tableName:      models.VisitTableName,
 	tag:            "insert_new_visit",
-	baseQuery:      insertSegmentQueryBase(),
+	baseQuery:      insertVisitQueryBase(),
 	inputConverter: convertVisitToInput,
 }
 
@@ -22,8 +22,12 @@ func insertVisitQueryBase() string {
 	INSERT INTO %s (
 		timestamp,
 		key,
-		duration,
-		is_retrievable)
+		blob_number,
+		row,
+		column,
+		duration_ms,
+		is_retrievable,
+		error)
 	VALUES`
 	return query
 }
@@ -32,22 +36,34 @@ func convertVisitToInput(visits []models.AgnosticVisit) proto.Input {
 	var (
 		timestamps   proto.ColDateTime
 		keys         proto.ColStr
+		blobNumbers  proto.ColUInt64
+		rows         proto.ColUInt32
+		columns      proto.ColUInt32
 		durations    proto.ColInt64
 		retrievables proto.ColBool
+		errors       proto.ColStr
 	)
 
 	for _, visit := range visits {
 		timestamps.Append(visit.Timestamp)
 		keys.Append(visit.Key)
-		durations.Append(visit.Duration.Microseconds())
+		blobNumbers.Append(visit.BlobNumber)
+		rows.Append(visit.Row)
+		columns.Append(visit.Column)
+		durations.Append(visit.DurationMs)
 		retrievables.Append(visit.IsRetrievable)
+		errors.Append(visit.Error)
 	}
 
 	return proto.Input{
 		{Name: "timestamp", Data: timestamps},
 		{Name: "key", Data: keys},
-		{Name: "duration", Data: durations},
+		{Name: "blob_number", Data: blobNumbers},
+		{Name: "row", Data: rows},
+		{Name: "column", Data: columns},
+		{Name: "duration_ms", Data: durations},
 		{Name: "is_retrievable", Data: retrievables},
+		{Name: "error", Data: errors},
 	}
 }
 
@@ -56,13 +72,17 @@ func requestVisitWithCondition(ctx context.Context, highLevelConn driver.Conn, c
 		SELECT 
 			timestamp,
 			key,
-			duration,
-			tracking_ttl,
+			blob_number,
+			row,
+			column,
+			duration_ms,
+			is_retrievable,
+			error
 		FROM %s
 		%s
-		ORDER BY block_number, row, column;
+		ORDER BY blob_number, row, column;
 		`,
-		segmentTableDriver.tableName,
+		visistsTableDriver.tableName,
 		condition,
 	)
 
@@ -74,7 +94,7 @@ func requestVisitWithCondition(ctx context.Context, highLevelConn driver.Conn, c
 
 func requestAllVisits(ctx context.Context, highLevelConn driver.Conn) ([]models.AgnosticVisit, error) {
 	log.WithFields(log.Fields{
-		"table":      segmentTableDriver.tableName,
+		"table":      visistsTableDriver.tableName,
 		"query_type": "selecting all content",
 	}).Debugf("requesting from the clickhouse db")
 	return requestVisitWithCondition(ctx, highLevelConn, "")
@@ -82,10 +102,10 @@ func requestAllVisits(ctx context.Context, highLevelConn driver.Conn) ([]models.
 
 func dropAllVisitsTable(ctx context.Context, highLevelConn driver.Conn) error {
 	log.WithFields(log.Fields{
-		"table":      segmentTableDriver.tableName,
+		"table":      visistsTableDriver.tableName,
 		"query_type": "deleting all content",
 	}).Debugf("deleting visits from the clickhouse db")
 
-	query := fmt.Sprintf(`DELETE * FROM %s;`, segmentTableDriver.tableName)
+	query := fmt.Sprintf(`DELETE FROM %s WHERE blob_number >= 0;`, visistsTableDriver.tableName)
 	return highLevelConn.Exec(ctx, query)
 }

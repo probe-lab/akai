@@ -59,7 +59,7 @@ func Test_AvailKeyPing(t *testing.T) {
 func composeDemoDHTNetwork(ctx context.Context, t *testing.T, nodeNumbers int64) []DHTHost {
 	// get the bootstrapper
 	hosts := make([]DHTHost, nodeNumbers+1)
-	bootstraperNode := composeDHTHost(t, ctx, 9020, DHTServer)
+	bootstraperNode := composeDHTHost(t, ctx, 9020, config.DHTServer)
 	hosts[0] = bootstraperNode
 
 	// bootstraper info
@@ -71,7 +71,7 @@ func composeDemoDHTNetwork(ctx context.Context, t *testing.T, nodeNumbers int64)
 
 	// compose nodes and connecte them to the bootstrapper
 	for i := int64(1); i <= nodeNumbers; i++ {
-		host := composeDHTHost(t, ctx, 9020+i, DHTServer)
+		host := composeDHTHost(t, ctx, 9020+i, config.DHTServer)
 		connecteHostToPeer(t, ctx, host, bAi)
 		testDirectConnection(t, host, bAi)
 		hosts[i] = host
@@ -79,9 +79,9 @@ func composeDemoDHTNetwork(ctx context.Context, t *testing.T, nodeNumbers int64)
 	return hosts
 }
 
-func composeDHTHost(t *testing.T, ctx context.Context, port int64, mode DHTHostType) DHTHost {
+func composeDHTHost(t *testing.T, ctx context.Context, port int64, mode config.DHTHostType) DHTHost {
 	network := models.Network{Protocol: config.ProtocolLocalCustom, NetworkName: config.NetworkNameLocalCustom}
-	dhtHostOpts := CommonDHTOpts{
+	dhtHostOpts := config.CommonDHTOpts{
 		IP:          "127.0.0.1",      // default?
 		Port:        port,             // default?
 		DialTimeout: 10 * time.Second, // this is the DialTimeout, not the timeout for the operation

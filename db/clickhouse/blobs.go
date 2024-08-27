@@ -23,7 +23,7 @@ func insertBlobQueryBase() string {
 		network_id,
 		timestamp,
 		hash,
-		block_number,
+		blob_number,
 		key,
 		rows,
 		columns,
@@ -34,20 +34,20 @@ func insertBlobQueryBase() string {
 
 func convertBlobToInput(blobs []models.AgnosticBlob) proto.Input {
 	var (
-		networkIDs   proto.ColUInt16
-		timestamps   proto.ColDateTime
-		hashs        proto.ColStr
-		keys         proto.ColStr
-		blockNumbers proto.ColUInt64
-		rows         proto.ColUInt32
-		columns      proto.ColUInt32
-		sampleUntil  proto.ColDateTime
+		networkIDs  proto.ColUInt16
+		timestamps  proto.ColDateTime
+		hashs       proto.ColStr
+		keys        proto.ColStr
+		blobNumbers proto.ColUInt64
+		rows        proto.ColUInt32
+		columns     proto.ColUInt32
+		sampleUntil proto.ColDateTime
 	)
 
 	for _, blob := range blobs {
 		networkIDs.Append((blob.NetworkID))
 		timestamps.Append(blob.Timestamp)
-		blockNumbers.Append(blob.BlockNumber)
+		blobNumbers.Append(blob.BlobNumber)
 		hashs.Append(blob.Hash)
 		keys.Append(blob.Key)
 		rows.Append(blob.Rows)
@@ -60,7 +60,7 @@ func convertBlobToInput(blobs []models.AgnosticBlob) proto.Input {
 		{Name: "timestamp", Data: timestamps},
 		{Name: "hash", Data: hashs},
 		{Name: "key", Data: keys},
-		{Name: "block_number", Data: blockNumbers},
+		{Name: "blob_number", Data: blobNumbers},
 		{Name: "rows", Data: rows},
 		{Name: "columns", Data: columns},
 		{Name: "sample_until", Data: sampleUntil},
@@ -74,13 +74,13 @@ func requestBlobWithCondition(ctx context.Context, highLevelConn driver.Conn, co
 			timestamp,
 			hash,
 			key,
-			block_number,
+			blob_number,
 			rows,
 			columns,
 			sample_until,
 		FROM %s
 		%s
-		ORDER BY block_number;
+		ORDER BY blob_number;
 		`,
 		blobTableDriver.tableName,
 		condition,
@@ -104,12 +104,12 @@ func requestLatestBlob(ctx context.Context, highLevelConn driver.Conn) (models.A
 			timestamp,
 			hash,
 			key,
-			block_number,
+			blob_number,
 			rows,
 			columns,
 			sample_until,
 		FROM %s
-		ORDER BY block_number DESC
+		ORDER BY blob_number DESC
 		LIMIT 1;
 		`,
 		blobTableDriver.tableName,

@@ -17,20 +17,12 @@ import (
 	"github.com/probe-lab/akai/db/models"
 )
 
-type DHTHostType int8
-
-const (
-	DHTClient DHTHostType = iota
-	DHTServer
-)
-
-type CommonDHTOpts struct {
-	ID          int
-	IP          string
-	Port        int64
-	DialTimeout time.Duration
-	DHTMode     DHTHostType
-	UserAgent   string
+var DefaultDHTHostOpts = config.CommonDHTOpts{
+	IP:          "0.0.0.0",        // default?
+	Port:        9020,             // default?
+	DialTimeout: 10 * time.Second, // this is the DialTimeout, not the timeout for the operation
+	DHTMode:     config.DHTClient,
+	UserAgent:   config.ComposeAkaiUserAgent(config.DefaultNetwork),
 }
 
 type DHTHost interface {
@@ -44,11 +36,11 @@ type DHTHost interface {
 
 var _ DHTHost = (*amino.DHTHost)(nil)
 
-func NewDHTHost(ctx context.Context, network models.Network, cfg CommonDHTOpts) (DHTHost, error) {
+func NewDHTHost(ctx context.Context, network models.Network, cfg config.CommonDHTOpts) (DHTHost, error) {
 	return composeHostForNetwork(ctx, network, cfg)
 }
 
-func composeHostForNetwork(ctx context.Context, network models.Network, commonCfg CommonDHTOpts) (DHTHost, error) {
+func composeHostForNetwork(ctx context.Context, network models.Network, commonCfg config.CommonDHTOpts) (DHTHost, error) {
 	switch network.Protocol {
 	case config.ProtocolIPFS:
 		// configure amino DHT
@@ -94,11 +86,11 @@ func composeHostForNetwork(ctx context.Context, network models.Network, commonCf
 	}
 }
 
-func ParseAminoDHTHostMode(mode DHTHostType) kaddht.ModeOpt {
+func ParseAminoDHTHostMode(mode config.DHTHostType) kaddht.ModeOpt {
 	switch mode {
-	case DHTClient:
+	case config.DHTClient:
 		return kaddht.ModeClient
-	case DHTServer:
+	case config.DHTServer:
 		return kaddht.ModeServer
 	default:
 		return kaddht.ModeClient

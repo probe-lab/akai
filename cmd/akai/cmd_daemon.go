@@ -20,6 +20,7 @@ var daemonConfig = config.AkaiDaemonConfig{
 	APIconfig:         api.DefaulServiceConfig,
 	DBconfig:          db.DefaultConnectionDetails,
 	DataSamplerConfig: core.DefaultDataSamplerConfig,
+	DHTHostConfig:     core.DefaultDHTHostOpts,
 }
 
 var cmdService = &cli.Command{
@@ -144,10 +145,6 @@ func cmdDaemonAction(ctx context.Context, cmd *cli.Command) (err error) {
 	// set all network to be on the same one as the given one
 	network := models.NetworkFromStr(daemonConfig.Network)
 	daemonConfig.APIconfig.Network = daemonConfig.Network
-	daemonConfig.BlobsSetCacheSize, daemonConfig.SegmentsSetCacheSize, err = config.DaemonConfigForNetwork(network)
-	if err != nil {
-		return err
-	}
 
 	// start the database
 	dbSer, err := db.NewDatabase(daemonConfig.DBconfig, network)
@@ -155,8 +152,18 @@ func cmdDaemonAction(ctx context.Context, cmd *cli.Command) (err error) {
 		return err
 	}
 
+	// get a DHThost for the given network
+	dhtHost, err := core.NewDHTHost(ctx, network, daemonConfig.DHTHostConfig)
+	if err != nil {
+		return err
+	}
+
 	// start the DataSampler (requires DB)
-	dataSampler, err := core.NewDataSampler(daemonConfig.DataSamplerConfig, dbSer)
+	daemonConfig.DataSamplerConfig.BlobsSetCacheSize, daemonConfig.DataSamplerConfig.SegmentsSetCacheSize, err = config.SamplingConfigForNetwork(network)
+	if err != nil {
+		return err
+	}
+	dataSampler, err := core.NewDataSampler(daemonConfig.DataSamplerConfig, dbSer, dhtHost)
 	if err != nil {
 		return err
 	}

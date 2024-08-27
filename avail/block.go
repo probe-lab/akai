@@ -93,11 +93,11 @@ func (b *Block) ToAkaiAPIBlob(network models.Network, fillSegments bool) akai_ap
 					Column: uint64(col),
 				}
 				segment := akai_api.BlobSegment{
-					BlockNumber: segmentKey.Block,
-					Row:         segmentKey.Row,
-					Column:      segmentKey.Column,
-					Key:         segmentKey.String(),
-					Bytes:       make([]byte, 0),
+					BlobNumber: segmentKey.Block,
+					Row:        segmentKey.Row,
+					Column:     segmentKey.Column,
+					Key:        segmentKey.String(),
+					Bytes:      make([]byte, 0),
 				}
 				blob.Segments = append(blob.Segments, segment)
 			}

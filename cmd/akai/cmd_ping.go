@@ -75,11 +75,11 @@ func cmdPingAction(ctx context.Context, cmd *cli.Command) error {
 
 	network := models.NetworkFromStr(pingConfig.Network)
 
-	dhtHostOpts := core.CommonDHTOpts{
+	dhtHostOpts := config.CommonDHTOpts{
 		IP:          "0.0.0.0",        // default?
 		Port:        9020,             // default?
 		DialTimeout: 10 * time.Second, // this is the DialTimeout, not the timeout for the operation
-		DHTMode:     core.DHTClient,
+		DHTMode:     config.DHTClient,
 		UserAgent:   config.ComposeAkaiUserAgent(network),
 	}
 
