@@ -118,8 +118,12 @@ func (d *Daemon) configureInternalCaches() error {
 	if err != nil {
 		return err
 	}
-
-	d.blobIDs.Add(lastBlob.BlockNumber, &lastBlob)
+	if lastBlob.IsComplete() {
+		log.Info("synced with the DB at blob", lastBlob.BlockNumber)
+		d.blobIDs.Add(lastBlob.BlockNumber, &lastBlob)
+	} else {
+		log.Warn("no blob was found at DB")
+	}
 
 	// populate the cache of IDs for the ongoing segments
 	return nil

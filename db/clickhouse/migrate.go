@@ -1,8 +1,6 @@
 package clickhouse
 
 import (
-	"fmt"
-
 	_ "github.com/ClickHouse/clickhouse-go/v2"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -18,9 +16,12 @@ func (s *ClickHouseDB) makeMigrations() error {
 	s.conDetails.Params = s.conDetails.Params + "?x-multi-statement=true" // allow multistatements for the migrations
 	m, err := migrate.New("file://./db/clickhouse/migrations", s.conDetails.String())
 	if err != nil {
-		fmt.Println("error - ")
-		log.Errorf(err.Error())
-		return err
+		// HOT_FIX tests need the path to be relative
+		m, err = migrate.New("file://migrations", s.conDetails.String())
+		if err != nil {
+			log.Errorf(err.Error())
+			return err
+		}
 	}
 	// bring up the migrations to the last version
 	if err := m.Up(); err != nil {
