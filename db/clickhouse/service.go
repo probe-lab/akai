@@ -131,7 +131,7 @@ func (db *ClickHouseDB) makeConnections(ctx context.Context, tableNames map[stri
 		db.lowPoolM.Lock()
 		db.lowLevelConnPool[table] = tableConn
 		db.lowPoolM.Unlock()
-		hlog.Info("successful connection to table...")
+		hlog.Debug("successful connection to table...")
 	}
 
 	highCon, err := db.getHighLevelConnection(ctx, db.conDetails)
@@ -324,7 +324,7 @@ func (db *ClickHouseDB) persistBatch(
 		return err
 	}
 
-	log.Infof("query submitted in %s", elapsedTime)
+	log.Debugf("query submitted in %s", elapsedTime)
 	return nil
 }
 

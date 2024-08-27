@@ -77,7 +77,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 
 	// add services to
 	d.sup.Add(d.db)
-	d.sup.Add(d.dataSampler)
+	// d.sup.Add(d.dataSampler)
 	d.sup.Add(d.api)
 
 	return d.sup.Serve(ctx)
@@ -155,6 +155,10 @@ func (d *Daemon) newBlobHandler(ctx context.Context, blob api.Blob) error {
 	}
 
 	// proccess all the segments through the specific handler
+	err = d.db.PersistNewSegments(ctx, d.newAgnosticSegmentsFromAPIsegments(blob.Segments))
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
