@@ -81,7 +81,7 @@ func (b *Block) ToAkaiAPIBlob(network models.Network, fillSegments bool) akai_ap
 		Columns:     b.Extension.Columns,
 		Segments:    make([]akai_api.BlobSegment, 0),
 		Metadata:    make(map[string]any, 0),
-		SampleUntil: time.Now().Add(api.BlockTTL),
+		SampleUntil: time.Now().Add(api.BlockTTL + 3*time.Hour), // add 3 hours extra to ensure that we sample also after the 24 hour mark
 	}
 	// if needed, add all the inner segments into the blob struct for the API (make 1 single API call)
 	if fillSegments {

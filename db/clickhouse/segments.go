@@ -79,6 +79,7 @@ func requestSegmentWithCondition(ctx context.Context, highLevelConn driver.Conn,
 	// lock the connection
 	var response []models.AgnosticSegment
 	err := highLevelConn.Select(ctx, &response, query)
+	fmt.Println(response)
 	return response, err
 }
 

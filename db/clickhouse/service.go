@@ -24,7 +24,7 @@ var DefaultClickhouseConnectionDetails = config.DatabaseDetails{
 }
 
 var (
-	MaxFlushInterval = 5 * time.Second
+	MaxFlushInterval = 1 * time.Second
 )
 
 type ClickHouseDB struct {
@@ -237,11 +237,12 @@ func (db *ClickHouseDB) composeBatchersForTables(tables map[string]struct{}) err
 }
 
 func (db *ClickHouseDB) periodicBatchesFlusher(ctx context.Context, interval time.Duration) {
+	log.Info("run periodic flusher for batchers every", interval)
 	flushT := time.NewTicker(interval)
 	for {
 		select {
 		case <-ctx.Done():
-
+			return
 		case <-flushT.C:
 			err := db.flushAllBatchers(ctx)
 			if err != nil {
@@ -252,20 +253,21 @@ func (db *ClickHouseDB) periodicBatchesFlusher(ctx context.Context, interval tim
 }
 
 func (db *ClickHouseDB) flushAllBatchers(ctx context.Context) error {
+	log.Debug("flushing all tables")
 	// flush all the batchers
-	err := db.flushBatcherIfNeeded(ctx, db.qBatchers.networks)
+	err := db.flushBatcher(ctx, db.qBatchers.networks)
 	if err != nil {
 		return err
 	}
-	err = db.flushBatcherIfNeeded(ctx, db.qBatchers.blobs)
+	err = db.flushBatcher(ctx, db.qBatchers.blobs)
 	if err != nil {
 		return err
 	}
-	err = db.flushBatcherIfNeeded(ctx, db.qBatchers.segments)
+	err = db.flushBatcher(ctx, db.qBatchers.segments)
 	if err != nil {
 		return err
 	}
-	err = db.flushBatcherIfNeeded(ctx, db.qBatchers.visits)
+	err = db.flushBatcher(ctx, db.qBatchers.visits)
 	if err != nil {
 		return err
 	}
@@ -328,33 +330,37 @@ func (db *ClickHouseDB) persistBatch(
 	return nil
 }
 
+func (db *ClickHouseDB) flushBatcher(ctx context.Context, batcher flusheableBatcher) error {
+	defer batcher.resetBatcher()
+	persistable, itemsN := batcher.getPersistable()
+	if itemsN <= 0 {
+		return nil
+	}
+
+	log.WithFields(log.Fields{
+		"table":      batcher.TableName(),
+		"tag":        batcher.Tag(),
+		"full":       batcher.isFull(),
+		"flusheable": batcher.isFlusheable(),
+		"items":      itemsN,
+	}).Debug("flushing batcher...")
+
+	err := db.persistBatch(
+		ctx,
+		batcher.Tag(),
+		batcher.BaseQuery(),
+		batcher.TableName(),
+		persistable,
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("flushing %d itmes for table %s", batcher.currentLen(), batcher.TableName()))
+	}
+	return nil
+}
+
 func (db *ClickHouseDB) flushBatcherIfNeeded(ctx context.Context, batcher flusheableBatcher) error {
-
 	if batcher.isFull() || batcher.isFlusheable() {
-		defer batcher.resetBatcher()
-		persistable, itemsN := batcher.getPersistable()
-		if itemsN <= 0 {
-			return nil
-		}
-
-		log.WithFields(log.Fields{
-			"table":      batcher.TableName(),
-			"tag":        batcher.Tag(),
-			"full":       batcher.isFull(),
-			"flusheable": batcher.isFlusheable(),
-			"items":      itemsN,
-		}).Debug("flushing batcher...")
-
-		err := db.persistBatch(
-			ctx,
-			batcher.Tag(),
-			batcher.BaseQuery(),
-			batcher.TableName(),
-			persistable,
-		)
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("flushing %d itmes for table %s", batcher.currentLen(), batcher.TableName()))
-		}
+		db.flushBatcher(ctx, batcher)
 	}
 	return nil
 }

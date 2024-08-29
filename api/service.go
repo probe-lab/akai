@@ -150,14 +150,6 @@ func (s *Service) postNewBlobHandler(c *gin.Context) {
 		hlog.Error(err)
 	}
 
-	// if the block already includes Segments, process them
-	if blob.Segments != nil {
-		if err := s.appNewSegmentsHandler(c.Request.Context(), blob.Segments); err != nil {
-			c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
-			hlog.Error(err)
-		}
-	}
-
 	c.JSON(http.StatusOK, ACK{Status: "ok", Error: ""})
 }
 

@@ -145,7 +145,7 @@ func rootAfter(c context.Context, cmd *cli.Command) error {
 func configureLogger(_ context.Context, cmd *cli.Command) error {
 	// log level
 	logLevel := log.InfoLevel
-	if cmd.IsSet("log-level") {
+	if cmd.IsSet("log.level") {
 		switch strings.ToLower(rootConfig.LogLevel) {
 		case "debug":
 			logLevel = log.DebugLevel

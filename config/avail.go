@@ -4,6 +4,11 @@ import (
 	"time"
 )
 
+var (
+	AvailDelayBase       = 3 * time.Minute
+	AvailDelayMultiplier = 2
+)
+
 type AvailBlockTracker struct {
 	// type of consumers
 	TextConsumer bool

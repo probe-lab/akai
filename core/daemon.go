@@ -22,31 +22,32 @@ type Daemon struct {
 	sup    *suture.Supervisor // to coordinate all the services
 
 	api         *api.Service
+	dhtHost     DHTHost
 	db          db.Database
 	dataSampler *DataSampler
 
-	network     models.Network
-	blobIDs     *lru.Cache[uint64, *models.AgnosticBlob]
-	segmentsIDs *lru.Cache[string, *models.AgnosticSegment]
+	network models.Network
+	blobIDs *lru.Cache[uint64, *models.AgnosticBlob]
 }
 
 func NewDaemon(
 	cfg config.AkaiDaemonConfig,
+	h DHTHost,
 	dbServ db.Database,
 	dataSampler *DataSampler,
 	apiServ *api.Service) (*Daemon, error) {
 
 	blobsCache := dataSampler.BlobsCache()
-	segmentsCache := dataSampler.SegmentsCache()
 
 	daemon := &Daemon{
 		config:      cfg,
 		api:         apiServ,
+		dhtHost:     h,
 		db:          dbServ,
 		sup:         suture.NewSimple("akai-daemon"),
 		network:     models.NetworkFromStr(cfg.Network),
+		dataSampler: dataSampler,
 		blobIDs:     blobsCache,
-		segmentsIDs: segmentsCache,
 	}
 
 	// once everything is in place, we MUST override the appHandlers at the ApiServer
@@ -71,7 +72,7 @@ func (d *Daemon) Start(ctx context.Context) error {
 
 	// add services to
 	d.sup.Add(d.db)
-	// d.sup.Add(d.dataSampler)
+	d.sup.Add(d.dataSampler)
 	d.sup.Add(d.api)
 
 	return d.sup.Serve(ctx)
@@ -142,6 +143,14 @@ func (d *Daemon) newBlobHandler(ctx context.Context, blob api.Blob) error {
 	agBlob := d.newAgnosticBlobFromAPIblob(blob)
 	d.blobIDs.Add(agBlob.BlobNumber, &agBlob)
 
+	// add the segments to the segmentsSet
+	for _, seg := range blob.Segments {
+		agSeg := d.newAgnosticSegmentFromAPIsegment(seg)
+		if !d.dataSampler.segSet.isSegmentAlready(agSeg.Key) {
+			d.dataSampler.segSet.addSegment(&agSeg)
+		}
+	}
+
 	// add the blob info to the DB
 	err := d.db.PersistNewBlob(ctx, agBlob)
 	if err != nil {
@@ -167,7 +176,12 @@ func (d *Daemon) newSegmentHandler(ctx context.Context, segment api.BlobSegment)
 	if err != nil {
 		return err
 	}
+
 	// add segment to the DataSampler
+	agSeg := d.newAgnosticSegmentFromAPIsegment(segment)
+	if !d.dataSampler.segSet.isSegmentAlready(agSeg.Key) {
+		d.dataSampler.segSet.addSegment(&agSeg)
+	}
 
 	return nil
 }
@@ -182,7 +196,13 @@ func (d *Daemon) newSegmentsHandler(ctx context.Context, segments []api.BlobSegm
 		return err
 	}
 
-	// add segment to the DataSampler
+	// add the segments to the segmentsSet
+	for _, seg := range segments {
+		agSeg := d.newAgnosticSegmentFromAPIsegment(seg)
+		if !d.dataSampler.segSet.isSegmentAlready(agSeg.Key) {
+			d.dataSampler.segSet.addSegment(&agSeg)
+		}
+	}
 
 	return nil
 }
@@ -211,10 +231,10 @@ func (d *Daemon) newAgnosticSegmentFromAPIsegment(segment api.BlobSegment) model
 }
 
 func (d *Daemon) newAgnosticSegmentsFromAPIsegments(segments []api.BlobSegment) []models.AgnosticSegment {
-	agSegs := make([]models.AgnosticSegment, len(segments), 0)
-	for _, seg := range segments {
+	agSegs := make([]models.AgnosticSegment, len(segments))
+	for i, seg := range segments {
 		agSeg := d.newAgnosticSegmentFromAPIsegment(seg)
-		agSegs = append(agSegs, agSeg)
+		agSegs[i] = agSeg
 	}
 	return agSegs
 }

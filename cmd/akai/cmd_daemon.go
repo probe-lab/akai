@@ -159,7 +159,7 @@ func cmdDaemonAction(ctx context.Context, cmd *cli.Command) (err error) {
 	}
 
 	// start the DataSampler (requires DB)
-	daemonConfig.DataSamplerConfig.BlobsSetCacheSize, daemonConfig.DataSamplerConfig.SegmentsSetCacheSize, err = config.SamplingConfigForNetwork(network)
+	daemonConfig.DataSamplerConfig.AkaiSamplingDetails, err = config.SamplingConfigForNetwork(network)
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func cmdDaemonAction(ctx context.Context, cmd *cli.Command) (err error) {
 	// NOTE: this creates a basic appHandlers
 	// -> They MUST be overwriten after the init of the daemon to plug the DB and the DataSampler
 	// to hear from new samples and blocks
-	daemon, err := core.NewDaemon(daemonConfig, dbSer, dataSampler, apiSer)
+	daemon, err := core.NewDaemon(daemonConfig, dhtHost, dbSer, dataSampler, apiSer)
 	if err != nil {
 		return err
 	}

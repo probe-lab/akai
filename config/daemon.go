@@ -28,33 +28,47 @@ type AkaiDaemonConfig struct {
 }
 
 type AkaiDataSamplerConfig struct {
-	Network              string
-	Workers              int
-	BlobsSetCacheSize    int
-	SegmentsSetCacheSize int
-	SamplingTimeout      time.Duration
-	DBsyncInterval       time.Duration
-	SampleTTL            time.Duration
+	Network         string
+	Workers         int
+	SamplingTimeout time.Duration
+	DBsyncInterval  time.Duration
+	AkaiSamplingDetails
 }
 
-func SamplingConfigForNetwork(network models.Network) (blobSetSize int, segmentSetSize int, err error) {
+type AkaiSamplingDetails struct {
+	BlobsSetCacheSize    int
+	SegmentsSetCacheSize int
+	DelayBase            time.Duration
+	DelayMultiplier      int
+}
+
+func SamplingConfigForNetwork(network models.Network) (AkaiSamplingDetails, error) {
 	switch network.Protocol {
 	case ProtocolIPFS:
-		blobSetSize = AvailBlobsSetCacheSize
-		segmentSetSize = AvailSegmentsSetCacheSize
-		return
+		return AkaiSamplingDetails{
+			BlobsSetCacheSize:    IPFSBlobsSetCacheSize,
+			SegmentsSetCacheSize: IPFSSegmentsSetCacheSize,
+			DelayBase:            IPFSDelayBase,
+			DelayMultiplier:      IPFSDelayMultiplier,
+		}, nil
 
 	case ProtocolAvail:
-		blobSetSize = IPFSBlobsSetCacheSize
-		segmentSetSize = IPFSSegmentsSetCacheSize
-		return
+		return AkaiSamplingDetails{
+			BlobsSetCacheSize:    AvailBlobsSetCacheSize,
+			SegmentsSetCacheSize: AvailSegmentsSetCacheSize,
+			DelayBase:            AvailDelayBase,
+			DelayMultiplier:      AvailDelayMultiplier,
+		}, nil
 
 	case ProtocolLocalCustom:
-		blobSetSize = IPFSBlobsSetCacheSize
-		segmentSetSize = IPFSSegmentsSetCacheSize
-		return
+		return AkaiSamplingDetails{
+			BlobsSetCacheSize:    IPFSBlobsSetCacheSize,
+			SegmentsSetCacheSize: IPFSSegmentsSetCacheSize,
+			DelayBase:            IPFSDelayBase,
+			DelayMultiplier:      IPFSDelayMultiplier,
+		}, nil
 	default:
-		err = fmt.Errorf("")
-		return
+		err := fmt.Errorf("protocol not supported")
+		return AkaiSamplingDetails{}, err
 	}
 }

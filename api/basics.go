@@ -24,7 +24,7 @@ type Blob struct {
 	Network     models.Network `json:"network"`
 	Number      uint64         `json:"number"`
 	Hash        string         `json:"hash"`
-	ParentHash  string         `json:"parent-hash"`
+	ParentHash  string         `json:"parent_hash"`
 	Rows        uint64         `json:"rows"`
 	Columns     uint64         `json:"columns"`
 	Segments    []BlobSegment  `json:"segments"`
@@ -34,7 +34,7 @@ type Blob struct {
 
 type BlobSegment struct {
 	Timestamp   time.Time `json:"timestamp"`
-	BlobNumber  uint64    `json:"blob-number"`
+	BlobNumber  uint64    `json:"blob_number"`
 	Key         string    `json:"key"`
 	Row         uint64    `json:"row"`
 	Column      uint64    `json:"column"`

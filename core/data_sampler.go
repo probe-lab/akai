@@ -2,6 +2,8 @@ package core
 
 import (
 	"context"
+	"fmt"
+	"sync"
 	"time"
 
 	lru "github.com/hashicorp/golang-lru/v2"
@@ -9,6 +11,10 @@ import (
 	"github.com/probe-lab/akai/db"
 	"github.com/probe-lab/akai/db/models"
 	log "github.com/sirupsen/logrus"
+)
+
+var (
+	minIterTime = 250 * time.Millisecond
 )
 
 var DefaultDataSamplerConfig = config.AkaiDataSamplerConfig{
@@ -24,8 +30,9 @@ type DataSampler struct {
 	db db.Database
 	h  DHTHost
 
-	blobIDs     *lru.Cache[uint64, *models.AgnosticBlob]
-	segmentsIDs *lru.Cache[string, *models.AgnosticSegment]
+	blobIDs    *lru.Cache[uint64, *models.AgnosticBlob]
+	segSet     *segmentSet
+	visitTaskC chan *models.AgnosticSegment
 }
 
 func NewDataSampler(
@@ -37,17 +44,14 @@ func NewDataSampler(
 	if err != nil {
 		return nil, err
 	}
-	segmentsCache, err := lru.New[string, *models.AgnosticSegment](cfg.SegmentsSetCacheSize) // <block_number>, <block_ID_in_DB>
-	if err != nil {
-		return nil, err
-	}
 
 	ds := &DataSampler{
-		cfg:         cfg,
-		db:          database,
-		h:           h,
-		blobIDs:     blobsCache,
-		segmentsIDs: segmentsCache,
+		cfg:        cfg,
+		db:         database,
+		h:          h,
+		segSet:     newSegmentSet(),
+		visitTaskC: make(chan *models.AgnosticSegment, cfg.Workers),
+		blobIDs:    blobsCache,
 	}
 
 	return ds, nil
@@ -63,11 +67,14 @@ func (ds *DataSampler) Serve(ctx context.Context) error {
 	go ds.runSampleOrchester(ctx)
 
 	// start the workers
+	var samplerWG sync.WaitGroup
 	for samplerID := 1; samplerID <= ds.cfg.Workers; samplerID++ {
+		samplerWG.Add(1)
 		go ds.runSampler(ctx, samplerID)
 	}
 
 	<-ctx.Done()
+
 	return nil
 }
 
@@ -78,10 +85,69 @@ func (ds *DataSampler) runSampleOrchester(ctx context.Context) {
 		olog.Info("sample orchester closed")
 	}()
 
+	// ensure that the segmentSet is not freshly created
+	minTimeT := time.NewTicker(minIterTime)
+initLoop:
+	for !ds.segSet.isInit() {
+		select {
+		case <-minTimeT.C:
+			olog.Trace("segment_set still not initialized")
+			minTimeT.Reset(minIterTime)
+		case <-ctx.Done():
+			break initLoop
+		}
+	}
+	minTimeT.Reset(minIterTime)
+
+	// check if we need to update the segment set
+	updateSegSet := func() {
+		olog.Debugf("reorgananizing (%d) Segments based on their next visit time", ds.segSet.Len())
+		ds.segSet.SortSegmentList()
+	}
+
+	// orchester main loop
 	for {
 		select {
 		case <-ctx.Done():
 			return
+
+		default:
+			<-minTimeT.C // ensure minimal interval between resets to not spam the DB nor wasting CPU cicles
+			minTimeT.Reset(minIterTime)
+
+			if !ds.segSet.Next() {
+				log.Debug("there is no next segment to visit")
+				updateSegSet()
+				continue
+			}
+
+			nextSegment := ds.segSet.Segment()
+			if nextSegment == nil {
+				log.Debug("next segment to visit was nil")
+				updateSegSet()
+				continue
+			}
+
+			// check if we have to sort again
+			if !nextSegment.IsReadyForNextPing() {
+				if nextSegment.NextVisit.IsZero() {
+					// as we organize the segments by nextVisitTime, "zero" time gets first
+					// breaking always the loop until all the Cids have been generated
+					// and published, thus, let the foor loop find a valid time
+					olog.Debugf("not in time to visit %s next visit in zero (%s)", nextSegment.Key, time.Until(nextSegment.NextVisit))
+				}
+				olog.Debugf("not in time to visit %s next visit in %s", nextSegment.Key, time.Until(nextSegment.NextVisit))
+				// we have to update anyways
+				updateSegSet()
+				continue
+			}
+
+			// update the segment for the next visit
+			hasValidNextVisit := ds.updateNextVisitTime(nextSegment)
+			if !hasValidNextVisit {
+				ds.segSet.removeSegment(nextSegment.Key)
+			}
+			ds.visitTaskC <- nextSegment
 		}
 	}
 }
@@ -95,6 +161,15 @@ func (ds *DataSampler) runSampler(ctx context.Context, samplerID int) {
 
 	for {
 		select {
+		case samplingSegment := <-ds.visitTaskC:
+			wlog.Debugf("sampling %s", samplingSegment.Key)
+			samplingCtx, cancel := context.WithTimeout(ctx, ds.cfg.SamplingTimeout)
+			defer cancel()
+			err := ds.sampleSegment(samplingCtx, *samplingSegment)
+			if err != nil {
+				log.Panicf("error persinting sampling visit - %s", err)
+			}
+
 		case <-ctx.Done():
 			return
 		}
@@ -114,10 +189,12 @@ func (ds *DataSampler) syncWithDatabase(ctx context.Context) error {
 		last := sampleableBlobs[0].BlobNumber
 		for _, blob := range sampleableBlobs {
 			ds.blobIDs.Add(blob.BlobNumber, &blob)
+			last = blob.BlobNumber
 		}
 		log.WithFields(log.Fields{
-			"from": first,
-			"to":   last,
+			"from":  first,
+			"to":    last,
+			"total": len(sampleableBlobs),
 		}).Info("synced data-sampler's sampleable blobs with the DB")
 	} else {
 		log.Warn("no sampleable blobs were found at DB")
@@ -133,15 +210,21 @@ func (ds *DataSampler) syncWithDatabase(ctx context.Context) error {
 	if len(sampleableSegs) > 0 {
 		first := sampleableSegs[0].Key
 		last := sampleableSegs[0].Key
-		for _, blob := range sampleableBlobs {
-			ds.blobIDs.Add(blob.BlobNumber, &blob)
+		for _, seg := range sampleableSegs {
+			last = seg.Key
+			if ds.segSet.isSegmentAlready(seg.Key) {
+				continue
+			}
+			ds.updateNextVisitTime(&seg)
+			ds.segSet.addSegment(&seg)
 		}
 		log.WithFields(log.Fields{
-			"from": first,
-			"to":   last,
-		}).Info("synced data-sampler's sampleable blobs with the DB")
+			"from":  first,
+			"to":    last,
+			"total": len(sampleableSegs),
+		}).Info("synced data-sampler's sampleable segments with the DB")
 	} else {
-		log.Warn("no sampleable blobs were found at DB")
+		log.Warn("no sampleable segments were found at DB")
 	}
 
 	return nil
@@ -149,13 +232,16 @@ func (ds *DataSampler) syncWithDatabase(ctx context.Context) error {
 
 func (ds *DataSampler) sampleSegment(ctx context.Context, segment models.AgnosticSegment) error {
 	log.WithFields(log.Fields{
-		"segment":        segment.Key,
-		"sampleable_ttl": segment.SampleUntil,
+		"segment":          segment.Key,
+		"sampleable_until": segment.SampleUntil,
 	}).Debug("sampling segment of blob")
 
 	visit := models.AgnosticVisit{
 		Timestamp:     time.Now(),
 		Key:           segment.Key,
+		BlobNumber:    segment.BlobNumber,
+		Row:           segment.Row,
+		Column:        segment.Column,
 		IsRetrievable: false,
 	}
 
@@ -174,9 +260,25 @@ func (ds *DataSampler) sampleSegment(ctx context.Context, segment models.Agnosti
 }
 
 func (ds *DataSampler) BlobsCache() *lru.Cache[uint64, *models.AgnosticBlob] {
-	return ds.BlobsCache()
+	return ds.blobIDs
 }
 
-func (ds *DataSampler) SegmentsCache() *lru.Cache[string, *models.AgnosticSegment] {
-	return ds.SegmentsCache()
+func (ds *DataSampler) updateNextVisitTime(segment *models.AgnosticSegment) (validNextVisit bool) {
+
+	fmt.Println("current visit for", segment.Key, segment.NextVisit)
+	multCnt := 1
+	delay := ds.cfg.DelayBase
+	nextVisit := segment.Timestamp.Add(delay)
+	fmt.Println(multCnt, "next_visit", nextVisit)
+	multCnt++
+	for (nextVisit.Before(segment.NextVisit) && nextVisit.Equal(segment.NextVisit)) || nextVisit.Before(time.Now()) {
+		delay = delay * time.Duration(ds.cfg.DelayMultiplier)
+		nextVisit = segment.Timestamp.Add(delay)
+		fmt.Println(multCnt, "next_visit", nextVisit, delay)
+		multCnt++
+	}
+
+	fmt.Println("updating to:", nextVisit)
+	segment.NextVisit = nextVisit
+	return nextVisit.Before(segment.SampleUntil)
 }
