@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/probe-lab/akai/config"
-	"github.com/probe-lab/akai/db"
+	"github.com/probe-lab/akai/db/models"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,15 +18,8 @@ func Test_ClickhouseInitialization(t *testing.T) {
 }
 
 func generateClickhouseDatabase(t *testing.T, ctx context.Context, tables map[string]struct{}) *ClickHouseDB {
-	conDetails := ConnectionDetails{
-		Driver:   "clickhouse",
-		Address:  "127.0.0.1:9000",
-		User:     "username",
-		Password: "password",
-		Database: "akai_test",
-		Params:   "",
-	}
-	network := db.Network{
+	conDetails := DefaultClickhouseConnectionDetails
+	network := models.Network{
 		NetworkID:   0,
 		Protocol:    config.ProtocolLocalCustom,
 		NetworkName: config.NetworkNameLocalCustom,

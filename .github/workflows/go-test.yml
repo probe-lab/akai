@@ -1,6 +1,10 @@
 name: Go Tests
 
-on: [push, merge_group]
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
 
 env:
   CH_USER: username

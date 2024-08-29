@@ -1,54 +1,46 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/probe-lab/akai/config"
-	"github.com/probe-lab/akai/db"
+	"github.com/probe-lab/akai/db/models"
 	log "github.com/sirupsen/logrus"
 )
 
+type ServiceOption func(*Service) error
+
 const APIversion = "v1"
 
-type ServiceConfig struct {
-	// api host parameters
-	Host       string
-	Port       int
-	PrefixPath string
-	Timeout    time.Duration
-
-	// configuration
-	Network               db.Network
-	appNewBlobHandler     func(Blob) error
-	appNewSegmentHandler  func(BlobSegment) error
-	appNewSegmentsHandler func([]BlobSegment) error
+var DefaulServiceConfig = config.AkaiAPIServiceConfig{
+	Network:    config.DefaultNetwork.String(),
+	Host:       "127.0.0.1",
+	Port:       8080,
+	PrefixPath: "api/" + APIversion,
+	Timeout:    10 * time.Second,
+	Mode:       "release",
 }
-
-var DefaulServiceConfig = ServiceConfig{
-	Network:               config.DefaultNetwork,
-	Host:                  "127.0.0.1",
-	Port:                  8080,
-	PrefixPath:            "api/" + APIversion,
-	Timeout:               10 * time.Second,
-	appNewBlobHandler:     func(b Blob) error { return nil },
-	appNewSegmentHandler:  func(bs BlobSegment) error { return nil },
-	appNewSegmentsHandler: func(bs []BlobSegment) error { return nil },
-}
-
-var DefaultServiceConfig ServiceConfig = ServiceConfig{}
 
 type Service struct {
-	config ServiceConfig
+	config config.AkaiAPIServiceConfig
+
+	appNewBlobHandler     func(context.Context, Blob) error
+	appNewSegmentHandler  func(context.Context, BlobSegment) error
+	appNewSegmentsHandler func(context.Context, []BlobSegment) error
 
 	router *gin.Engine
 }
 
-func NewService(cfg ServiceConfig) (*Service, error) {
+func NewService(cfg config.AkaiAPIServiceConfig, opts ...ServiceOption) (*Service, error) {
 	apiService := &Service{
-		config: cfg,
+		config:                cfg,
+		appNewBlobHandler:     func(context.Context, Blob) error { return nil },
+		appNewSegmentHandler:  func(context.Context, BlobSegment) error { return nil },
+		appNewSegmentsHandler: func(context.Context, []BlobSegment) error { return nil },
 	}
 
 	apiPathBase := fmt.Sprintf("https://%s:%d/%s", cfg.Host, cfg.Port, cfg.PrefixPath)
@@ -63,8 +55,33 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 	return apiService, nil
 }
 
-func (s *Service) Serve(mode string) error {
-	gin.SetMode(mode)
+func WithAppBlobHandler(blobHandler func(context.Context, Blob) error) ServiceOption {
+	return func(s *Service) error {
+		s.appNewBlobHandler = blobHandler
+		return nil
+	}
+}
+
+func WithAppSegmentHandler(segmentHandler func(context.Context, BlobSegment) error) ServiceOption {
+	return func(s *Service) error {
+		s.appNewSegmentHandler = segmentHandler
+		return nil
+	}
+}
+
+func WithAppSegmentsHandler(segmentsHandler func(context.Context, []BlobSegment) error) ServiceOption {
+	return func(s *Service) error {
+		s.appNewSegmentsHandler = segmentsHandler
+		return nil
+	}
+}
+
+func (s *Service) Serve(ctx context.Context) error {
+	return s.serve()
+}
+
+func (s *Service) serve() error {
+	gin.SetMode(s.config.Mode)
 	s.router = gin.New()
 	s.router.Use(gin.Recovery())
 
@@ -82,8 +99,8 @@ func (s *Service) Serve(mode string) error {
 	return s.router.Run(fmt.Sprintf("%s:%d", s.config.Host, s.config.Port))
 }
 
-func (s *Service) isNetworkSupported(remNet db.Network) bool {
-	return s.config.Network.String() == remNet.String() // we don't care about the NetworkID (its for the DB)
+func (s *Service) isNetworkSupported(remNet models.Network) bool {
+	return s.config.Network == remNet.String() // we don't care about the NetworkID (its for the DB)
 }
 
 func (s *Service) pingHandler(c *gin.Context) {
@@ -91,7 +108,19 @@ func (s *Service) pingHandler(c *gin.Context) {
 }
 
 func (s *Service) getSupportedNetworkHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, SupportedNetworks{Network: s.config.Network})
+	c.JSON(http.StatusOK, SupportedNetworks{Network: models.NetworkFromStr(s.config.Network)})
+}
+
+func (s *Service) UpdateNewBlobHandler(fn func(context.Context, Blob) error) {
+	s.appNewBlobHandler = fn
+}
+
+func (s *Service) UpdateNewSegmentHandler(fn func(context.Context, BlobSegment) error) {
+	s.appNewSegmentHandler = fn
+}
+
+func (s *Service) UpdateNewSegmentsHandler(fn func(context.Context, []BlobSegment) error) {
+	s.appNewSegmentsHandler = fn
 }
 
 func (s *Service) postNewBlobHandler(c *gin.Context) {
@@ -116,17 +145,9 @@ func (s *Service) postNewBlobHandler(c *gin.Context) {
 	}
 
 	// make app specific
-	if err := s.config.appNewBlobHandler(blob); err != nil {
+	if err := s.appNewBlobHandler(c.Request.Context(), blob); err != nil {
 		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
 		hlog.Error(err)
-	}
-
-	// if the block already includes Segments, process them
-	if blob.BlobSegments.Segments != nil {
-		if err := s.config.appNewSegmentsHandler(blob.BlobSegments.Segments); err != nil {
-			c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
-			hlog.Error(err)
-		}
 	}
 
 	c.JSON(http.StatusOK, ACK{Status: "ok", Error: ""})
@@ -149,7 +170,7 @@ func (s *Service) postNewSegmentHandler(c *gin.Context) {
 	// assume that the segment is correct
 
 	// make app specific
-	if err := s.config.appNewSegmentHandler(segment); err != nil {
+	if err := s.appNewSegmentHandler(c.Request.Context(), segment); err != nil {
 		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
 		hlog.Error(err)
 	}
@@ -164,9 +185,7 @@ func (s *Service) postNewSegmentsHandler(c *gin.Context) {
 	})
 	hlog.Debug("new api-request")
 
-	segments := BlobSegments{
-		Segments: make([]BlobSegment, 0),
-	}
+	segments := make([]BlobSegment, 0)
 	if err := c.BindJSON(&segments); err != nil {
 		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
 		hlog.Error(err)
@@ -175,7 +194,7 @@ func (s *Service) postNewSegmentsHandler(c *gin.Context) {
 
 	// assume that the segment is correct
 	// make app specific
-	if err := s.config.appNewSegmentsHandler(segments.Segments); err != nil {
+	if err := s.appNewSegmentsHandler(c.Request.Context(), segments); err != nil {
 		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
 		hlog.Error(err)
 	}

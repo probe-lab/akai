@@ -1,4 +1,4 @@
-package db
+package models
 
 import (
 	"fmt"
@@ -51,4 +51,8 @@ func (n Network) QueryValues() map[string]any {
 
 func (n Network) BatchingSize() int {
 	return networkBatcherSize
+}
+
+func NetworkFromStr(s string) Network {
+	return Network{}.FromString(s)
 }

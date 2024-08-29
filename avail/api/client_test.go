@@ -69,8 +69,8 @@ func Test_AvailHttpV2BlockHeader(t *testing.T) {
 func genTestAPICli(t *testing.T) (*HTTPClient, context.Context, context.CancelFunc) {
 	testMainCtx, cancel := context.WithCancel(context.Background())
 
-	opts := config.AvailHttpAPIClient{
-		IP:      localAvailTestIP,
+	opts := config.AvailAPIConfig{
+		Host:    localAvailTestIP,
 		Port:    localAvailTestPort,
 		Timeout: ConnectionTimeout,
 	}

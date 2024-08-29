@@ -1,40 +1,8 @@
 package clickhouse
 
 import (
-	"fmt"
-
 	"github.com/ClickHouse/ch-go/proto"
 )
-
-type ConnectionDetails struct {
-	Driver   string
-	Address  string
-	User     string
-	Password string
-	Database string
-	Params   string
-}
-
-func (d ConnectionDetails) String() string {
-	return fmt.Sprintf(
-		"%s://%s:%s@%s/%s%s",
-		d.Driver,
-		d.User,
-		d.Password,
-		d.Address,
-		d.Database,
-		d.Params,
-	)
-}
-
-var DefaultDatabaseOpts = ConnectionDetails{
-	Driver:   "clickhouse",
-	Address:  "127.0.0.1:9000",
-	User:     "default",
-	Password: "",
-	Database: "default",
-	Params:   "",
-}
 
 type Persistable interface {
 	TableName() string

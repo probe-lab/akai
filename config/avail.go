@@ -1,18 +1,29 @@
 package config
 
-import "time"
+import (
+	"time"
+)
+
+var (
+	AvailDelayBase       = 3 * time.Minute
+	AvailDelayMultiplier = 2
+)
 
 type AvailBlockTracker struct {
 	// type of consumers
 	TextConsumer bool
-	Network      string
+
+	AkaiAPIconsumer bool
+	AkaiAPIconfig   AkaiAPIClientConfig
+
+	Network string
 
 	// for the API interaction
-	AvailHttpAPIClient
+	AvailAPIconfig AvailAPIConfig
 }
 
-type AvailHttpAPIClient struct {
-	IP      string
+type AvailAPIConfig struct {
+	Host    string
 	Port    int64
 	Timeout time.Duration
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/ClickHouse/ch-go"
 	"github.com/ClickHouse/ch-go/proto"
+	"github.com/probe-lab/akai/config"
 )
 
 type lowLevelConn struct {
@@ -39,7 +40,7 @@ func (c *lowLevelConn) close() error {
 
 func (s *ClickHouseDB) getLowLevelConnection(
 	ctx context.Context,
-	conDetails ConnectionDetails,
+	conDetails config.DatabaseDetails,
 	tag string) (*lowLevelConn, error) {
 
 	opts := ch.Options{

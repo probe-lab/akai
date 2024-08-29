@@ -1,6 +1,10 @@
 package api
 
-import "github.com/probe-lab/akai/db"
+import (
+	"time"
+
+	"github.com/probe-lab/akai/db/models"
+)
 
 type ACK struct {
 	Status string `json:"status"`
@@ -12,28 +16,28 @@ type PongReply struct {
 }
 
 type SupportedNetworks struct {
-	Network db.Network `json:"Networks"`
+	Network models.Network `json:"Networks"`
 }
 
 type Blob struct {
-	Network      db.Network     `json:"network"`
-	Number       uint64         `json:"number"`
-	Hash         string         `json:"hash"`
-	ParentHash   string         `json:"parent-hash"`
-	Rows         uint64         `json:"rows"`
-	Columns      uint64         `json:"columns"`
-	BlobSegments BlobSegments   `json:"segments"`
-	Metadata     map[string]any `json:"metadata"`
+	Timestamp   time.Time      `json:"timestamp"`
+	Network     models.Network `json:"network"`
+	Number      uint64         `json:"number"`
+	Hash        string         `json:"hash"`
+	ParentHash  string         `json:"parent_hash"`
+	Rows        uint64         `json:"rows"`
+	Columns     uint64         `json:"columns"`
+	Segments    []BlobSegment  `json:"segments"`
+	Metadata    map[string]any `json:"metadata"`
+	SampleUntil time.Time      `json:"sample_until"`
 }
 
 type BlobSegment struct {
-	BlockNumber uint64 `json:"block-number"`
-	Key         string `json:"key"`
-	Row         uint64 `json:"row"`
-	Column      uint64 `json:"column"`
-	Bytes       []byte `json:"bytes"`
-}
-
-type BlobSegments struct {
-	Segments []BlobSegment `json:"segments"`
+	Timestamp   time.Time `json:"timestamp"`
+	BlobNumber  uint64    `json:"blob_number"`
+	Key         string    `json:"key"`
+	Row         uint64    `json:"row"`
+	Column      uint64    `json:"column"`
+	Bytes       []byte    `json:"bytes"`
+	SampleUntil time.Time `json:"sample_until"`
 }

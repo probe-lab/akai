@@ -2,16 +2,21 @@ package avail
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	akai_api "github.com/probe-lab/akai/api"
 	"github.com/probe-lab/akai/avail/api"
+	"github.com/probe-lab/akai/config"
+	"github.com/probe-lab/akai/db/models"
 	log "github.com/sirupsen/logrus"
 )
 
 type ConsumerType string
 
 var (
-	TextConsumerType ConsumerType = "text"
+	TextConsumerType    ConsumerType = "text"
+	AkaiAPIConsumerType ConsumerType = "akai_api"
 )
 
 type BlockConsumer interface {
@@ -71,3 +76,66 @@ func (tc *TextConsumer) ProccessNewBlock(ctx context.Context, blockNot *BlockNot
 }
 
 // TODO: add API interface with the Akai service
+type AkaiAPIconsumer struct {
+	config  config.AkaiAPIClientConfig
+	network models.Network
+	cli     *akai_api.Client
+}
+
+func NewAkaiAPIconsumer(network models.Network, cfg config.AkaiAPIClientConfig) (*AkaiAPIconsumer, error) {
+	apiCli, err := akai_api.NewClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	// ensure that the network is the same one
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	apiNet, err := apiCli.GetSupportedNetworks(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if network.String() != apiNet.Network.String() {
+		return nil, fmt.Errorf("block consumer and Akai API running in different networks %s - %s", network.String(), apiNet.Network.String())
+	}
+
+	return &AkaiAPIconsumer{
+		config:  cfg,
+		network: network,
+		cli:     apiCli,
+	}, nil
+}
+
+func (ac *AkaiAPIconsumer) Type() ConsumerType {
+	return AkaiAPIConsumerType
+}
+
+func (ac *AkaiAPIconsumer) Serve(ctx context.Context) error {
+	return ac.cli.Serve(ctx)
+}
+
+func (ac *AkaiAPIconsumer) ProccessNewBlock(ctx context.Context, blockNot *BlockNotification) error {
+	block, err := NewBlock(FromAPIBlockHeader(blockNot.BlockInfo))
+	if err != nil {
+		return err
+	}
+
+	apiBlob := block.ToAkaiAPIBlob(ac.network, true)
+	ctx, cancel := context.WithTimeout(ctx, ac.config.Timeout)
+	defer cancel()
+	err = ac.cli.PostNewBlob(ctx, apiBlob)
+	if err != nil {
+		return err
+	}
+
+	log.WithFields(log.Fields{
+		"req_time":  blockNot.RequestTime,
+		"hash":      blockNot.BlockInfo.Hash,
+		"number":    blockNot.BlockInfo.Number,
+		"rows":      blockNot.BlockInfo.Extension.Rows,
+		"colums":    blockNot.BlockInfo.Extension.Columns,
+		"data_root": blockNot.BlockInfo.Extension.DataRoot,
+		"cid":       block.Cid().Hash().B58String(),
+	}).Info("new avail block...")
+
+	return nil
+}

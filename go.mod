@@ -7,6 +7,7 @@ require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.26.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/golang-migrate/migrate/v4 v4.17.1
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/ipfs/go-cid v0.4.1
 	github.com/libp2p/go-libp2p v0.35.4
 	github.com/libp2p/go-libp2p-kad-dht v0.25.2

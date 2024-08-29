@@ -2,23 +2,20 @@ package main
 
 import (
 	"context"
-	"time"
 
+	"github.com/probe-lab/akai/api"
 	"github.com/probe-lab/akai/avail"
 	"github.com/probe-lab/akai/config"
-	"github.com/probe-lab/akai/db"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
 )
 
 var availBlockTrackerConf = &config.AvailBlockTracker{
-	TextConsumer: true,
-	Network:      db.Network{Protocol: config.ProtocolAvail, NetworkName: config.NetworkNameAvailTuring}.String(),
-	AvailHttpAPIClient: config.AvailHttpAPIClient{
-		IP:      "localhost",
-		Port:    5000,
-		Timeout: 10 * time.Second,
-	},
+	TextConsumer:    true,
+	AkaiAPIconsumer: false,
+	Network:         config.DefaultNetwork.String(),
+	AvailAPIconfig:  avail.DefaultClientConfig,
+	AkaiAPIconfig:   api.DefaultClientConfig,
 }
 
 var cmdAvailBlockTracker = &cli.Command{
@@ -45,12 +42,23 @@ var cmdAvailBlockTrackerFlags = []cli.Flag{
 		Name:    "text-consumer",
 		Aliases: []string{"tc"},
 		Sources: cli.ValueSourceChain{
-			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL__BLOCK_TRACKER_TEXT_CONSUMER")},
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_BLOCK_TRACKER_TEXT_CONSUMER")},
 		},
 		Usage:       "Text-log processing when a new Avail block is tracked",
 		DefaultText: "true",
 		Value:       availBlockTrackerConf.TextConsumer,
 		Destination: &availBlockTrackerConf.TextConsumer,
+	},
+	&cli.BoolFlag{
+		Name:    "api-consumer",
+		Aliases: []string{"ac"},
+		Sources: cli.ValueSourceChain{
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_BLOCK_TRACKER_API_CONSUMER")},
+		},
+		Usage:       "Process new blocks sending them to Akai's API service after a new Avail block is tracked",
+		DefaultText: "false",
+		Value:       availBlockTrackerConf.AkaiAPIconsumer,
+		Destination: &availBlockTrackerConf.AkaiAPIconsumer,
 	},
 	&cli.StringFlag{
 		Name:    "avail-http-host",
@@ -59,8 +67,8 @@ var cmdAvailBlockTrackerFlags = []cli.Flag{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_BLOCK_TRACKER_AVAIL_HTTP_HOST")},
 		},
 		Usage:       "Host IP of the avail-light client's HTTP API",
-		Value:       availBlockTrackerConf.IP,
-		Destination: &availBlockTrackerConf.IP,
+		Value:       availBlockTrackerConf.AvailAPIconfig.Host,
+		Destination: &availBlockTrackerConf.AvailAPIconfig.Host,
 	},
 	&cli.IntFlag{
 		Name:    "avail-http-port",
@@ -69,39 +77,68 @@ var cmdAvailBlockTrackerFlags = []cli.Flag{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_BLOCK_TRACKER_AVAIL_HTTP_HOST")},
 		},
 		Usage:       "Port of the avail-light client's HTTP API",
-		Value:       availBlockTrackerConf.Port,
-		Destination: &availBlockTrackerConf.Port,
+		Value:       availBlockTrackerConf.AvailAPIconfig.Port,
+		Destination: &availBlockTrackerConf.AvailAPIconfig.Port,
 	},
 	&cli.DurationFlag{
-		Name:    "http-timeout",
+		Name:    "avail-http-timeout",
 		Aliases: []string{"t"},
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_BLOCK_TRACKER_HTTP_TIMEOUT")},
 		},
 		Usage:       "Duration for the HTTP API operations (20s, 1min)",
-		DefaultText: "20sec",
-		Value:       availBlockTrackerConf.Timeout,
-		Destination: &availBlockTrackerConf.Timeout,
+		DefaultText: availBlockTrackerConf.AvailAPIconfig.Timeout.String(),
+		Value:       availBlockTrackerConf.AvailAPIconfig.Timeout,
+		Destination: &availBlockTrackerConf.AvailAPIconfig.Timeout,
+	},
+	&cli.StringFlag{
+		Name:    "akai-http-host",
+		Aliases: []string{"akh"},
+		Sources: cli.ValueSourceChain{
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_BLOCK_TRACKER_AVAIL_HTTP_HOST")},
+		},
+		Usage:       "Port for the Akai's HTTP API server",
+		Value:       availBlockTrackerConf.AkaiAPIconfig.Host,
+		Destination: &availBlockTrackerConf.AkaiAPIconfig.Host,
+	},
+	&cli.IntFlag{
+		Name:    "akai-http-port",
+		Aliases: []string{"akp"},
+		Sources: cli.ValueSourceChain{
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_BLOCK_TRACKER_AKAI_HTTP_PORT")},
+		},
+		Usage:       "Port of Akai Daemon's HTTP API",
+		Value:       availBlockTrackerConf.AkaiAPIconfig.Port,
+		Destination: &availBlockTrackerConf.AkaiAPIconfig.Port,
+	},
+	&cli.DurationFlag{
+		Name:    "akai-http-timeout",
+		Aliases: []string{"akt"},
+		Sources: cli.ValueSourceChain{
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_BLOCK_TRACKER_AKAI_HTTP_TIMEOUT")},
+		},
+		Usage:       "Port of Akai Daemon's HTTP API",
+		Value:       availBlockTrackerConf.AkaiAPIconfig.Timeout,
+		Destination: &availBlockTrackerConf.AkaiAPIconfig.Timeout,
 	}}
 
 func cmdAvailBlockTrackerAction(ctx context.Context, cmd *cli.Command) error {
 	log.WithFields(log.Fields{
-		"network":       availBlockTrackerConf.Network,
-		"http-host":     availBlockTrackerConf.IP,
-		"http-port":     availBlockTrackerConf.Port,
-		"timeout":       availBlockTrackerConf.Timeout,
-		"text-consumer": availBlockTrackerConf.TextConsumer,
+		"network":         availBlockTrackerConf.Network,
+		"avail-http-host": availBlockTrackerConf.AvailAPIconfig.Host,
+		"avail-http-port": availBlockTrackerConf.AvailAPIconfig.Port,
+		"timeout":         availBlockTrackerConf.AvailAPIconfig.Timeout,
+		"text-consumer":   availBlockTrackerConf.TextConsumer,
+		"api-consumer":    availBlockTrackerConf.AkaiAPIconsumer,
 	}).Info("starting avail-block-tracker...")
 	defer log.Infof("stopped akai-block-tracker for %s", availBlockTrackerConf.Network)
 
 	blockTrackerConfig := config.AvailBlockTracker{
-		TextConsumer: availBlockTrackerConf.TextConsumer,
-		Network:      availBlockTrackerConf.Network,
-		AvailHttpAPIClient: config.AvailHttpAPIClient{
-			IP:      availBlockTrackerConf.IP,
-			Port:    availBlockTrackerConf.Port,
-			Timeout: availBlockTrackerConf.Timeout,
-		},
+		TextConsumer:    availBlockTrackerConf.TextConsumer,
+		AkaiAPIconsumer: availBlockTrackerConf.AkaiAPIconsumer,
+		Network:         availBlockTrackerConf.Network,
+		AvailAPIconfig:  availBlockTrackerConf.AvailAPIconfig,
+		AkaiAPIconfig:   availBlockTrackerConf.AkaiAPIconfig,
 	}
 
 	blockTracker, err := avail.NewBlockTracker(blockTrackerConfig)

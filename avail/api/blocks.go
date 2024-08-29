@@ -56,6 +56,9 @@ type V2BlockHeader struct {
 			} `json:"index"`
 		} `json:"app_lookup"`
 	} `json:"extension"`
+	Digest struct {
+		Logs []string `json:"logs"`
+	} `json:"digest"`
 }
 
 func (c *HTTPClient) GetV2BlockHeader(ctx context.Context, block uint64) (V2BlockHeader, error) {
@@ -67,7 +70,8 @@ func (c *HTTPClient) GetV2BlockHeader(ctx context.Context, block uint64) (V2Bloc
 	var blockHeader V2BlockHeader
 	err = json.Unmarshal(resp, &blockHeader)
 	if err != nil {
-		return V2BlockHeader{}, errors.Wrap(err, "unmarshaling v2-block-header from http request")
+		errStr := string(resp)
+		return V2BlockHeader{}, fmt.Errorf("v2-block-header from http request reported: %s (block %d)", errStr, block)
 	}
 
 	return blockHeader, nil
