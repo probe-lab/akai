@@ -32,7 +32,7 @@ type Service struct {
 	appNewSegmentHandler  func(context.Context, BlobSegment) error
 	appNewSegmentsHandler func(context.Context, []BlobSegment) error
 
-	router *gin.Engine
+	engine *gin.Engine
 }
 
 func NewService(cfg config.AkaiAPIServiceConfig, opts ...ServiceOption) (*Service, error) {
@@ -77,26 +77,48 @@ func WithAppSegmentsHandler(segmentsHandler func(context.Context, []BlobSegment)
 }
 
 func (s *Service) Serve(ctx context.Context) error {
-	return s.serve()
+	return s.serve(ctx)
 }
 
-func (s *Service) serve() error {
+func (s *Service) serve(ctx context.Context) error {
+	defer log.Info("closing Akai API service")
+
 	gin.SetMode(s.config.Mode)
-	s.router = gin.New()
-	s.router.Use(gin.Recovery())
+	s.engine = gin.New()
+	s.engine.Use(gin.Recovery())
 
 	// define basic endpoints
-	s.router.GET(s.config.PrefixPath+"/ping", s.pingHandler)
-	s.router.GET(s.config.PrefixPath+"/supported-network", s.getSupportedNetworkHandler)
+	s.engine.GET(s.config.PrefixPath+"/ping", s.pingHandler)
+	s.engine.GET(s.config.PrefixPath+"/supported-network", s.getSupportedNetworkHandler)
 
 	// Define app specific POST endpoints
 	// Define a POST endpoint
-	s.router.POST(s.config.PrefixPath+"/new-blob", s.postNewBlobHandler)
-	s.router.POST(s.config.PrefixPath+"/new-segment", s.postNewSegmentHandler)
-	s.router.POST(s.config.PrefixPath+"/new-segments", s.postNewSegmentsHandler)
+	s.engine.POST(s.config.PrefixPath+"/new-blob", s.postNewBlobHandler)
+	s.engine.POST(s.config.PrefixPath+"/new-segment", s.postNewSegmentHandler)
+	s.engine.POST(s.config.PrefixPath+"/new-segments", s.postNewSegmentsHandler)
 
-	// Start the server on port 8080
-	return s.router.Run(fmt.Sprintf("%s:%d", s.config.Host, s.config.Port))
+	srv := &http.Server{
+		Addr:    fmt.Sprintf("%s:%d", s.config.Host, s.config.Port),
+		Handler: s.engine,
+	}
+
+	errC := make(chan error)
+	go func() {
+		err := srv.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			errC <- err
+
+		} else {
+			errC <- (error)(nil)
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil
+	case err := <-errC:
+		return err
+	}
 }
 
 func (s *Service) isNetworkSupported(remNet models.Network) bool {
