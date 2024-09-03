@@ -11,14 +11,20 @@ import (
 
 func Test_Service(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	defer func() {
+		cancel()
+		time.Sleep(1 * time.Second)
+	}()
 	_, cli := basicServiceAndClient(t, ctx)
 	ensureClientServerConnection(t, ctx, cli)
 }
 
 func Test_SupportedNetworks(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	defer func() {
+		cancel()
+		time.Sleep(1 * time.Second)
+	}()
 	_, cli := basicServiceAndClient(t, ctx)
 	ensureClientServerConnection(t, ctx, cli)
 
@@ -30,7 +36,10 @@ func Test_SupportedNetworks(t *testing.T) {
 
 func Test_PostNewBlob(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	defer func() {
+		cancel()
+		time.Sleep(1 * time.Second)
+	}()
 	_, cli := basicServiceAndClient(t, ctx)
 	ensureClientServerConnection(t, ctx, cli)
 
@@ -51,7 +60,10 @@ func Test_PostNewBlob(t *testing.T) {
 
 func Test_PostNewSegment(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	defer func() {
+		cancel()
+		time.Sleep(1 * time.Second)
+	}()
 	_, cli := basicServiceAndClient(t, ctx)
 	ensureClientServerConnection(t, ctx, cli)
 
@@ -68,7 +80,10 @@ func Test_PostNewSegment(t *testing.T) {
 
 func Test_PostNewSegments(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	defer func() {
+		cancel()
+		time.Sleep(1 * time.Second)
+	}()
 	_, cli := basicServiceAndClient(t, ctx)
 	ensureClientServerConnection(t, ctx, cli)
 
