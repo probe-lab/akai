@@ -10,8 +10,6 @@ RUN go mod download
 COPY . ./
 RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o akai ./cmd/akai
 
-RUN ls -l .
-
 # Create lightweight image. Use Debian as base because we have enabled CGO
 # above and hence compile against glibc. This means we can't use alpine.
 FROM debian:latest
