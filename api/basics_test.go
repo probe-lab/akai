@@ -104,7 +104,7 @@ func basicServiceAndClient(t *testing.T, ctx context.Context) (*Service, *Client
 	ser, err := NewService(serCfg)
 	require.NoError(t, err)
 	go ser.Serve(ctx)
-	time.Sleep(1 * time.Second) // make sure we give enough time to init the host
+	time.Sleep(2 * time.Second) // make sure we give enough time to init the host
 
 	// create and init the API client
 	cliCfg := DefaultClientConfig
