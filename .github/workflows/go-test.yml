@@ -39,7 +39,6 @@ jobs:
         run: make build
 
       - name: Run tests
-        uses: 
         run: | 
           make test
           make test-db
