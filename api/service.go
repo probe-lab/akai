@@ -107,18 +107,20 @@ func (s *Service) serve(ctx context.Context) error {
 		err := srv.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
 			errC <- err
-
 		} else {
 			errC <- (error)(nil)
 		}
 	}()
 
+	var err error
 	select {
 	case <-ctx.Done():
-		return nil
-	case err := <-errC:
-		return err
+		srv.Shutdown(ctx)
+		break
+	case err = <-errC:
+		break
 	}
+	return err
 }
 
 func (s *Service) isNetworkSupported(remNet models.Network) bool {
