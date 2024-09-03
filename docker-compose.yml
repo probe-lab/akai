@@ -1,23 +1,52 @@
 
+networks:
+  cluster:
+
 
 services:
   # Clickhouse database
   clickhouse:
-      image: clickhouse/clickhouse-server:latest
-      user: "$UID:$GID"
-      hostname: clickhouse
-      environment:
-        - CLICKHOUSE_DB=${CH_DB:-akai_default}
-        - CLICKHOUSE_USER=${CH_USER:-username}
-        - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
-        - CLICKHOUSE_PASSWORD=${CH_PASSWORD:-password}
-      volumes:
-        - ./clickhouse_data/data:/var/lib/clickhouse/
-        - ./clickhouse_data/logs:/var/log/clickhouse-server/
-      ports:
-        - "127.0.0.1:${CH_HTTP_PORT:-8123}:8123"
-        - "127.0.0.1:${CH_NATIVE_PORT:-9000}:9000"
-        - "127.0.0.1:${CH_SQL_PORT:-9005}:9005"
-      healthcheck: # executed inside the container
-        test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping
-        interval: 5s
+    image: clickhouse/clickhouse-server:latest
+    user: "$UID:$GID"
+    hostname: clickhouse
+    networks: [ cluster ]
+    environment:
+      - CLICKHOUSE_DB=${CH_DB:-akai_default}
+      - CLICKHOUSE_USER=${CH_USER:-username}
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+      - CLICKHOUSE_PASSWORD=${CH_PASSWORD:-password}
+    volumes:
+      - ./clickhouse_data/data:/var/lib/clickhouse/
+      - ./clickhouse_data/logs:/var/log/clickhouse-server/
+    ports:
+      - "127.0.0.1:${CH_HTTP_PORT:-8123}:8123"
+      - "127.0.0.1:${CH_NATIVE_PORT:-9000}:9000"
+      - "127.0.0.1:${CH_SQL_PORT:-9005}:9005"
+    healthcheck: # executed inside the container
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping
+      interval: 5s
+
+  akai-daemon:
+    build:  
+      context: ./
+      dockerfile: Dockerfile
+    networks: [ cluster ]
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    command: >-
+      ./akai
+      --log.level=${LOG_LEVEL}
+      --log.format=${LOG_FORMAT}
+      daemon
+      --network=${NETWORK}
+      --api-http-host=${AKAI_HTTP_HOST}
+      --api-http-port=${AKAI_HTTP_PORT}
+      --db-driver=${DB_DRIVER}
+      --db-address="clickhouse:${CH_NATIVE_PORT:-9000}"
+      --db-user=${CH_USER}
+      --db-password=${CH_PASSWORD}
+      --db-database=${CH_DB} 
+    ports:
+      - "127.0.0.1:${AKAI_HTTP_PORT:-8080}:8080"
+      - "127.0.0.1:${AKAI_HOST_PORT:-9020}:9020"
