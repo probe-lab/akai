@@ -7,9 +7,5 @@ clickhouse_data/
 # local scripts
 *.sh
 
-# local submodules
-.gitmodules
-go-libp2p-kad-dht/
-
 # IDE configs
 .vscode/

@@ -1,0 +1,26 @@
+# workflow items
+.github/
+
+# build binaries
+build/
+
+# local databases
+clickhouse_data/
+
+# local scripts, text files, mds, etc
+*.sh
+*.txt
+*.md
+*.log
+*.json
+.env*
+
+# documentation
+doc/
+
+# local submodules
+.gitmodules
+go-libp2p-kad-dht/
+
+# IDE configs
+.vscode/
