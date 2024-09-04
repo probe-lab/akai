@@ -10,6 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
 
 	"github.com/probe-lab/akai/amino"
 	"github.com/probe-lab/akai/avail"
@@ -48,7 +49,7 @@ func composeHostForNetwork(ctx context.Context, network models.Network, commonCf
 		if err != nil {
 			return nil, errors.Wrap(err, "extracting network info from given network")
 		}
-		aminoDHTHostConfig := amino.DHTHostConfig{
+		aminoDHTHostConfig := &amino.DHTHostConfig{
 			HostID:               commonCfg.ID,
 			IP:                   commonCfg.IP,
 			Port:                 commonCfg.Port,
@@ -58,6 +59,7 @@ func composeHostForNetwork(ctx context.Context, network models.Network, commonCf
 			Bootstrapers:         bootstapers,
 			V1Protocol:           v1protocol,
 			CustomProtocolPrefix: nil, // better not no change it, as it is the default at go-libp2p-kad-dht
+			Meter:                otel.GetMeterProvider().Meter("akai_host"),
 		}
 		return amino.NewDHTHost(ctx, aminoDHTHostConfig)
 
@@ -67,7 +69,7 @@ func composeHostForNetwork(ctx context.Context, network models.Network, commonCf
 		if err != nil {
 			return nil, errors.Wrap(err, "extracting network info from given network")
 		}
-		aminoDHTHostConfig := amino.DHTHostConfig{
+		aminoDHTHostConfig := &amino.DHTHostConfig{
 			HostID:               commonCfg.ID,
 			IP:                   commonCfg.IP,
 			Port:                 commonCfg.Port,
@@ -78,6 +80,7 @@ func composeHostForNetwork(ctx context.Context, network models.Network, commonCf
 			V1Protocol:           v1protocol,
 			CustomValidator:      &avail.KeyValidator{},
 			CustomProtocolPrefix: &protoPrefix,
+			Meter:                otel.GetMeterProvider().Meter("akai_host"),
 		}
 		return amino.NewDHTHost(ctx, aminoDHTHostConfig)
 
