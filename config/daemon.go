@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/probe-lab/akai/db/models"
+	"go.opentelemetry.io/otel/metric"
 )
 
 var (
@@ -25,6 +26,9 @@ type AkaiDaemonConfig struct {
 	DBconfig          DatabaseDetails
 	DataSamplerConfig AkaiDataSamplerConfig
 	DHTHostConfig     CommonDHTOpts
+
+	// metrics for the service
+	Meter metric.Meter
 }
 
 type AkaiDataSamplerConfig struct {
@@ -33,6 +37,9 @@ type AkaiDataSamplerConfig struct {
 	SamplingTimeout time.Duration
 	DBsyncInterval  time.Duration
 	AkaiSamplingDetails
+
+	// metrics for the service
+	Meter metric.Meter
 }
 
 type AkaiSamplingDetails struct {

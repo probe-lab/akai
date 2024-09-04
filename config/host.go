@@ -1,6 +1,10 @@
 package config
 
-import "time"
+import (
+	"time"
+
+	"go.opentelemetry.io/otel/metric"
+)
 
 type DHTHostType int8
 
@@ -16,4 +20,7 @@ type CommonDHTOpts struct {
 	DialTimeout time.Duration
 	DHTMode     DHTHostType
 	UserAgent   string
+
+	// metrics for the service
+	Meter metric.Meter
 }
