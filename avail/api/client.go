@@ -14,6 +14,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var DefaultClientConfig = config.AvailAPIConfig{
+	Host:    "localhost",
+	Port:    5000,
+	Timeout: 10 * time.Second,
+}
+
 // coming from Avail's API website
 // https://docs.availproject.org/docs/operate-a-node/run-a-light-client/light-client-api-reference
 
