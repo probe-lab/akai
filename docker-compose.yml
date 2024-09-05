@@ -67,3 +67,5 @@ services:
       - '--web.enable-remote-write-receiver'
     ports:
       - "9090:9090"
+      - "127.0.0.1:${AKAI_HTTP_PORT:-8080}:8080"
+      - "127.0.0.1:${AKAI_HOST_PORT:-9020}:9020"
