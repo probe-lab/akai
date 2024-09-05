@@ -2,29 +2,28 @@
 networks:
   cluster:
 
-
 services:
   # Clickhouse database
   clickhouse:
-    image: clickhouse/clickhouse-server:latest
-    user: "$UID:$GID"
-    hostname: clickhouse
-    networks: [ cluster ]
-    environment:
-      - CLICKHOUSE_DB=${CH_DB:-akai_default}
-      - CLICKHOUSE_USER=${CH_USER:-username}
-      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
-      - CLICKHOUSE_PASSWORD=${CH_PASSWORD:-password}
-    volumes:
-      - ./clickhouse_data/data:/var/lib/clickhouse/
-      - ./clickhouse_data/logs:/var/log/clickhouse-server/
-    ports:
-      - "127.0.0.1:${CH_HTTP_PORT:-8123}:8123"
-      - "127.0.0.1:${CH_NATIVE_PORT:-9000}:9000"
-      - "127.0.0.1:${CH_SQL_PORT:-9005}:9005"
-    healthcheck: # executed inside the container
-      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping
-      interval: 5s
+      image: clickhouse/clickhouse-server:latest
+      user: "$UID:$GID"
+      hostname: clickhouse
+      networks: [ cluster ]
+      environment:
+        - CLICKHOUSE_DB=${CH_DB:-akai_default}
+        - CLICKHOUSE_USER=${CH_USER:-username}
+        - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+        - CLICKHOUSE_PASSWORD=${CH_PASSWORD:-password}
+      volumes:
+        - ./external/db/clickhouse_data/data:/var/lib/clickhouse/
+        - ./external/db/clickhouse_data/logs:/var/log/clickhouse-server/
+      ports:
+        - "127.0.0.1:${CH_HTTP_PORT:-8123}:8123"
+        - "127.0.0.1:${CH_NATIVE_PORT:-9000}:9000"
+        - "127.0.0.1:${CH_SQL_PORT:-9005}:9005"
+      healthcheck: # executed inside the container
+        test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping
+        interval: 5s
 
   akai-daemon:
     build:  
@@ -38,15 +37,33 @@ services:
       ./akai
       --log.level=${LOG_LEVEL}
       --log.format=${LOG_FORMAT}
+      --metrics.addr="0.0.0.0"
       daemon
       --network=${NETWORK}
-      --api-http-host=${AKAI_HTTP_HOST}
-      --api-http-port=${AKAI_HTTP_PORT}
+      --api-http-host="0.0.0.0"
       --db-driver=${DB_DRIVER}
       --db-address="clickhouse:${CH_NATIVE_PORT:-9000}"
       --db-user=${CH_USER}
       --db-password=${CH_PASSWORD}
       --db-database=${CH_DB} 
     ports:
-      - "127.0.0.1:${AKAI_HTTP_PORT:-8080}:8080"
-      - "127.0.0.1:${AKAI_HOST_PORT:-9020}:9020"
+      - "${AKAI_HTTP_HOST:-127.0.0.1}:${AKAI_HTTP_PORT:-8080}:8080"
+      - "${AKAI_METRICS_HOST:-127.0.0.1}:${AKAI_METRICS_PORT:-9080}:9080"
+      - "${AKAI_HOST_PORT:-9020}:9020"
+
+  prometheus:
+    image: prom/prometheus:latest
+    user: "${UID}:${GID}"
+    networks: [ cluster ]
+    volumes:
+      - ./external/prometheus/:/etc/prometheus/
+      - ./external/db/prometheus:/prometheus/data
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.listen-address=${PROMETHEUS_ADDRESS:-localhost:9090}'
+      - '--storage.tsdb.retention.time=1y'
+      - '--web.enable-remote-write-receiver'
+    ports:
+      - "9090:9090"

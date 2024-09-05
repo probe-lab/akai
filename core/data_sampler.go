@@ -313,20 +313,16 @@ func (ds *DataSampler) BlobsCache() *lru.Cache[uint64, *models.AgnosticBlob] {
 
 func (ds *DataSampler) updateNextVisitTime(segment *models.AgnosticSegment) (validNextVisit bool) {
 
-	fmt.Println("current visit for", segment.Key, segment.NextVisit)
 	multCnt := 1
 	delay := ds.cfg.DelayBase
 	nextVisit := segment.Timestamp.Add(delay)
-	fmt.Println(multCnt, "next_visit", nextVisit)
 	multCnt++
 	for (nextVisit.Before(segment.NextVisit) && nextVisit.Equal(segment.NextVisit)) || nextVisit.Before(time.Now()) {
 		delay = delay * time.Duration(ds.cfg.DelayMultiplier)
 		nextVisit = segment.Timestamp.Add(delay)
-		fmt.Println(multCnt, "next_visit", nextVisit, delay)
 		multCnt++
 	}
 
-	fmt.Println("updating to:", nextVisit)
 	segment.NextVisit = nextVisit
 	return nextVisit.Before(segment.SampleUntil)
 }

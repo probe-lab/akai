@@ -102,7 +102,6 @@ func (c *HTTPClient) get(
 	defer cancel()
 
 	callURL := composeCallURL(c.base, endpoint, query)
-	fmt.Printf("%s\n", callURL)
 
 	req, err := http.NewRequestWithContext(opCtx, http.MethodGet, callURL.String(), nil)
 	if err != nil {
