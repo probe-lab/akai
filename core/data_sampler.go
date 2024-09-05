@@ -11,6 +11,8 @@ import (
 	"github.com/probe-lab/akai/db"
 	"github.com/probe-lab/akai/db/models"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
 )
 
 var (
@@ -22,10 +24,11 @@ var DefaultDataSamplerConfig = config.AkaiDataSamplerConfig{
 	Workers:         10,
 	SamplingTimeout: 10 * time.Second,
 	DBsyncInterval:  10 * time.Minute,
+	Meter:           otel.GetMeterProvider().Meter("akai_data_sampler"),
 }
 
 type DataSampler struct {
-	cfg config.AkaiDataSamplerConfig
+	cfg *config.AkaiDataSamplerConfig
 
 	db db.Database
 	h  DHTHost
@@ -33,10 +36,16 @@ type DataSampler struct {
 	blobIDs    *lru.Cache[uint64, *models.AgnosticBlob]
 	segSet     *segmentSet
 	visitTaskC chan *models.AgnosticSegment
+
+	// metrics
+	currentSamplesCount     metric.Int64ObservableGauge
+	loopVisitCount          metric.Int64Gauge
+	loopTimeDurationSeconds metric.Int64Gauge
+	delaySecsToNextVisit    metric.Int64Gauge
 }
 
 func NewDataSampler(
-	cfg config.AkaiDataSamplerConfig,
+	cfg *config.AkaiDataSamplerConfig,
 	database db.Database,
 	h DHTHost) (*DataSampler, error) {
 
@@ -58,7 +67,12 @@ func NewDataSampler(
 }
 
 func (ds *DataSampler) Serve(ctx context.Context) error {
-	err := ds.syncWithDatabase(ctx)
+	err := ds.initMetrics()
+	if err != nil {
+		return err
+	}
+
+	err = ds.syncWithDatabase(ctx)
 	if err != nil {
 		return err
 	}
@@ -99,10 +113,32 @@ initLoop:
 	}
 	minTimeT.Reset(minIterTime)
 
+	// metrics
+	var currentLoopVisitCounter int64 = 0
+	loopStartTime := time.Now()
+
 	// check if we need to update the segment set
 	updateSegSet := func() {
 		olog.Debugf("reorgananizing (%d) Segments based on their next visit time", ds.segSet.Len())
 		ds.segSet.SortSegmentList()
+		currentLoopVisitCounter = 0
+		loopStartTime = time.Now()
+	}
+
+	updateSamplerMetrics := func() {
+		ds.loopVisitCount.Record(ctx, currentLoopVisitCounter)
+		ds.loopTimeDurationSeconds.Record(ctx, int64(time.Since(loopStartTime).Seconds()))
+
+		nextT, sortedNeeded := ds.segSet.NextVisitTime()
+		if sortedNeeded {
+			if nextT.IsZero() {
+				ds.delaySecsToNextVisit.Record(ctx, int64(0))
+			} else {
+				ds.delaySecsToNextVisit.Record(ctx, int64(time.Until(nextT).Seconds()))
+			}
+		} else {
+			ds.delaySecsToNextVisit.Record(ctx, int64(time.Until(nextT).Seconds()))
+		}
 	}
 
 	// orchester main loop
@@ -118,6 +154,7 @@ initLoop:
 			if !ds.segSet.Next() {
 				log.Debug("there is no next segment to visit")
 				updateSegSet()
+				updateSamplerMetrics()
 				continue
 			}
 
@@ -125,6 +162,7 @@ initLoop:
 			if nextSegment == nil {
 				log.Debug("next segment to visit was nil")
 				updateSegSet()
+				updateSamplerMetrics()
 				continue
 			}
 
@@ -139,6 +177,7 @@ initLoop:
 				olog.Debugf("not in time to visit %s next visit in %s", nextSegment.Key, time.Until(nextSegment.NextVisit))
 				// we have to update anyways
 				updateSegSet()
+				updateSamplerMetrics()
 				continue
 			}
 
@@ -148,6 +187,15 @@ initLoop:
 				ds.segSet.removeSegment(nextSegment.Key)
 			}
 			ds.visitTaskC <- nextSegment
+
+			// metrics
+			currentLoopVisitCounter++
+			updateSamplerMetrics()
+
+			_, sortNeeded := ds.segSet.NextVisitTime()
+			if sortNeeded {
+				updateSegSet()
+			}
 		}
 	}
 }
@@ -281,4 +329,38 @@ func (ds *DataSampler) updateNextVisitTime(segment *models.AgnosticSegment) (val
 	fmt.Println("updating to:", nextVisit)
 	segment.NextVisit = nextVisit
 	return nextVisit.Before(segment.SampleUntil)
+}
+
+// initMetrics initializes various prometheus metrics and stores the meters
+// on the [BlockTracker] object.
+func (ds *DataSampler) initMetrics() (err error) {
+	ds.currentSamplesCount, err = ds.cfg.Meter.Int64ObservableGauge("current_samples")
+	if err != nil {
+		return fmt.Errorf("new current_samples gauge: %w", err)
+	}
+
+	_, err = ds.cfg.Meter.RegisterCallback(func(ctx context.Context, obs metric.Observer) error {
+		obs.ObserveInt64(ds.currentSamplesCount, int64(ds.segSet.Len()))
+		return nil
+	}, ds.currentSamplesCount)
+	if err != nil {
+		return fmt.Errorf("register total_block counter callback: %w", err)
+	}
+
+	ds.loopVisitCount, err = ds.cfg.Meter.Int64Gauge("orchester_loop_visit_count")
+	if err != nil {
+		return fmt.Errorf("new orchester_loop_visit_count counter: %w", err)
+	}
+
+	ds.loopTimeDurationSeconds, err = ds.cfg.Meter.Int64Gauge("orchester_loop_time_duration_s")
+	if err != nil {
+		return fmt.Errorf("new orchester_loop_time_duration counter: %w", err)
+	}
+
+	ds.delaySecsToNextVisit, err = ds.cfg.Meter.Int64Gauge("orcherster_secs_to_next_visit")
+	if err != nil {
+		return fmt.Errorf("new orcherster_secs_to_next_visit counter: %w", err)
+	}
+
+	return nil
 }

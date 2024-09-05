@@ -97,6 +97,26 @@ func (s *segmentSet) Segment() *models.AgnosticSegment {
 }
 
 // common usage
+
+// time to next visit + bool to see if we need to sort back the segment set
+func (s *segmentSet) NextVisitTime() (time.Time, bool) {
+	s.RLock()
+	defer s.RUnlock()
+
+	// we only have on single sample
+	if s.pointer == 0 && s.Len() == 1 {
+		return s.segmentArray[s.pointer].NextVisit, true
+	}
+
+	// we've reached the limit of the set
+	if s.pointer >= s.Len() {
+		return time.Time{}, true
+	}
+
+	// return the next segment's visit time
+	return s.segmentArray[s.pointer+1].NextVisit, false
+}
+
 func (s *segmentSet) getSegment(cStr string) (*models.AgnosticSegment, bool) {
 	s.RLock()
 	defer s.RUnlock()
