@@ -2,7 +2,7 @@
 build/
 
 # local databases
-clickhouse_data/
+external/db/
 
 # local scripts
 *.sh
