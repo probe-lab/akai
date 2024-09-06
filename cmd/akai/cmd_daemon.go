@@ -10,6 +10,7 @@ import (
 	"github.com/probe-lab/akai/core"
 	"github.com/probe-lab/akai/db"
 	"github.com/probe-lab/akai/db/models"
+	"go.opentelemetry.io/otel"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
@@ -21,6 +22,7 @@ var daemonConfig = config.AkaiDaemonConfig{
 	DBconfig:          db.DefaultConnectionDetails,
 	DataSamplerConfig: core.DefaultDataSamplerConfig,
 	DHTHostConfig:     core.DefaultDHTHostOpts,
+	Meter:             otel.GetMeterProvider().Meter("akai_daemon"),
 }
 
 var cmdService = &cli.Command{
@@ -163,7 +165,7 @@ func cmdDaemonAction(ctx context.Context, cmd *cli.Command) (err error) {
 	if err != nil {
 		return err
 	}
-	dataSampler, err := core.NewDataSampler(daemonConfig.DataSamplerConfig, dbSer, dhtHost)
+	dataSampler, err := core.NewDataSampler(&daemonConfig.DataSamplerConfig, dbSer, dhtHost)
 	if err != nil {
 		return err
 	}

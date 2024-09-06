@@ -1,6 +1,10 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+
+	"go.opentelemetry.io/otel/metric"
+)
 
 type DatabaseDetails struct {
 	Driver   string
@@ -9,6 +13,9 @@ type DatabaseDetails struct {
 	Password string
 	Database string
 	Params   string
+
+	// metrics for the service
+	Meter metric.Meter
 }
 
 func (d DatabaseDetails) String() string {

@@ -10,6 +10,7 @@ import (
 	"github.com/ipfs/go-cid"
 	ma "github.com/multiformats/go-multiaddr"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/metric"
 
 	"github.com/libp2p/go-libp2p"
 	mplex "github.com/libp2p/go-libp2p-mplex"
@@ -40,18 +41,23 @@ type DHTHostConfig struct {
 	Bootstrapers         []peer.AddrInfo
 	CustomValidator      record.Validator
 	CustomProtocolPrefix *string
+	Meter                metric.Meter
 }
 
 type DHTHost struct {
-	cfg DHTHostConfig
+	cfg *DHTHostConfig
 
 	id      int
 	host    host.Host
 	dhtCli  *kaddht.IpfsDHT
 	dhtDisc *routingdisc.RoutingDiscovery
+
+	// Metrics
+	connCount        metric.Int64ObservableGauge
+	routingPeerCount metric.Int64ObservableGauge
 }
 
-func NewDHTHost(ctx context.Context, opts DHTHostConfig) (*DHTHost, error) {
+func NewDHTHost(ctx context.Context, opts *DHTHostConfig) (*DHTHost, error) {
 	// prevent dial backoffs
 	ctx = network.WithForceDirectDial(ctx, "prevent backoff")
 
@@ -130,6 +136,11 @@ func NewDHTHost(ctx context.Context, opts DHTHostConfig) (*DHTHost, error) {
 		host:    h,
 		dhtCli:  dhtCli,
 		dhtDisc: disc,
+	}
+
+	err = dhtHost.initMetrics()
+	if err != nil {
+		return nil, err
 	}
 
 	log.WithFields(log.Fields{
@@ -291,4 +302,36 @@ func (h *DHTHost) PutValue(
 	startT := time.Now()
 	err := h.dhtCli.PutValue(ctx, key, value)
 	return time.Since(startT), err
+}
+
+// initMetrics initializes various prometheus metrics and stores the meters
+// on the [Node] object.
+func (h *DHTHost) initMetrics() (err error) {
+	h.connCount, err = h.cfg.Meter.Int64ObservableGauge("current_connections")
+	if err != nil {
+		return fmt.Errorf("new current_connections counter: %w", err)
+	}
+
+	_, err = h.cfg.Meter.RegisterCallback(func(ctx context.Context, obs metric.Observer) error {
+		obs.ObserveInt64(h.connCount, int64(len(h.host.Network().Peers())))
+		return nil
+	}, h.connCount)
+	if err != nil {
+		return fmt.Errorf("register current_connections counter callback: %w", err)
+	}
+
+	h.routingPeerCount, err = h.cfg.Meter.Int64ObservableGauge("routing_peers")
+	if err != nil {
+		return fmt.Errorf("new routing_peers counter: %w", err)
+	}
+
+	_, err = h.cfg.Meter.RegisterCallback(func(ctx context.Context, obs metric.Observer) error {
+		obs.ObserveInt64(h.routingPeerCount, int64(h.dhtCli.RoutingTable().Size()))
+		return nil
+	}, h.routingPeerCount)
+	if err != nil {
+		return fmt.Errorf("register routing_peers counter callback: %w", err)
+	}
+
+	return nil
 }

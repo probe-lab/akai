@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/probe-lab/akai/db/models"
+	"go.opentelemetry.io/otel/metric"
 )
 
 type AkaiPing struct {
@@ -30,6 +31,9 @@ type AkaiAPIServiceConfig struct {
 
 	// configuration
 	Network string
+
+	// metrics for the service
+	Meter metric.Meter
 }
 
 var (

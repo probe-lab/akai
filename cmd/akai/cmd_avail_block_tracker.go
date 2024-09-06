@@ -3,19 +3,21 @@ package main
 import (
 	"context"
 
-	"github.com/probe-lab/akai/api"
+	akai_api "github.com/probe-lab/akai/api"
 	"github.com/probe-lab/akai/avail"
+	"github.com/probe-lab/akai/avail/api"
 	"github.com/probe-lab/akai/config"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
+	"go.opentelemetry.io/otel"
 )
 
 var availBlockTrackerConf = &config.AvailBlockTracker{
 	TextConsumer:    true,
 	AkaiAPIconsumer: false,
 	Network:         config.DefaultNetwork.String(),
-	AvailAPIconfig:  avail.DefaultClientConfig,
-	AkaiAPIconfig:   api.DefaultClientConfig,
+	AvailAPIconfig:  api.DefaultClientConfig,
+	AkaiAPIconfig:   akai_api.DefaultClientConfig,
 }
 
 var cmdAvailBlockTracker = &cli.Command{
@@ -133,12 +135,13 @@ func cmdAvailBlockTrackerAction(ctx context.Context, cmd *cli.Command) error {
 	}).Info("starting avail-block-tracker...")
 	defer log.Infof("stopped akai-block-tracker for %s", availBlockTrackerConf.Network)
 
-	blockTrackerConfig := config.AvailBlockTracker{
+	blockTrackerConfig := &config.AvailBlockTracker{
 		TextConsumer:    availBlockTrackerConf.TextConsumer,
 		AkaiAPIconsumer: availBlockTrackerConf.AkaiAPIconsumer,
 		Network:         availBlockTrackerConf.Network,
 		AvailAPIconfig:  availBlockTrackerConf.AvailAPIconfig,
 		AkaiAPIconfig:   availBlockTrackerConf.AkaiAPIconfig,
+		Meter:           otel.GetMeterProvider().Meter("akai_avail_block_tracker"),
 	}
 
 	blockTracker, err := avail.NewBlockTracker(blockTrackerConfig)

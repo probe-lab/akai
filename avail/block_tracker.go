@@ -2,30 +2,30 @@ package avail
 
 import (
 	"context"
-	"time"
+	"fmt"
 
 	"github.com/probe-lab/akai/avail/api"
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/db/models"
 	log "github.com/sirupsen/logrus"
 	"github.com/thejerf/suture/v4"
+	"go.opentelemetry.io/otel/metric"
 )
 
-var DefaultClientConfig = config.AvailAPIConfig{
-	Host:    "localhost",
-	Port:    5000,
-	Timeout: 10 * time.Second,
-}
-
 type BlockTracker struct {
+	cfg *config.AvailBlockTracker
 	sup *suture.Supervisor
 
 	httpAPICli     *api.HTTPClient
 	BlockRequester *BlockRequester
 	blockConsumers []BlockConsumer
+
+	// metrics
+	totalBlocksCount metric.Int64ObservableCounter
+	lastBlockGau     metric.Int64ObservableGauge
 }
 
-func NewBlockTracker(cfg config.AvailBlockTracker) (*BlockTracker, error) {
+func NewBlockTracker(cfg *config.AvailBlockTracker) (*BlockTracker, error) {
 	// api
 	httpAPICli, err := api.NewHTTPCli(cfg.AvailAPIconfig)
 	if err != nil {
@@ -58,6 +58,7 @@ func NewBlockTracker(cfg config.AvailBlockTracker) (*BlockTracker, error) {
 
 	bTracker := &BlockTracker{
 		sup:            suture.NewSimple("avail-block-tracker"),
+		cfg:            cfg,
 		httpAPICli:     httpAPICli,
 		BlockRequester: blockReq,
 		blockConsumers: blockConsumers,
@@ -72,6 +73,9 @@ func NewBlockTracker(cfg config.AvailBlockTracker) (*BlockTracker, error) {
 }
 
 func (t *BlockTracker) Start(ctx context.Context) error {
+	// init metrics
+	t.initMetrics()
+
 	// add each of the consumers to the suture supervisor manager
 	for _, consumer := range t.blockConsumers {
 		t.sup.Add(consumer)
@@ -83,4 +87,36 @@ func (t *BlockTracker) Start(ctx context.Context) error {
 		t.sup.Add(consumer)
 	}
 	return t.sup.Serve(ctx)
+}
+
+// initMetrics initializes various prometheus metrics and stores the meters
+// on the [BlockTracker] object.
+func (t *BlockTracker) initMetrics() (err error) {
+	t.totalBlocksCount, err = t.cfg.Meter.Int64ObservableCounter("total_blocks")
+	if err != nil {
+		return fmt.Errorf("new total_block counter: %w", err)
+	}
+
+	_, err = t.cfg.Meter.RegisterCallback(func(ctx context.Context, obs metric.Observer) error {
+		obs.ObserveInt64(t.totalBlocksCount, int64(t.BlockRequester.totalRequestedBlocks))
+		return nil
+	}, t.totalBlocksCount)
+	if err != nil {
+		return fmt.Errorf("register total_block counter callback: %w", err)
+	}
+
+	t.lastBlockGau, err = t.cfg.Meter.Int64ObservableGauge("latest_block")
+	if err != nil {
+		return fmt.Errorf("new latest_block counter: %w", err)
+	}
+
+	_, err = t.cfg.Meter.RegisterCallback(func(ctx context.Context, obs metric.Observer) error {
+		obs.ObserveInt64(t.lastBlockGau, int64(t.BlockRequester.lastBlockTracked))
+		return nil
+	}, t.lastBlockGau)
+	if err != nil {
+		return fmt.Errorf("register latest_block counter callback: %w", err)
+	}
+
+	return nil
 }

@@ -10,20 +10,26 @@ import (
 	"syscall"
 
 	"github.com/probe-lab/akai/config"
+	"github.com/probe-lab/akai/metrics"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
+	"go.opentelemetry.io/otel"
 )
 
 const (
-	flagCategoryLogging = "Logging Configuration:"
+	flagCategoryLogging   = "Logging Configuration:"
+	flagCategoryTelemetry = "Telemetry Configuration:"
 )
 
 var rootConfig = &config.Root{
-	Verbose:    false,
-	LogLevel:   "info",
-	LogFormat:  "text",
-	LogSource:  false,
-	LogNoColor: false,
+	Verbose:             false,
+	LogLevel:            "info",
+	LogFormat:           "text",
+	LogSource:           false,
+	LogNoColor:          false,
+	MetricsAddr:         "127.0.0.1",
+	MetricsPort:         9080,
+	MetricsShutdownFunc: nil,
 }
 
 var app = &cli.Command{
@@ -92,6 +98,26 @@ var rootFlags = []cli.Flag{
 		Value:       rootConfig.LogNoColor,
 		Category:    flagCategoryLogging,
 	},
+	&cli.StringFlag{
+		Name: "metrics.addr",
+		Sources: cli.ValueSourceChain{
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_METRICS_ADDR")},
+		},
+		Usage:       "Which network interface should the metrics endpoint bind to.",
+		Value:       rootConfig.MetricsAddr,
+		Destination: &rootConfig.MetricsAddr,
+		Category:    flagCategoryTelemetry,
+	},
+	&cli.IntFlag{
+		Name: "metrics.port",
+		Sources: cli.ValueSourceChain{
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_METRICS_PORT")},
+		},
+		Usage:       "On which port should the metrics endpoint listen",
+		Value:       rootConfig.MetricsPort,
+		Destination: &rootConfig.MetricsPort,
+		Category:    flagCategoryTelemetry,
+	},
 }
 
 func main() {
@@ -125,6 +151,11 @@ func rootBefore(c context.Context, cmd *cli.Command) error {
 
 	// read CLI args and configure the global logger
 	if err := configureLogger(c, cmd); err != nil {
+		return err
+	}
+
+	// read CLI args and configure the global meter provider
+	if err := configureMetrics(c, cmd); err != nil {
 		return err
 	}
 
@@ -174,6 +205,32 @@ func configureLogger(_ context.Context, cmd *cli.Command) error {
 	default:
 		return fmt.Errorf("unknown log format: %q", rootConfig.LogFormat)
 	}
+
+	return nil
+}
+
+// configureMetrics configures the prometheus metrics export based on the provided CLI context.
+// If metrics are not enabled, it uses a no-op meter provider
+// ([tele.NoopMeterProvider]) and does not serve an endpoint. If metrics are
+// enabled, it sets up the Prometheus meter provider ([tele.PromMeterProvider]).
+// The function returns an error if there is an issue with creating the meter
+// provider.
+func configureMetrics(ctx context.Context, _ *cli.Command) error {
+
+	// user wants to have metrics, use the prometheus meter provider
+	provider, err := metrics.PromMeterProvider(ctx)
+	if err != nil {
+		return fmt.Errorf("new prometheus meter provider: %w", err)
+	}
+
+	otel.SetMeterProvider(provider)
+
+	// expose the /metrics endpoint. Use new context, so that the metrics server
+	// won't stop when an interrupt is received. If the shutdown procedure hangs
+	// this will give us a chance to still query pprof or the metrics endpoints.
+	shutdownFunc := metrics.ServeMetrics(context.Background(), rootConfig.MetricsAddr, rootConfig.MetricsPort)
+
+	rootConfig.MetricsShutdownFunc = shutdownFunc
 
 	return nil
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/db/models"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
 )
 
 type ServiceOption func(*Service) error
@@ -23,6 +24,7 @@ var DefaulServiceConfig = config.AkaiAPIServiceConfig{
 	PrefixPath: "api/" + APIversion,
 	Timeout:    10 * time.Second,
 	Mode:       "release",
+	Meter:      otel.GetMeterProvider().Meter("akai_api_server"),
 }
 
 type Service struct {

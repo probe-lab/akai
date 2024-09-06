@@ -14,8 +14,9 @@ import (
 type BlockRequester struct {
 	httpAPICli *api.HTTPClient
 
-	genesisTime      time.Time
-	lastBlockTracked uint64
+	genesisTime          time.Time
+	totalRequestedBlocks uint64
+	lastBlockTracked     uint64
 
 	consumers []BlockConsumer
 }
@@ -92,6 +93,8 @@ func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 
 			} else {
 				for blockToRequest := r.lastBlockTracked + 1; blockToRequest <= lastBlock; blockToRequest++ {
+					// update metrics
+					r.totalRequestedBlocks++
 					blockHeader, err := r.httpAPICli.GetV2BlockHeader(ctx, blockToRequest)
 					if err != nil {
 						log.WithField(

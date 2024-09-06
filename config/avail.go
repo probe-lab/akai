@@ -2,6 +2,8 @@ package config
 
 import (
 	"time"
+
+	"go.opentelemetry.io/otel/metric"
 )
 
 var (
@@ -20,6 +22,9 @@ type AvailBlockTracker struct {
 
 	// for the API interaction
 	AvailAPIconfig AvailAPIConfig
+
+	// metrics for the service
+	Meter metric.Meter
 }
 
 type AvailAPIConfig struct {
