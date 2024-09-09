@@ -7,6 +7,7 @@ import (
 	"time"
 
 	lru "github.com/hashicorp/golang-lru/v2"
+	"github.com/probe-lab/akai/amino"
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/db"
 	"github.com/probe-lab/akai/db/models"
@@ -14,6 +15,8 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 )
+
+type SamplerFunction func(context.Context, DHTHost, models.AgnosticSegment) (models.AgnosticVisit, error)
 
 var (
 	minIterTime = 250 * time.Millisecond
@@ -30,8 +33,9 @@ var DefaultDataSamplerConfig = config.AkaiDataSamplerConfig{
 type DataSampler struct {
 	cfg *config.AkaiDataSamplerConfig
 
-	db db.Database
-	h  DHTHost
+	db        db.Database
+	h         DHTHost
+	samplerFn SamplerFunction
 
 	blobIDs    *lru.Cache[uint64, *models.AgnosticBlob]
 	segSet     *segmentSet
@@ -47,7 +51,8 @@ type DataSampler struct {
 func NewDataSampler(
 	cfg *config.AkaiDataSamplerConfig,
 	database db.Database,
-	h DHTHost) (*DataSampler, error) {
+	h DHTHost,
+	samplerFn SamplerFunction) (*DataSampler, error) {
 
 	blobsCache, err := lru.New[uint64, *models.AgnosticBlob](cfg.BlobsSetCacheSize) // <block_number>, <block_ID_in_DB>
 	if err != nil {
@@ -58,6 +63,7 @@ func NewDataSampler(
 		cfg:        cfg,
 		db:         database,
 		h:          h,
+		samplerFn:  samplerFn,
 		segSet:     newSegmentSet(),
 		visitTaskC: make(chan *models.AgnosticSegment, cfg.Workers),
 		blobIDs:    blobsCache,
@@ -284,24 +290,10 @@ func (ds *DataSampler) sampleSegment(ctx context.Context, segment models.Agnosti
 		"sampleable_until": segment.SampleUntil,
 	}).Debug("sampling segment of blob")
 
-	visit := models.AgnosticVisit{
-		Timestamp:     time.Now(),
-		Key:           segment.Key,
-		BlobNumber:    segment.BlobNumber,
-		Row:           segment.Row,
-		Column:        segment.Column,
-		IsRetrievable: false,
-	}
-
-	// make the sampling
-	duration, bytes, err := ds.h.FindValue(ctx, segment.Key)
+	visit, err := ds.samplerFn(ctx, ds.h, segment)
 	if err != nil {
-		visit.Error = err.Error()
+		return err
 	}
-	if len(bytes) > 0 {
-		visit.IsRetrievable = true
-	}
-	visit.DurationMs = duration.Milliseconds()
 
 	// update the DB with the result of the visit
 	return ds.db.PersistNewSegmentVisit(ctx, visit)
@@ -359,4 +351,71 @@ func (ds *DataSampler) initMetrics() (err error) {
 	}
 
 	return nil
+}
+
+// logical sampler functions
+func sampleByFindProviders(ctx context.Context, h DHTHost, segmnt models.AgnosticSegment) (models.AgnosticVisit, error) {
+	visit := models.AgnosticVisit{
+		Timestamp:     time.Now(),
+		Key:           segmnt.Key,
+		BlobNumber:    segmnt.BlobNumber,
+		Row:           segmnt.Row,
+		Column:        segmnt.Column,
+		IsRetrievable: false,
+	}
+
+	cid, err := amino.CidFromString(segmnt.Key)
+	if err != nil {
+		visit.Error = "segment key doesn't represent a valid CID"
+	}
+
+	// make the sampling
+	duration, bytes, err := h.FindProviders(ctx, cid.Cid())
+	if err != nil {
+		visit.Error = err.Error()
+	}
+	if len(bytes) > 0 {
+		visit.IsRetrievable = true
+	}
+	visit.DurationMs = duration.Milliseconds()
+	return visit, nil
+}
+
+func sampleByFindValue(ctx context.Context, h DHTHost, segmnt models.AgnosticSegment) (models.AgnosticVisit, error) {
+
+	visit := models.AgnosticVisit{
+		Timestamp:     time.Now(),
+		Key:           segmnt.Key,
+		BlobNumber:    segmnt.BlobNumber,
+		Row:           segmnt.Row,
+		Column:        segmnt.Column,
+		IsRetrievable: false,
+	}
+
+	// make the sampling
+	duration, bytes, err := h.FindValue(ctx, segmnt.Key)
+	if err != nil {
+		visit.Error = err.Error()
+	}
+	if len(bytes) > 0 {
+		visit.IsRetrievable = true
+	}
+	visit.DurationMs = duration.Milliseconds()
+
+	return visit, nil
+}
+
+func GetSamplerFnForNetwork(network models.Network, h DHTHost) (SamplerFunction, error) {
+	switch network.Protocol {
+	case config.ProtocolIPFS:
+		return sampleByFindProviders, nil
+
+	case config.ProtocolAvail, config.ProtocolLocalCustom:
+		return sampleByFindValue, nil
+
+	default:
+		return func(_ context.Context, _ DHTHost, _ models.AgnosticSegment) (models.AgnosticVisit, error) {
+			return models.AgnosticVisit{}, nil
+		}, nil
+	}
 }

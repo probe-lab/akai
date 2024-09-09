@@ -30,7 +30,7 @@ var cmdService = &cli.Command{
 	Usage:  "Runs the core of Akai's Data Sampler as a daemon",
 	Flags:  cmdDaemonFlags,
 	Action: cmdDaemonAction,
-}3
+}
 
 var cmdDaemonFlags = []cli.Flag{
 	&cli.StringFlag{
@@ -141,6 +141,8 @@ func cmdDaemonAction(ctx context.Context, cmd *cli.Command) (err error) {
 		"database-database": daemonConfig.DBconfig.Database,
 		"akai-api-host":     daemonConfig.APIconfig.Host,
 		"akai-api-port":     daemonConfig.APIconfig.Port,
+		"akai-metrics-host": rootConfig.MetricsAddr,
+		"akai-metrics-port": rootConfig.MetricsPort,
 	}).Info("starting akai-daemon...")
 	defer log.Infof("stopped akai-daemon for %s", daemonConfig.Network)
 
@@ -166,7 +168,11 @@ func cmdDaemonAction(ctx context.Context, cmd *cli.Command) (err error) {
 	if err != nil {
 		return err
 	}
-	dataSampler, err := core.NewDataSampler(&daemonConfig.DataSamplerConfig, dbSer, dhtHost)
+	samplingFn, err := core.GetSamplerFnForNetwork(network, dhtHost)
+	if err != nil {
+		return err
+	}
+	dataSampler, err := core.NewDataSampler(&daemonConfig.DataSamplerConfig, dbSer, dhtHost, samplingFn)
 	if err != nil {
 		return err
 	}
