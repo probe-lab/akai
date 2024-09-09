@@ -14,6 +14,11 @@ var (
 		"/dns/bootnode-turing-008.avail.so/tcp/30333/p2p/12D3KooWMHRgZhDMUbN55NQcXB19Ww6SnL8shz1un3K6X3K2XoAh",
 		"/dns/bootnode-turing-009.avail.so/tcp/30333/p2p/12D3KooWQLdPYPEHRGAJ4J6dGYoiKyjm36VhaSCJkvKAuJBohJYi",
 	}
+
+	BootstrapNodesAvailHex = []string{
+		"/dns/bootnode.1.lightclient.hex.avail.so/tcp/37000/p2p/12D3KooWBMwfo5qyoLQDRat86kFcGAiJ2yxKM63rXHMw2rDuNZMA",
+	}
+
 	BootstrapNodesAvailMainnet = []string{
 		"/dns/bootnode-mainnet-001.avail.so/tcp/30333/p2p/12D3KooWBXk3rcfKkvd1YbJ8fHPH4WZy34QCw8Czrvqf6cbmrdKh",
 		"/dns/bootnode-mainnet-002.avail.so/tcp/30333/p2p/12D3KooWMJt1z4ap2UacerW7vJprr7Mqws5sqmJXZqg8XpZswiwF",

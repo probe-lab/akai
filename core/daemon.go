@@ -148,6 +148,12 @@ func (d *Daemon) newBlobHandler(ctx context.Context, blob api.Blob) error {
 		agSeg := d.newAgnosticSegmentFromAPIsegment(seg)
 		if !d.dataSampler.segSet.isSegmentAlready(agSeg.Key) {
 			d.dataSampler.segSet.addSegment(&agSeg)
+			// In case the submitted timestamps are off
+			// this might happen while local testing
+			hasValidNextVisit := d.dataSampler.updateNextVisitTime(&agSeg)
+			if !hasValidNextVisit {
+				d.dataSampler.segSet.removeSegment(agSeg.Key)
+			}
 		}
 	}
 

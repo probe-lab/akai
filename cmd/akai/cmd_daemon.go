@@ -30,7 +30,7 @@ var cmdService = &cli.Command{
 	Usage:  "Runs the core of Akai's Data Sampler as a daemon",
 	Flags:  cmdDaemonFlags,
 	Action: cmdDaemonAction,
-}
+}3
 
 var cmdDaemonFlags = []cli.Flag{
 	&cli.StringFlag{
@@ -142,11 +142,12 @@ func cmdDaemonAction(ctx context.Context, cmd *cli.Command) (err error) {
 		"akai-api-host":     daemonConfig.APIconfig.Host,
 		"akai-api-port":     daemonConfig.APIconfig.Port,
 	}).Info("starting akai-daemon...")
-	defer log.Infof("stopped akai-daemon for %s", availBlockTrackerConf.Network)
+	defer log.Infof("stopped akai-daemon for %s", daemonConfig.Network)
 
 	// set all network to be on the same one as the given one
 	network := models.NetworkFromStr(daemonConfig.Network)
 	daemonConfig.APIconfig.Network = daemonConfig.Network
+	daemonConfig.DataSamplerConfig.Network = daemonConfig.Network
 
 	// start the database
 	dbSer, err := db.NewDatabase(daemonConfig.DBconfig, network)

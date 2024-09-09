@@ -6,6 +6,7 @@ build/
 
 # local databases
 clickhouse_data/
+external/
 
 # local scripts, text files, mds, etc
 *.sh

@@ -74,7 +74,7 @@ func composeHostForNetwork(ctx context.Context, network models.Network, commonCf
 			IP:                   commonCfg.IP,
 			Port:                 commonCfg.Port,
 			DialTimeout:          commonCfg.DialTimeout,
-			UserAgent:            commonCfg.UserAgent,
+			UserAgent:            "avail-light-client/light-client/1.11.1/rust-client", // TODO: avail requires specific user agents
 			DHTMode:              ParseAminoDHTHostMode(commonCfg.DHTMode),
 			Bootstrapers:         bootstapers,
 			V1Protocol:           v1protocol,

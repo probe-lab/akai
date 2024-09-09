@@ -30,6 +30,7 @@ const (
 	NetworkNameIPFSAmino    string = "AMINO"
 	NetworkNameAvailTuring  string = "TURING"
 	NetworkNameAvailMainnet string = "MAINNET"
+	NetworkNameAvailHex     string = "HEX"
 	NetworkNameLocalCustom  string = "CUSTOM"
 )
 
@@ -40,6 +41,7 @@ var AvailableProtocols map[string][]string = map[string][]string{
 	ProtocolAvail: {
 		NetworkNameAvailTuring,
 		NetworkNameAvailMainnet,
+		NetworkNameAvailHex,
 	},
 	ProtocolLocalCustom: {
 		NetworkNameLocalCustom,
@@ -100,6 +102,10 @@ func ConfigureNetwork(network models.Network) ([]peer.AddrInfo, protocol.ID, str
 		switch network.NetworkName {
 		case NetworkNameAvailTuring:
 			bootstrapPeers = BootstrappersToMaddr(BootstrapNodesAvailTurin)
+			v1protocol = protocol.ID("/Avail/kad")
+			protocolPrefix = ""
+		case NetworkNameAvailHex:
+			bootstrapPeers = BootstrappersToMaddr(BootstrapNodesAvailHex)
 			v1protocol = protocol.ID("/Avail/kad")
 			protocolPrefix = ""
 		case NetworkNameAvailMainnet:
