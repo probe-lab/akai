@@ -1,4 +1,4 @@
-package avail
+package config
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ func Test_AvailKey(t *testing.T) {
 	row := uint64(12)
 	column := uint64(54)
 
-	availKey, err := KeyFromString(fmt.Sprintf("%d:%d:%d", block, row, column))
+	availKey, err := AvailKeyFromString(fmt.Sprintf("%d:%d:%d", block, row, column))
 	require.NoError(t, err)
 
 	require.Equal(t, availKey.Block, block)

@@ -3,32 +3,107 @@ package config
 import (
 	"time"
 
-	"go.opentelemetry.io/otel/metric"
+	record "github.com/libp2p/go-libp2p-record"
+	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/pkg/errors"
+	"github.com/probe-lab/akai/db/models"
 )
 
-var (
-	AvailDelayBase       = 3 * time.Minute
-	AvailDelayMultiplier = 2
+// DHT specs
+const (
+	KeyDelimiter      string = ":"
+	CoordinatesPerKey int    = 3
 )
 
-type AvailBlockTracker struct {
-	// type of consumers
-	TextConsumer bool
+// Chain specs
+const (
+	BlockIntervalTarget = 20 * time.Second
+	BlockTTL            = 24 * time.Hour
+)
 
-	AkaiAPIconsumer bool
-	AkaiAPIconfig   AkaiAPIClientConfig
+var ()
 
-	Network string
+func GenesisTimeFromNetwork(network models.Network) time.Time {
+	var genTime time.Time
+	switch network.NetworkName {
+	case NetworkNameAvailTuring:
+		genTime = AvailTuringGenesisTime
 
-	// for the API interaction
-	AvailAPIconfig AvailAPIConfig
+	case NetworkNameAvailMainnet:
+		genTime = AvailMainnetGenesisTime
 
-	// metrics for the service
-	Meter metric.Meter
+	default:
+	}
+	return genTime
 }
 
-type AvailAPIConfig struct {
-	Host    string
-	Port    int64
-	Timeout time.Duration
+var (
+	// chain genesis time
+	// from first block https://explorer.avail.so/#/explorer/query/1
+	AvailTuringGenesisTime  = time.Unix(int64(1711605040), int64(0))
+	AvailMainnetGenesisTime = time.Unix(int64(1720075080), int64(0))
+
+	// sampling delay parameters
+	AvailDelayBase       = 3 * time.Minute
+	AvailDelayMultiplier = 2
+
+	// block every 20 seconds that should last a day (extra of 1 blob more to make sure we hit the cache)
+	AvailBlobsSetCacheSize int = 2 * (3 + 1) * 60 * 24
+	// number of blocks keeping a max of 1024 segments each
+	AvailSegmentsSetCacheSize int = AvailBlobsSetCacheSize * 1024
+)
+
+// DefaulIPFSNetworkConfig defines the default configuration for the IPFS network for Akai
+var DefaultAvailNetworkConfig = &NetworkConfiguration{
+	Network: models.Network{
+		Protocol:    ProtocolAvail,
+		NetworkName: NetworkNameAvailMainnet,
+	},
+
+	// network parameters
+	BootstrapPeers: BootstrappersToMaddr(BootstrapNodesAvailMainnet),
+	AgentVersion:   "avail-light-client/light-client/1.11.1/rust-client", // TODO: update or automate with github?
+
+	// dht paramets
+	HostType:        AminoLibp2pHost,
+	DHTHostMode:     DHTClient,
+	V1Protocol:      protocol.ID("/Avail/kad"),
+	ProtocolPrefix:  nil,
+	CustomValidator: &KeyValidator{},
+
+	// sampling specifics
+	SamplingType:         SampleValue,
+	BlobsSetCache:        AvailBlobsSetCacheSize,
+	SegmentsSetCacheSize: AvailSegmentsSetCacheSize,
+	DelayBase:            AvailDelayBase,
+	DelayMultiplier:      AvailDelayMultiplier,
+
+	// Chain
+	GenesisTime: AvailMainnetGenesisTime,
+}
+
+type KeyValidator struct{}
+
+var _ record.Validator = (*KeyValidator)(nil)
+
+func (v *KeyValidator) Validate(key string, value []byte) error {
+	_, err := AvailKeyFromString(key)
+	if err != nil {
+		return errors.Wrap(ErrorNonValidKey, key)
+	}
+	// TODO: check if the given size is bigger than allowed cell lenght?
+	// not sure which is the format of the value
+	// - Cell bytes ?
+	// - Cell proof ?
+	// - Cell bytes + Cell proof ?
+	return nil
+}
+
+func (v *KeyValidator) Select(key string, values [][]byte) (int, error) {
+	if len(values) <= 0 {
+		return 0, ErrorNoValueForKey
+	}
+	err := v.Validate(key, values[0])
+	// there should be only one value for a given key, so no need to make extra stuff?
+	return 0, err
 }

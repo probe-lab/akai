@@ -1,14 +1,12 @@
-package avail
+package config
 
 import (
 	"fmt"
 	"strconv"
 	"strings"
 
-	record "github.com/libp2p/go-libp2p-record"
 	"github.com/multiformats/go-multihash"
 	"github.com/pkg/errors"
-	"github.com/probe-lab/akai/avail/api"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -23,35 +21,35 @@ const (
 	ProofSize int = 48 // bytes
 )
 
-type Key struct {
+type AvailKey struct {
 	Block  uint64
 	Row    uint64
 	Column uint64
 }
 
-func KeyFromString(str string) (Key, error) {
+func AvailKeyFromString(str string) (AvailKey, error) {
 	block, row, column, err := getCoordinatesFromStr(str)
 	if err != nil {
-		return Key{}, fmt.Errorf("string %s doesn't have right format or coordinates", str)
+		return AvailKey{}, fmt.Errorf("string %s doesn't have right format or coordinates", str)
 	}
-	return Key{
+	return AvailKey{
 		Block:  block,
 		Row:    row,
 		Column: column,
 	}, nil
 }
 
-func (k Key) String() string {
+func (k AvailKey) String() string {
 	return fmt.Sprintf("%d:%d:%d", k.Block, k.Row, k.Column)
 }
 
-func (k *Key) Bytes() []byte {
+func (k *AvailKey) Bytes() []byte {
 	return []byte(k.String())
 }
 
 // DHTKey returns the string representation of the of the DHT Key
 // TODO: This is likely to be deprecated as k.String() should be the right dht key
-func (k *Key) DHTKey() string {
+func (k *AvailKey) DHTKey() string {
 	bytes32 := [32]byte{}
 	for i, char := range k.String() {
 		bytes32[i] = byte(char)
@@ -59,7 +57,7 @@ func (k *Key) DHTKey() string {
 	return string(bytes32[:32])
 }
 
-func (k *Key) Hash() multihash.Multihash {
+func (k *AvailKey) Hash() multihash.Multihash {
 	mh, err := multihash.Sum([]byte(k.String()), multihash.SHA2_256, len(k.String()))
 	if err != nil {
 		log.Panic(errors.Wrap(err, "composing sha256 key from avail key"))
@@ -67,15 +65,15 @@ func (k *Key) Hash() multihash.Multihash {
 	return mh
 }
 
-func (k Key) IsZero() bool {
+func (k AvailKey) IsZero() bool {
 	return k.Block == 0 &&
 		k.Row == 0 &&
 		k.Column == 0
 }
 
 func getCoordinatesFromStr(str string) (block uint64, row uint64, column uint64, err error) {
-	KeyValues := strings.Split(str, api.KeyDelimiter)
-	if len(KeyValues) != api.CoordinatesPerKey {
+	KeyValues := strings.Split(str, KeyDelimiter)
+	if len(KeyValues) != CoordinatesPerKey {
 		return block, row, column, fmt.Errorf("string %s doesn't have right format or coordinates", str)
 	}
 	for idx, val := range KeyValues {
@@ -102,30 +100,4 @@ func strToUint64(s string) (uint64, error) {
 		return uint64(0), err
 	}
 	return uint64(coordinate), nil
-}
-
-type KeyValidator struct{}
-
-var _ record.Validator = (*KeyValidator)(nil)
-
-func (v *KeyValidator) Validate(key string, value []byte) error {
-	_, err := KeyFromString(key)
-	if err != nil {
-		return errors.Wrap(ErrorNonValidKey, key)
-	}
-	// TODO: check if the given size is bigger than allowed cell lenght?
-	// not sure which is the format of the value
-	// - Cell bytes ?
-	// - Cell proof ?
-	// - Cell bytes + Cell proof ?
-	return nil
-}
-
-func (v *KeyValidator) Select(key string, values [][]byte) (int, error) {
-	if len(values) <= 0 {
-		return 0, ErrorNoValueForKey
-	}
-	err := v.Validate(key, values[0])
-	// there should be only one value for a given key, so no need to make extra stuff?
-	return 0, err
 }

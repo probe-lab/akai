@@ -1,10 +1,8 @@
 package config
 
 import (
-	"fmt"
 	"time"
 
-	"github.com/probe-lab/akai/db/models"
 	"go.opentelemetry.io/otel/metric"
 )
 
@@ -34,19 +32,4 @@ type AkaiAPIServiceConfig struct {
 
 	// metrics for the service
 	Meter metric.Meter
-}
-
-var (
-	ClientName    = "akai"
-	ClientVersion = "v0.1.0"
-	Maintainer    = "probelab"
-)
-
-func ComposeAkaiUserAgent(network models.Network) string {
-	switch network.Protocol {
-	case ProtocolAvail:
-		return "avail-light-client/rust-client"
-	default:
-		return fmt.Sprintf("%s/%s", Maintainer, ClientName)
-	}
 }
