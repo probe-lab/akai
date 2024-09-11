@@ -16,7 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var DefaultClientConfig = config.AkaiAPIClientConfig{
+var DefaultClientConfig = &config.AkaiAPIClientConfig{
 	Host:       "127.0.0.1",
 	Port:       8080,
 	PrefixPath: "api/" + APIversion,
@@ -24,14 +24,14 @@ var DefaultClientConfig = config.AkaiAPIClientConfig{
 }
 
 type Client struct {
-	config config.AkaiAPIClientConfig
+	config *config.AkaiAPIClientConfig
 
 	base    *url.URL
 	address string
 	client  *http.Client
 }
 
-func NewClient(cfg config.AkaiAPIClientConfig) (*Client, error) {
+func NewClient(cfg *config.AkaiAPIClientConfig) (*Client, error) {
 
 	// http client for the communication
 	httpCli := &http.Client{

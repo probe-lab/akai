@@ -8,8 +8,8 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
+	"go.opentelemetry.io/otel"
 
-	"github.com/probe-lab/akai/avail"
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/db/models"
 
@@ -36,11 +36,12 @@ func Test_AvailKeyPing(t *testing.T) {
 	block := uint64(123)
 	row := uint64(12)
 	column := uint64(54)
-	key, err := avail.KeyFromString(fmt.Sprintf("%d:%d:%d", block, row, column))
+	key, err := config.AvailKeyFromString(fmt.Sprintf("%d:%d:%d", block, row, column))
 	require.NoError(t, err)
 
 	value := []byte("avail test cell")
 
+	time.Sleep(2 * time.Second)
 	// seed the DHT with such key
 	seeder := hosts[1]
 	_, err = seeder.PutValue(textCtx, key.String(), value)
@@ -57,9 +58,18 @@ func Test_AvailKeyPing(t *testing.T) {
 }
 
 func composeDemoDHTNetwork(ctx context.Context, t *testing.T, nodeNumbers int64) []DHTHost {
+	network := models.Network{Protocol: config.ProtocolLocalCustom, NetworkName: config.NetworkNameLocalCustom}
+	networkConfig, err := config.ConfigureNetwork(network)
+	require.NoError(t, err)
+
+	// base parameters
+	port := 9020
+	networkConfig.AgentVersion = fmt.Sprintf("%s_%d", networkConfig.AgentVersion, port)
+	networkConfig.DHTHostMode = config.DHTServer
+
 	// get the bootstrapper
 	hosts := make([]DHTHost, nodeNumbers+1)
-	bootstraperNode := composeDHTHost(t, ctx, 9020, config.DHTServer)
+	bootstraperNode := composeDHTHost(t, ctx, 9020, networkConfig)
 	hosts[0] = bootstraperNode
 
 	// bootstraper info
@@ -68,10 +78,16 @@ func composeDemoDHTNetwork(ctx context.Context, t *testing.T, nodeNumbers int64)
 		Addrs: make([]multiaddr.Multiaddr, 0),
 	}
 	bAi.Addrs = bootstraperNode.Host().Addrs()
+	networkConfig.BootstrapPeers = []peer.AddrInfo{bAi}
 
-	// compose nodes and connecte them to the bootstrapper
+	// compose nodes and connect them to the bootstrapper
 	for i := int64(1); i <= nodeNumbers; i++ {
-		host := composeDHTHost(t, ctx, 9020+i, config.DHTServer)
+		// dht_host specifics
+		port := 9020 + i
+		networkConfig.AgentVersion = fmt.Sprintf("%s_%d", networkConfig.AgentVersion, port)
+
+		// create dht_host
+		host := composeDHTHost(t, ctx, port, networkConfig)
 		connecteHostToPeer(t, ctx, host, bAi)
 		testDirectConnection(t, host, bAi)
 		hosts[i] = host
@@ -79,16 +95,15 @@ func composeDemoDHTNetwork(ctx context.Context, t *testing.T, nodeNumbers int64)
 	return hosts
 }
 
-func composeDHTHost(t *testing.T, ctx context.Context, port int64, mode config.DHTHostType) DHTHost {
-	network := models.Network{Protocol: config.ProtocolLocalCustom, NetworkName: config.NetworkNameLocalCustom}
-	dhtHostOpts := config.CommonDHTOpts{
+func composeDHTHost(t *testing.T, ctx context.Context, port int64, netCfg *config.NetworkConfiguration) DHTHost {
+	dhtHostOpts := &config.CommonDHTHostOpts{
+		ID:          0,
 		IP:          "127.0.0.1",      // default?
 		Port:        port,             // default?
 		DialTimeout: 10 * time.Second, // this is the DialTimeout, not the timeout for the operation
-		DHTMode:     mode,
-		UserAgent:   fmt.Sprintf("%s_%d", config.ComposeAkaiUserAgent(network), port),
+		Meter:       otel.GetMeterProvider().Meter("akai_host"),
 	}
-	dhtHost, err := NewDHTHost(ctx, models.Network(network), dhtHostOpts)
+	dhtHost, err := NewDHTHost(ctx, netCfg, dhtHostOpts)
 	require.NoError(t, err)
 
 	return dhtHost

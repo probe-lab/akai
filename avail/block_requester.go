@@ -2,34 +2,28 @@ package avail
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/probe-lab/akai/avail/api"
-	"github.com/probe-lab/akai/db/models"
+	"github.com/probe-lab/akai/config"
 	log "github.com/sirupsen/logrus"
 )
 
 type BlockRequester struct {
 	httpAPICli *api.HTTPClient
 
-	genesisTime          time.Time
+	networkConfig        *config.NetworkConfiguration
 	totalRequestedBlocks uint64
 	lastBlockTracked     uint64
 
 	consumers []BlockConsumer
 }
 
-func NewBlockRequester(apiCli *api.HTTPClient, network models.Network, consumers []BlockConsumer) (*BlockRequester, error) {
-	genTime := api.GenesisTimeFromNetwork(network)
-	if genTime.IsZero() {
-		return nil, fmt.Errorf("empty genesis time (%s) for network %s", genTime, network.String())
-	}
-
+func NewBlockRequester(apiCli *api.HTTPClient, networkConfig *config.NetworkConfiguration, consumers []BlockConsumer) (*BlockRequester, error) {
 	return &BlockRequester{
 		httpAPICli:       apiCli,
-		genesisTime:      genTime,
+		networkConfig:    networkConfig,
 		lastBlockTracked: uint64(0),
 		consumers:        consumers,
 	}, nil
@@ -53,7 +47,7 @@ func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 	r.lastBlockTracked = availStatus.Blocks.AvailableRange.Last - 1 // request last available
 
 	// calculate any waiting time in relation to the genesis (we want to be ~1 sec after the theoretical proposal)
-	toNextProposal := secondsToNextProposal(r.genesisTime)
+	toNextProposal := secondsToNextProposal(r.networkConfig.GenesisTime)
 
 	log.WithFields(log.Fields{
 		"head_block":            availStatus.Blocks.Latest,
@@ -73,7 +67,7 @@ func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 
 	// once we are "on-time", keep requesting the block periodically
 	extraDelay := 1 * time.Second
-	proposalTicker := time.NewTicker(api.BlockIntervalTarget + extraDelay) // give 1 extra time to request next block
+	proposalTicker := time.NewTicker(config.BlockIntervalTarget + extraDelay) // give 1 extra time to request next block
 	for {
 		select {
 		case <-proposalTicker.C:
@@ -107,7 +101,7 @@ func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 
 					}
 				}
-				proposalTicker.Reset(api.BlockIntervalTarget) // wait 20 seconds from last proposal
+				proposalTicker.Reset(config.BlockIntervalTarget) // wait 20 seconds from last proposal
 				// TODO: more spammy alternative
 				// secondsToNextProposal(r.genesisTime) + extraDelay
 			}
@@ -154,6 +148,6 @@ func timeSinceGenesis(genTime time.Time) time.Duration {
 
 func secondsToNextProposal(genTime time.Time) time.Duration {
 	sinceGen := timeSinceGenesis(genTime)
-	timeToNextBlock := sinceGen % time.Duration(api.BlockIntervalTarget)
+	timeToNextBlock := sinceGen % time.Duration(config.BlockIntervalTarget)
 	return timeToNextBlock
 }

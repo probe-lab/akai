@@ -13,8 +13,9 @@ import (
 )
 
 type BlockTracker struct {
-	cfg *config.AvailBlockTracker
-	sup *suture.Supervisor
+	cfg    *config.AvailBlockTracker
+	netCfg *config.NetworkConfiguration
+	sup    *suture.Supervisor
 
 	httpAPICli     *api.HTTPClient
 	BlockRequester *BlockRequester
@@ -33,6 +34,11 @@ func NewBlockTracker(cfg *config.AvailBlockTracker) (*BlockTracker, error) {
 	}
 
 	network := models.NetworkFromStr(cfg.Network)
+	networkConfig, err := config.ConfigureNetwork(network)
+	if err != nil {
+		return nil, err
+	}
+
 	// compose block consumers (Text, Akai_Api)
 	blockConsumers := make([]BlockConsumer, 0)
 	if cfg.TextConsumer {
@@ -43,7 +49,7 @@ func NewBlockTracker(cfg *config.AvailBlockTracker) (*BlockTracker, error) {
 		blockConsumers = append(blockConsumers, textConsumer)
 	}
 	if cfg.AkaiAPIconsumer {
-		akaiAPIconsumer, err := NewAkaiAPIconsumer(network, cfg.AkaiAPIconfig)
+		akaiAPIconsumer, err := NewAkaiAPIconsumer(networkConfig, cfg.AkaiAPIconfig)
 		if err != nil {
 			return nil, err
 		}
@@ -51,7 +57,7 @@ func NewBlockTracker(cfg *config.AvailBlockTracker) (*BlockTracker, error) {
 	}
 
 	// block requester
-	blockReq, err := NewBlockRequester(httpAPICli, network, blockConsumers)
+	blockReq, err := NewBlockRequester(httpAPICli, networkConfig, blockConsumers)
 	if err != nil {
 		return nil, err
 	}
@@ -59,13 +65,14 @@ func NewBlockTracker(cfg *config.AvailBlockTracker) (*BlockTracker, error) {
 	bTracker := &BlockTracker{
 		sup:            suture.NewSimple("avail-block-tracker"),
 		cfg:            cfg,
+		netCfg:         networkConfig,
 		httpAPICli:     httpAPICli,
 		BlockRequester: blockReq,
 		blockConsumers: blockConsumers,
 	}
 
 	log.WithFields(log.Fields{
-		"new_block_check_interval": api.BlockIntervalTarget,
+		"new_block_check_interval": config.BlockIntervalTarget,
 		"consumers":                getTypesFromBlockConsumers(bTracker.blockConsumers),
 	}).Info("avail block tracker successfully created...")
 

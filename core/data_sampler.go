@@ -22,7 +22,7 @@ var (
 	minIterTime = 250 * time.Millisecond
 )
 
-var DefaultDataSamplerConfig = config.AkaiDataSamplerConfig{
+var DefaultDataSamplerConfig = &config.AkaiDataSamplerConfig{
 	Network:         config.DefaultNetwork.String(),
 	Workers:         10,
 	SamplingTimeout: 10 * time.Second,
@@ -31,7 +31,8 @@ var DefaultDataSamplerConfig = config.AkaiDataSamplerConfig{
 }
 
 type DataSampler struct {
-	cfg *config.AkaiDataSamplerConfig
+	cfg     *config.AkaiDataSamplerConfig
+	network models.Network
 
 	db        db.Database
 	h         DHTHost
@@ -61,6 +62,7 @@ func NewDataSampler(
 
 	ds := &DataSampler{
 		cfg:        cfg,
+		network:    models.NetworkFromStr(cfg.Network),
 		db:         database,
 		h:          h,
 		samplerFn:  samplerFn,
@@ -270,6 +272,7 @@ func (ds *DataSampler) syncWithDatabase(ctx context.Context) error {
 				continue
 			}
 			ds.updateNextVisitTime(&seg)
+			fmt.Println(seg) /// REMOVE
 			ds.segSet.addSegment(&seg)
 		}
 		log.WithFields(log.Fields{
@@ -304,19 +307,42 @@ func (ds *DataSampler) BlobsCache() *lru.Cache[uint64, *models.AgnosticBlob] {
 }
 
 func (ds *DataSampler) updateNextVisitTime(segment *models.AgnosticSegment) (validNextVisit bool) {
-
-	multCnt := 1
-	delay := ds.cfg.DelayBase
-	nextVisit := segment.Timestamp.Add(delay)
-	multCnt++
-	for (nextVisit.Before(segment.NextVisit) && nextVisit.Equal(segment.NextVisit)) || nextVisit.Before(time.Now()) {
-		delay = delay * time.Duration(ds.cfg.DelayMultiplier)
-		nextVisit = segment.Timestamp.Add(delay)
+	// TODO: COnsider having all these network parameters in as single struct per network
+	switch ds.network.Protocol {
+	case config.ProtocolIPFS:
+		// constant increment of 15/30 mins
+		multCnt := 1
+		delay := ds.cfg.DelayBase
+		nextVisit := segment.Timestamp.Add(delay)
 		multCnt++
-	}
+		for (nextVisit.Before(segment.NextVisit) && nextVisit.Equal(segment.NextVisit)) || nextVisit.Before(time.Now()) {
+			delay = delay + ds.cfg.DelayBase
+			nextVisit = segment.Timestamp.Add(delay)
+			multCnt++
+		}
 
-	segment.NextVisit = nextVisit
-	return nextVisit.Before(segment.SampleUntil)
+		segment.NextVisit = nextVisit
+		return nextVisit.Before(segment.SampleUntil)
+
+	case config.ProtocolAvail, config.NetworkNameLocalCustom:
+		// exponentially increasing delay until end date
+		multCnt := 1
+		delay := ds.cfg.DelayBase
+		nextVisit := segment.Timestamp.Add(delay)
+		multCnt++
+		for (nextVisit.Before(segment.NextVisit) && nextVisit.Equal(segment.NextVisit)) || nextVisit.Before(time.Now()) {
+			delay = delay * time.Duration(ds.cfg.DelayMultiplier)
+			nextVisit = segment.Timestamp.Add(delay)
+			multCnt++
+		}
+
+		segment.NextVisit = nextVisit
+		return nextVisit.Before(segment.SampleUntil)
+
+	default:
+		log.Panic("unable to apply delay for next visit, as the network is not supported")
+		return false
+	}
 }
 
 // initMetrics initializes various prometheus metrics and stores the meters
@@ -362,6 +388,8 @@ func sampleByFindProviders(ctx context.Context, h DHTHost, segmnt models.Agnosti
 		Row:           segmnt.Row,
 		Column:        segmnt.Column,
 		IsRetrievable: false,
+		Providers:     0,
+		Bytes:         0,
 	}
 
 	cid, err := amino.CidFromString(segmnt.Key)
@@ -370,14 +398,26 @@ func sampleByFindProviders(ctx context.Context, h DHTHost, segmnt models.Agnosti
 	}
 
 	// make the sampling
-	duration, bytes, err := h.FindProviders(ctx, cid.Cid())
+	duration, providers, err := h.FindProviders(ctx, cid.Cid())
 	if err != nil {
 		visit.Error = err.Error()
 	}
-	if len(bytes) > 0 {
+	if len(providers) > 0 {
 		visit.IsRetrievable = true
 	}
+	// apply rest of values
 	visit.DurationMs = duration.Milliseconds()
+	visit.Bytes = 0
+	visit.Providers = uint32(len(providers))
+
+	log.WithFields(log.Fields{
+		"timestamp":   time.Now(),
+		"key":         segmnt.Key,
+		"duration":    duration,
+		"n_providers": len(providers),
+		"peer_ids":    ListPeerIDsFromAddrsInfos(providers),
+		"error":       visit.Error,
+	}).Info("find providers operation done")
 	return visit, nil
 }
 
@@ -400,17 +440,28 @@ func sampleByFindValue(ctx context.Context, h DHTHost, segmnt models.AgnosticSeg
 	if len(bytes) > 0 {
 		visit.IsRetrievable = true
 	}
+	// apply rest of values
 	visit.DurationMs = duration.Milliseconds()
+	visit.Bytes = uint32(len(bytes))
+	visit.Providers = 1
+
+	log.WithFields(log.Fields{
+		"timestamp": time.Now(),
+		"key":       segmnt.Key,
+		"duration":  duration,
+		"bytes":     len(bytes),
+		"error":     visit.Error,
+	}).Debug("find value operation done")
 
 	return visit, nil
 }
 
-func GetSamplerFnForNetwork(network models.Network, h DHTHost) (SamplerFunction, error) {
-	switch network.Protocol {
-	case config.ProtocolIPFS:
+func GetSamplingFnFromType(sampleType config.SamplingType) (SamplerFunction, error) {
+	switch sampleType {
+	case config.SampleProviders:
 		return sampleByFindProviders, nil
 
-	case config.ProtocolAvail, config.ProtocolLocalCustom:
+	case config.SampleValue:
 		return sampleByFindValue, nil
 
 	default:

@@ -9,6 +9,7 @@ import (
 
 	"github.com/ipfs/go-cid"
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/probe-lab/akai/config"
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel/metric"
 
@@ -45,7 +46,8 @@ type DHTHostConfig struct {
 }
 
 type DHTHost struct {
-	cfg *DHTHostConfig
+	cfg    *DHTHostConfig
+	netCfg *config.NetworkConfiguration
 
 	id      int
 	host    host.Host
@@ -57,7 +59,7 @@ type DHTHost struct {
 	routingPeerCount metric.Int64ObservableGauge
 }
 
-func NewDHTHost(ctx context.Context, opts *DHTHostConfig) (*DHTHost, error) {
+func NewDHTHost(ctx context.Context, opts *DHTHostConfig, netCfg *config.NetworkConfiguration) (*DHTHost, error) {
 	// prevent dial backoffs
 	ctx = network.WithForceDirectDial(ctx, "prevent backoff")
 
@@ -132,6 +134,7 @@ func NewDHTHost(ctx context.Context, opts *DHTHostConfig) (*DHTHost, error) {
 	// compose the DHT Host
 	dhtHost := &DHTHost{
 		cfg:     opts,
+		netCfg:  netCfg,
 		id:      opts.HostID,
 		host:    h,
 		dhtCli:  dhtCli,
@@ -301,6 +304,7 @@ func (h *DHTHost) PutValue(
 	}).Debug("looking for providers")
 	startT := time.Now()
 	err := h.dhtCli.PutValue(ctx, key, value)
+
 	return time.Since(startT), err
 }
 

@@ -9,21 +9,21 @@ import (
 	kaddht "github.com/libp2p/go-libp2p-kad-dht"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 
 	"github.com/probe-lab/akai/amino"
-	"github.com/probe-lab/akai/avail"
 	"github.com/probe-lab/akai/config"
-	"github.com/probe-lab/akai/db/models"
 )
 
-var DefaultDHTHostOpts = config.CommonDHTOpts{
-	IP:          "0.0.0.0",        // default?
-	Port:        9020,             // default?
-	DialTimeout: 10 * time.Second, // this is the DialTimeout, not the timeout for the operation
-	DHTMode:     config.DHTClient,
-	UserAgent:   config.ComposeAkaiUserAgent(config.DefaultNetwork),
+var DefaultDHTHostOpts = &config.CommonDHTHostOpts{
+	ID:           0,
+	IP:           "0.0.0.0",        // default?
+	Port:         9020,             // default?
+	DialTimeout:  10 * time.Second, // this is the DialTimeout, not the timeout for the operation
+	HostType:     config.UnknownHostType,
+	DHTMode:      config.DHTUknownType,
+	AgentVersion: config.ComposeAkaiAgentVersion(),
+	Meter:        otel.GetMeterProvider().Meter("akai_host"),
 }
 
 type DHTHost interface {
@@ -37,55 +37,33 @@ type DHTHost interface {
 
 var _ DHTHost = (*amino.DHTHost)(nil)
 
-func NewDHTHost(ctx context.Context, network models.Network, cfg config.CommonDHTOpts) (DHTHost, error) {
-	return composeHostForNetwork(ctx, network, cfg)
+func NewDHTHost(ctx context.Context, networkConfig *config.NetworkConfiguration, commonCfg *config.CommonDHTHostOpts) (DHTHost, error) {
+	return composeHostForNetwork(ctx, networkConfig, commonCfg)
 }
 
-func composeHostForNetwork(ctx context.Context, network models.Network, commonCfg config.CommonDHTOpts) (DHTHost, error) {
-	switch network.Protocol {
-	case config.ProtocolIPFS:
-		// configure amino DHT
-		bootstapers, v1protocol, _, err := config.ConfigureNetwork(network)
-		if err != nil {
-			return nil, errors.Wrap(err, "extracting network info from given network")
-		}
-		aminoDHTHostConfig := &amino.DHTHostConfig{
-			HostID:               commonCfg.ID,
-			IP:                   commonCfg.IP,
-			Port:                 commonCfg.Port,
-			DialTimeout:          commonCfg.DialTimeout,
-			UserAgent:            commonCfg.UserAgent,
-			DHTMode:              ParseAminoDHTHostMode(commonCfg.DHTMode),
-			Bootstrapers:         bootstapers,
-			V1Protocol:           v1protocol,
-			CustomProtocolPrefix: nil, // better not no change it, as it is the default at go-libp2p-kad-dht
-			Meter:                otel.GetMeterProvider().Meter("akai_host"),
-		}
-		return amino.NewDHTHost(ctx, aminoDHTHostConfig)
+func composeHostForNetwork(ctx context.Context, networkConfig *config.NetworkConfiguration, commonCfg *config.CommonDHTHostOpts) (DHTHost, error) {
+	// override host config from network one
+	DHTHostConfigFromNetworkConfig(commonCfg, networkConfig)
 
-	case config.ProtocolAvail, config.ProtocolLocalCustom:
-		// configure amino DHT
-		bootstapers, v1protocol, protoPrefix, err := config.ConfigureNetwork(network)
-		if err != nil {
-			return nil, errors.Wrap(err, "extracting network info from given network")
-		}
+	switch networkConfig.HostType {
+	case config.AminoLibp2pHost:
 		aminoDHTHostConfig := &amino.DHTHostConfig{
 			HostID:               commonCfg.ID,
 			IP:                   commonCfg.IP,
 			Port:                 commonCfg.Port,
 			DialTimeout:          commonCfg.DialTimeout,
-			UserAgent:            "avail-light-client/light-client/1.11.1/rust-client", // TODO: avail requires specific user agents
+			UserAgent:            commonCfg.AgentVersion,
 			DHTMode:              ParseAminoDHTHostMode(commonCfg.DHTMode),
-			Bootstrapers:         bootstapers,
-			V1Protocol:           v1protocol,
-			CustomValidator:      &avail.KeyValidator{},
-			CustomProtocolPrefix: &protoPrefix,
-			Meter:                otel.GetMeterProvider().Meter("akai_host"),
+			Bootstrapers:         networkConfig.BootstrapPeers,
+			V1Protocol:           networkConfig.V1Protocol,
+			CustomProtocolPrefix: networkConfig.ProtocolPrefix,
+			CustomValidator:      networkConfig.CustomValidator,
+			Meter:                commonCfg.Meter,
 		}
-		return amino.NewDHTHost(ctx, aminoDHTHostConfig)
+		return amino.NewDHTHost(ctx, aminoDHTHostConfig, networkConfig)
 
 	default:
-		return nil, fmt.Errorf("no dht host available for network %s", network)
+		return nil, fmt.Errorf("no dht host available for network %s", &networkConfig.Network)
 	}
 }
 
@@ -98,4 +76,10 @@ func ParseAminoDHTHostMode(mode config.DHTHostType) kaddht.ModeOpt {
 	default:
 		return kaddht.ModeClient
 	}
+}
+
+func DHTHostConfigFromNetworkConfig(hostCfg *config.CommonDHTHostOpts, netCfg *config.NetworkConfiguration) {
+	hostCfg.HostType = netCfg.HostType
+	hostCfg.AgentVersion = netCfg.AgentVersion
+	hostCfg.DHTMode = netCfg.DHTHostMode
 }

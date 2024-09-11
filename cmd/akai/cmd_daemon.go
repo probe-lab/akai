@@ -151,14 +151,19 @@ func cmdDaemonAction(ctx context.Context, cmd *cli.Command) (err error) {
 	daemonConfig.APIconfig.Network = daemonConfig.Network
 	daemonConfig.DataSamplerConfig.Network = daemonConfig.Network
 
+	networkConfig, err := config.ConfigureNetwork(network)
+	if err != nil {
+		return err
+	}
+
 	// start the database
-	dbSer, err := db.NewDatabase(daemonConfig.DBconfig, network)
+	dbSer, err := db.NewDatabase(daemonConfig.DBconfig, networkConfig)
 	if err != nil {
 		return err
 	}
 
 	// get a DHThost for the given network
-	dhtHost, err := core.NewDHTHost(ctx, network, daemonConfig.DHTHostConfig)
+	dhtHost, err := core.NewDHTHost(ctx, networkConfig, daemonConfig.DHTHostConfig)
 	if err != nil {
 		return err
 	}
@@ -168,11 +173,11 @@ func cmdDaemonAction(ctx context.Context, cmd *cli.Command) (err error) {
 	if err != nil {
 		return err
 	}
-	samplingFn, err := core.GetSamplerFnForNetwork(network, dhtHost)
+	samplingFn, err := core.GetSamplingFnFromType(networkConfig.SamplingType)
 	if err != nil {
 		return err
 	}
-	dataSampler, err := core.NewDataSampler(&daemonConfig.DataSamplerConfig, dbSer, dhtHost, samplingFn)
+	dataSampler, err := core.NewDataSampler(daemonConfig.DataSamplerConfig, dbSer, dhtHost, samplingFn)
 	if err != nil {
 		return err
 	}

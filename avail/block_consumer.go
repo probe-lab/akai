@@ -8,7 +8,6 @@ import (
 	akai_api "github.com/probe-lab/akai/api"
 	"github.com/probe-lab/akai/avail/api"
 	"github.com/probe-lab/akai/config"
-	"github.com/probe-lab/akai/db/models"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -77,12 +76,12 @@ func (tc *TextConsumer) ProccessNewBlock(ctx context.Context, blockNot *BlockNot
 
 // TODO: add API interface with the Akai service
 type AkaiAPIconsumer struct {
-	config  config.AkaiAPIClientConfig
-	network models.Network
-	cli     *akai_api.Client
+	config         *config.AkaiAPIClientConfig
+	networkConfing *config.NetworkConfiguration
+	cli            *akai_api.Client
 }
 
-func NewAkaiAPIconsumer(network models.Network, cfg config.AkaiAPIClientConfig) (*AkaiAPIconsumer, error) {
+func NewAkaiAPIconsumer(networkConfig *config.NetworkConfiguration, cfg *config.AkaiAPIClientConfig) (*AkaiAPIconsumer, error) {
 	apiCli, err := akai_api.NewClient(cfg)
 	if err != nil {
 		return nil, err
@@ -94,14 +93,14 @@ func NewAkaiAPIconsumer(network models.Network, cfg config.AkaiAPIClientConfig) 
 	if err != nil {
 		return nil, err
 	}
-	if network.String() != apiNet.Network.String() {
-		return nil, fmt.Errorf("block consumer and Akai API running in different networks %s - %s", network.String(), apiNet.Network.String())
+	if networkConfig.Network.String() != apiNet.Network.String() {
+		return nil, fmt.Errorf("block consumer and Akai API running in different networks %s - %s", networkConfig.Network.String(), apiNet.Network.String())
 	}
 
 	return &AkaiAPIconsumer{
-		config:  cfg,
-		network: network,
-		cli:     apiCli,
+		config:         cfg,
+		networkConfing: networkConfig,
+		cli:            apiCli,
 	}, nil
 }
 
@@ -119,7 +118,7 @@ func (ac *AkaiAPIconsumer) ProccessNewBlock(ctx context.Context, blockNot *Block
 		return err
 	}
 
-	apiBlob := block.ToAkaiAPIBlob(ac.network, true)
+	apiBlob := block.ToAkaiAPIBlob(ac.networkConfing.Network, true)
 	ctx, cancel := context.WithTimeout(ctx, ac.config.Timeout)
 	defer cancel()
 	err = ac.cli.PostNewBlob(ctx, apiBlob)

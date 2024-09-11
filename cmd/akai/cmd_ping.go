@@ -8,10 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
 
-	"github.com/libp2p/go-libp2p/core/peer"
-
 	"github.com/probe-lab/akai/amino"
-	"github.com/probe-lab/akai/avail"
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/core"
 	"github.com/probe-lab/akai/db/models"
@@ -74,54 +71,64 @@ func cmdPingAction(ctx context.Context, cmd *cli.Command) error {
 	}).Info("requesting key from given DHT...")
 
 	network := models.NetworkFromStr(pingConfig.Network)
-
-	dhtHostOpts := config.CommonDHTOpts{
-		IP:          "0.0.0.0",        // default?
-		Port:        9020,             // default?
-		DialTimeout: 10 * time.Second, // this is the DialTimeout, not the timeout for the operation
-		DHTMode:     config.DHTClient,
-		UserAgent:   config.ComposeAkaiUserAgent(network),
-	}
-
-	dhtHost, err := core.NewDHTHost(ctx, models.Network(network), dhtHostOpts)
-	if err != nil {
-		return errors.Wrap(err, "creating DHT host")
-	}
-
-	pingKey, err := core.ParseDHTKeyType(models.Network(network), pingConfig.Key)
+	networkConfig, err := config.ConfigureNetwork(network)
 	if err != nil {
 		return err
 	}
 
-	switch network.Protocol {
-	// get providers for amino CID
-	case config.ProtocolIPFS:
-		err = fetchCidProviders(ctx, dhtHost, pingKey.(amino.Cid))
-		if err != nil {
-			return err
-		}
-	// get avail cell bytes from DHT key
-	case config.ProtocolAvail:
-		err = fetchAvailKey(ctx, dhtHost, pingKey.(avail.Key))
-		if err != nil {
-			return err
-		}
-	default:
-		log.WithField("key", pingConfig.Key).Warn("unrecognized type for given key")
+	dhtHostOpts := &config.CommonDHTHostOpts{
+		IP:           "0.0.0.0",        // default?
+		Port:         9020,             // default?
+		DialTimeout:  10 * time.Second, // this is the DialTimeout, not the timeout for the operation
+		DHTMode:      config.DHTClient,
+		AgentVersion: networkConfig.AgentVersion,
 	}
+
+	dhtHost, err := core.NewDHTHost(ctx, networkConfig, dhtHostOpts)
+	if err != nil {
+		return errors.Wrap(err, "creating DHT host")
+	}
+
+	// ensure that the format is correct
+	_, err = core.ParseDHTKeyType(models.Network(network), pingConfig.Key)
+	if err != nil {
+		return err
+	}
+	sampleSegment := models.AgnosticSegment{
+		Timestamp: time.Now(),
+		Key:       pingConfig.Key,
+	}
+
+	// get sampling for network
+	samplingFn, err := core.GetSamplingFnFromType(networkConfig.SamplingType)
+	if err != nil {
+		return err
+	}
+
+	sampleCtx, cancel := context.WithTimeout(ctx, pingConfig.Timeout)
+	defer cancel()
+
+	visit, err := samplingFn(sampleCtx, dhtHost, sampleSegment)
+	if err != nil {
+		return err
+	}
+
+	log.WithFields(log.Fields{
+		"timestamp":      time.Now(),
+		"key":            sampleSegment.Key,
+		"duration_ms":    visit.DurationMs,
+		"is_retriebable": visit.IsRetrievable,
+		"n_providers":    visit.Providers,
+		"bytes":          visit.Bytes,
+		"error":          visit.Error,
+	}).Info("find providers operation done")
+
 	return nil
 
 }
 
-func listPeerIDsFromAddrsInfos(addrs []peer.AddrInfo) []peer.ID {
-	peerIDs := make([]peer.ID, len(addrs))
-
-	for i, addr := range addrs {
-		peerIDs[i] = addr.ID
-	}
-	return peerIDs
-}
-
+// fetchCidProviders was a dedicated ping function for fetching CID's providers in the Amino DHT (IPFS)
+// DEPRECATED in favor of core.GetSamplingFnFromType()
 func fetchCidProviders(ctx context.Context, h core.DHTHost, key amino.Cid) error {
 	// request the key from the network
 	findCtx, cancel := context.WithTimeout(ctx, pingConfig.Timeout)
@@ -135,13 +142,15 @@ func fetchCidProviders(ctx context.Context, h core.DHTHost, key amino.Cid) error
 	log.WithFields(log.Fields{
 		"duration":    opDuration,
 		"n_providers": len(providers),
-		"peer_ids":    listPeerIDsFromAddrsInfos(providers),
+		"peer_ids":    core.ListPeerIDsFromAddrsInfos(providers),
 	}).Info("find providers operation done")
 
 	return nil
 }
 
-func fetchAvailKey(ctx context.Context, h core.DHTHost, key avail.Key) error {
+// fetchCidProviders was a dedicated ping function for fetching CIDs content in the Amino DHT (Avail)
+// DEPRECATED in favor of core.GetSamplingFnFromType()
+func fetchAvailKey(ctx context.Context, h core.DHTHost, key config.AvailKey) error {
 
 	log.WithFields(log.Fields{
 		"block":  key.Block,

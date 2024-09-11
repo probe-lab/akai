@@ -14,7 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var DefaultClientConfig = config.AvailAPIConfig{
+var DefaultClientConfig = &config.AvailAPIConfig{
 	Host:    "localhost",
 	Port:    5000,
 	Timeout: 10 * time.Second,
@@ -30,7 +30,7 @@ type HTTPClient struct {
 	timeout time.Duration
 }
 
-func NewHTTPCli(opts config.AvailAPIConfig) (*HTTPClient, error) {
+func NewHTTPCli(opts *config.AvailAPIConfig) (*HTTPClient, error) {
 
 	// http client for the communication
 	httpCli := &http.Client{

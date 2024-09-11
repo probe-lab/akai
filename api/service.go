@@ -13,11 +13,13 @@ import (
 	"go.opentelemetry.io/otel"
 )
 
-type ServiceOption func(*Service) error
-
 const APIversion = "v1"
 
-var DefaulServiceConfig = config.AkaiAPIServiceConfig{
+var ErrNetworkNotSupported = fmt.Errorf("network not supported")
+
+type ServiceOption func(*Service) error
+
+var DefaulServiceConfig = &config.AkaiAPIServiceConfig{
 	Network:    config.DefaultNetwork.String(),
 	Host:       "127.0.0.1",
 	Port:       8080,
@@ -28,7 +30,7 @@ var DefaulServiceConfig = config.AkaiAPIServiceConfig{
 }
 
 type Service struct {
-	config config.AkaiAPIServiceConfig
+	config *config.AkaiAPIServiceConfig
 
 	appNewBlobHandler     func(context.Context, Blob) error
 	appNewSegmentHandler  func(context.Context, BlobSegment) error
@@ -37,7 +39,7 @@ type Service struct {
 	engine *gin.Engine
 }
 
-func NewService(cfg config.AkaiAPIServiceConfig, opts ...ServiceOption) (*Service, error) {
+func NewService(cfg *config.AkaiAPIServiceConfig, opts ...ServiceOption) (*Service, error) {
 	apiService := &Service{
 		config:                cfg,
 		appNewBlobHandler:     func(context.Context, Blob) error { return nil },

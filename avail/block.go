@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	akai_api "github.com/probe-lab/akai/api"
 	"github.com/probe-lab/akai/avail/api"
+	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/db/models"
 )
 
@@ -81,13 +82,13 @@ func (b *Block) ToAkaiAPIBlob(network models.Network, fillSegments bool) akai_ap
 		Columns:     b.Extension.Columns,
 		Segments:    make([]akai_api.BlobSegment, 0),
 		Metadata:    make(map[string]any, 0),
-		SampleUntil: time.Now().Add(api.BlockTTL + 3*time.Hour), // add 3 hours extra to ensure that we sample also after the 24 hour mark
+		SampleUntil: time.Now().Add(config.BlockTTL + 3*time.Hour), // add 3 hours extra to ensure that we sample also after the 24 hour mark
 	}
 	// if needed, add all the inner segments into the blob struct for the API (make 1 single API call)
 	if fillSegments {
 		for row := 0; row < int(blob.Rows); row++ {
 			for col := 0; col < int(blob.Columns); col++ {
-				segmentKey := Key{
+				segmentKey := config.AvailKey{
 					Block:  blob.Number,
 					Row:    uint64(row),
 					Column: uint64(col),
