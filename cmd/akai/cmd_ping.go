@@ -8,7 +8,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
 
-	"github.com/probe-lab/akai/amino"
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/core"
 	"github.com/probe-lab/akai/db/models"
@@ -129,61 +128,61 @@ func cmdPingAction(ctx context.Context, cmd *cli.Command) error {
 
 // fetchCidProviders was a dedicated ping function for fetching CID's providers in the Amino DHT (IPFS)
 // DEPRECATED in favor of core.GetSamplingFnFromType()
-func fetchCidProviders(ctx context.Context, h core.DHTHost, key amino.Cid) error {
-	// request the key from the network
-	findCtx, cancel := context.WithTimeout(ctx, pingConfig.Timeout)
-	defer cancel()
+// func fetchCidProviders(ctx context.Context, h core.DHTHost, key amino.Cid) error {
+// 	// request the key from the network
+// 	findCtx, cancel := context.WithTimeout(ctx, pingConfig.Timeout)
+// 	defer cancel()
 
-	opDuration, providers, err := h.FindProviders(findCtx, key.Cid())
-	if err != nil {
-		return errors.Wrap(err, "finding providers for key")
-	}
+// 	opDuration, providers, err := h.FindProviders(findCtx, key.Cid())
+// 	if err != nil {
+// 		return errors.Wrap(err, "finding providers for key")
+// 	}
 
-	log.WithFields(log.Fields{
-		"duration":    opDuration,
-		"n_providers": len(providers),
-		"peer_ids":    core.ListPeerIDsFromAddrsInfos(providers),
-	}).Info("find providers operation done")
+// 	log.WithFields(log.Fields{
+// 		"duration":    opDuration,
+// 		"n_providers": len(providers),
+// 		"peer_ids":    core.ListPeerIDsFromAddrsInfos(providers),
+// 	}).Info("find providers operation done")
 
-	return nil
-}
+// 	return nil
+// }
 
 // fetchCidProviders was a dedicated ping function for fetching CIDs content in the Amino DHT (Avail)
 // DEPRECATED in favor of core.GetSamplingFnFromType()
-func fetchAvailKey(ctx context.Context, h core.DHTHost, key config.AvailKey) error {
+// func fetchAvailKey(ctx context.Context, h core.DHTHost, key config.AvailKey) error {
 
-	log.WithFields(log.Fields{
-		"block":  key.Block,
-		"row":    key.Row,
-		"column": key.Column,
-	}).Info("finding providers for cell...")
+// 	log.WithFields(log.Fields{
+// 		"block":  key.Block,
+// 		"row":    key.Row,
+// 		"column": key.Column,
+// 	}).Info("finding providers for cell...")
 
-	// request the key from the network
-	findCtx, cancel := context.WithTimeout(ctx, pingConfig.Timeout)
-	defer cancel()
+// 	// request the key from the network
+// 	findCtx, cancel := context.WithTimeout(ctx, pingConfig.Timeout)
+// 	defer cancel()
 
-	dhtKey := key.String()
+// 	dhtKey := key.String()
 
-	findPeersDuration, closesPs, err := h.FindClosestPeers(findCtx, dhtKey)
-	if err != nil {
-		return err
-	}
-	log.WithFields(log.Fields{
-		"duration": findPeersDuration,
-		"peers":    len(closesPs),
-		"peer_ids": closesPs,
-	}).Info("found closest peers to cell...")
+// 	findPeersDuration, closesPs, err := h.FindClosestPeers(findCtx, dhtKey)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	log.WithFields(log.Fields{
+// 		"duration": findPeersDuration,
+// 		"peers":    len(closesPs),
+// 		"peer_ids": closesPs,
+// 	}).Info("found closest peers to cell...")
 
-	findDuration, bytes, err := h.FindValue(findCtx, dhtKey)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"duration": findDuration,
-		}).Warn("no cell found for block...")
-	} else {
-		log.WithFields(log.Fields{
-			"duration": findDuration,
-			"bytes":    string(bytes),
-		}).Info("found block cell...")
-	}
-	return nil
-}
+// 	findDuration, bytes, err := h.FindValue(findCtx, dhtKey)
+// 	if err != nil {
+// 		log.WithFields(log.Fields{
+// 			"duration": findDuration,
+// 		}).Warn("no cell found for block...")
+// 	} else {
+// 		log.WithFields(log.Fields{
+// 			"duration": findDuration,
+// 			"bytes":    string(bytes),
+// 		}).Info("found block cell...")
+// 	}
+// 	return nil
+// }
