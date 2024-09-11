@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS visits (
     column UInt32,
     duration_ms Int64,
     is_retrievable Bool,
+    providers UInt32,
+    bytes UInt32,
     error String
 )
 ENGINE = MergeTree()

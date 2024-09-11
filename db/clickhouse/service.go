@@ -14,7 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var DefaultClickhouseConnectionDetails = config.DatabaseDetails{
+var DefaultClickhouseConnectionDetails = &config.DatabaseDetails{
 	Driver:   "clickhouse",
 	Address:  "127.0.0.1:9000",
 	User:     "username",
@@ -29,7 +29,7 @@ var (
 
 type ClickHouseDB struct {
 	// Reference to the configuration
-	conDetails config.DatabaseDetails
+	conDetails *config.DatabaseDetails
 
 	// Database handler
 	// pool of connections per table for bulk inserts
@@ -54,7 +54,7 @@ type ClickHouseDB struct {
 	// telemetry *telemetry
 }
 
-func NewClickHouseDB(conDetails config.DatabaseDetails, network models.Network) (*ClickHouseDB, error) {
+func NewClickHouseDB(conDetails *config.DatabaseDetails, network models.Network) (*ClickHouseDB, error) {
 	db := &ClickHouseDB{
 		conDetails:       conDetails,
 		currentNetwork:   network,

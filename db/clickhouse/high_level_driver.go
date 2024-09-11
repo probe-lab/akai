@@ -15,7 +15,7 @@ import (
 
 func (s *ClickHouseDB) getHighLevelConnection(
 	_ context.Context,
-	conDetails config.DatabaseDetails) (driver.Conn, error) {
+	conDetails *config.DatabaseDetails) (driver.Conn, error) {
 
 	var dialCount int
 	// taken the example from: https://github.com/ClickHouse/clickhouse-go

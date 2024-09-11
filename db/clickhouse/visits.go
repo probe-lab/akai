@@ -27,6 +27,8 @@ func insertVisitQueryBase() string {
 		column,
 		duration_ms,
 		is_retrievable,
+		providers,
+		bytes,
 		error)
 	VALUES`
 	return query
@@ -41,6 +43,8 @@ func convertVisitToInput(visits []models.AgnosticVisit) proto.Input {
 		columns      proto.ColUInt32
 		durations    proto.ColInt64
 		retrievables proto.ColBool
+		providers    proto.ColUInt32
+		bytes        proto.ColUInt32
 		errors       proto.ColStr
 	)
 
@@ -52,6 +56,8 @@ func convertVisitToInput(visits []models.AgnosticVisit) proto.Input {
 		columns.Append(visit.Column)
 		durations.Append(visit.DurationMs)
 		retrievables.Append(visit.IsRetrievable)
+		providers.Append(visit.Providers)
+		bytes.Append(visit.Bytes)
 		errors.Append(visit.Error)
 	}
 
@@ -63,6 +69,8 @@ func convertVisitToInput(visits []models.AgnosticVisit) proto.Input {
 		{Name: "column", Data: columns},
 		{Name: "duration_ms", Data: durations},
 		{Name: "is_retrievable", Data: retrievables},
+		{Name: "providers", Data: providers},
+		{Name: "bytes", Data: bytes},
 		{Name: "error", Data: errors},
 	}
 }
@@ -77,6 +85,8 @@ func requestVisitWithCondition(ctx context.Context, highLevelConn driver.Conn, c
 			column,
 			duration_ms,
 			is_retrievable,
+			providers,
+			bytes,
 			error
 		FROM %s
 		%s

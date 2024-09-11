@@ -40,7 +40,7 @@ func (c *lowLevelConn) close() error {
 
 func (s *ClickHouseDB) getLowLevelConnection(
 	ctx context.Context,
-	conDetails config.DatabaseDetails,
+	conDetails *config.DatabaseDetails,
 	tag string) (*lowLevelConn, error) {
 
 	opts := ch.Options{

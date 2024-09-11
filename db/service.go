@@ -9,7 +9,7 @@ import (
 	"github.com/probe-lab/akai/db/models"
 )
 
-var DefaultConnectionDetails = config.DatabaseDetails{
+var DefaultConnectionDetails = &config.DatabaseDetails{
 	Driver:   "clickhouse",
 	Address:  "127.0.0.1:9000",
 	User:     "username",
@@ -42,10 +42,10 @@ type Database interface {
 
 var _ Database = (*clickhouse.ClickHouseDB)(nil)
 
-func NewDatabase(details config.DatabaseDetails, network models.Network) (Database, error) {
+func NewDatabase(details *config.DatabaseDetails, networkConfig *config.NetworkConfiguration) (Database, error) {
 	switch details.Driver {
 	case "clickhouse":
-		return clickhouse.NewClickHouseDB(details, network)
+		return clickhouse.NewClickHouseDB(details, networkConfig.Network)
 	default:
 		return nil, fmt.Errorf("not recognized database diver (%s)", details.Driver)
 	}

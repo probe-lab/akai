@@ -13,6 +13,8 @@ type AgnosticVisit struct {
 	Column        uint32    `ch:"column" json:"column"`
 	DurationMs    int64     `ch:"duration_ms" json:"duration_ms"`
 	IsRetrievable bool      `ch:"is_retrievable" json:"is_retrievable"`
+	Providers     uint32    `ch:"providers" json:"providers"`
+	Bytes         uint32    `ch:"bytes" json:"bytes"`
 	Error         string    `ch:"error" json:"error"`
 }
 
@@ -33,6 +35,8 @@ func (b AgnosticVisit) QueryValues() map[string]any {
 		"column":         b.Column,
 		"duration_ms":    b.DurationMs,
 		"is_retrievable": b.IsRetrievable,
+		"providers":      b.Providers,
+		"bytes":          b.Bytes,
 		"error":          b.Error,
 	}
 }

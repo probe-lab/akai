@@ -42,6 +42,8 @@ func Test_VisitsTable(t *testing.T) {
 		Column:        1,
 		DurationMs:    60 * 1000,
 		IsRetrievable: true,
+		Providers:     1,
+		Bytes:         128,
 		Error:         "",
 	}
 
@@ -73,6 +75,8 @@ func Test_VisitsTable(t *testing.T) {
 	require.Equal(t, visit1.Key, visits[0].Key)
 	require.Equal(t, visit1.BlobNumber, visits[0].BlobNumber)
 	require.Equal(t, visit1.IsRetrievable, visits[0].IsRetrievable)
+	require.Equal(t, visit1.Providers, visits[0].Providers)
+	require.Equal(t, visit1.Bytes, visits[0].Bytes)
 	require.Equal(t, visit1.Error, visits[0].Error)
 
 	// drop anything existing in the testing DB
