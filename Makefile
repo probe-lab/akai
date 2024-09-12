@@ -25,13 +25,13 @@ clean:
 	rm -r $(BIN_PATH)
 
 tidy:
-	$(GOCC) fmt $(TARGET_PATH)
+	$(GOCC) fmt ./...
 	$(GOCC) mod tidy -v
 
 audit:
 	$(GOCC) mod verify
-	$(GOCC) vet $(TARGET_PATH)
-	$(GOCC) run honnef.co/go/tools/cmd/staticcheck@latest $(TARGET_PATH)
+	$(GOCC) vet ./...
+	$(GOCC) run honnef.co/go/tools/cmd/staticcheck@latest ./...
 	$(GOCC) test -race -buildvcs -vet=off $(TARGET_PATH)
 
 test:
