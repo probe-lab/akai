@@ -1,10 +1,8 @@
 package config
 
 import (
-	"fmt"
 	"time"
 
-	"github.com/probe-lab/akai/db/models"
 	"go.opentelemetry.io/otel/metric"
 )
 
@@ -14,6 +12,7 @@ const (
 	SampleUnknown SamplingType = iota
 	SampleProviders
 	SampleValue
+	SamplePeers
 )
 
 type AkaiDataSamplerConfig struct {
@@ -34,28 +33,24 @@ type AkaiSamplingDetails struct {
 	DelayMultiplier      int
 }
 
-func SamplingConfigForNetwork(network models.Network) (AkaiSamplingDetails, error) {
-	switch network.Protocol {
-	case ProtocolIPFS:
-		return AkaiSamplingDetails{}, nil
+func UpdateSamplingDetailFromNetworkConfig(samplCfg *AkaiSamplingDetails, netCfg *NetworkConfiguration) {
+	samplCfg.BlobsSetCacheSize = netCfg.BlobsSetCache
+	samplCfg.SegmentsSetCacheSize = netCfg.SegmentsSetCacheSize
+	samplCfg.DelayBase = netCfg.DelayBase
+	samplCfg.DelayMultiplier = netCfg.DelayMultiplier
+}
 
-	case ProtocolAvail:
-		return AkaiSamplingDetails{
-			BlobsSetCacheSize:    AvailBlobsSetCacheSize,
-			SegmentsSetCacheSize: AvailSegmentsSetCacheSize,
-			DelayBase:            AvailDelayBase,
-			DelayMultiplier:      AvailDelayMultiplier,
-		}, nil
-
-	case ProtocolLocalCustom:
-		return AkaiSamplingDetails{
-			BlobsSetCacheSize:    IPFSBlobsSetCacheSize,
-			SegmentsSetCacheSize: IPFSSegmentsSetCacheSize,
-			DelayBase:            IPFSDelayBase,
-			DelayMultiplier:      IPFSDelayMultiplier,
-		}, nil
+func ParseSamplingType(t SamplingType) string {
+	switch t {
+	case SampleProviders:
+		return "FIND_PROVIDERS"
+	case SamplePeers:
+		return "FIND_PEERS"
+	case SampleValue:
+		return "FIND_VALUE"
+	case SampleUnknown:
+		return "UNKNOWN_OPERATION"
 	default:
-		err := fmt.Errorf("protocol not supported")
-		return AkaiSamplingDetails{}, err
+		return "UNKNOWN_OPERATION"
 	}
 }
