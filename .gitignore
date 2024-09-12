@@ -2,10 +2,13 @@
 build/
 
 # local databases
-external/db/
+external/
 
 # local scripts
 *.sh
+*.json
+.env
 
 # IDE configs
 .vscode/
+.idea/
