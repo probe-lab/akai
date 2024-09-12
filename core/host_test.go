@@ -58,7 +58,7 @@ func Test_AvailKeyPing(t *testing.T) {
 }
 
 func composeDemoDHTNetwork(ctx context.Context, t *testing.T, nodeNumbers int64) []DHTHost {
-	network := models.Network{Protocol: config.ProtocolLocalCustom, NetworkName: config.NetworkNameLocalCustom}
+	network := models.Network{Protocol: config.ProtocolLocal, NetworkName: config.NetworkNameCustom}
 	networkConfig, err := config.ConfigureNetwork(network)
 	require.NoError(t, err)
 

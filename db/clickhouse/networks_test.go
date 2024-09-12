@@ -37,7 +37,7 @@ func Test_NetworksTable(t *testing.T) {
 	network := models.Network{
 		NetworkID:   uint16(1),
 		Protocol:    config.ProtocolAvail,
-		NetworkName: config.NetworkNameAvailTuring,
+		NetworkName: config.NetworkNameTuring,
 	}
 
 	isFull := batcher.addItem(network)
