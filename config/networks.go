@@ -156,7 +156,7 @@ func ConfigureNetwork(network models.Network) (*NetworkConfiguration, error) {
 
 		case NetworkNameHex:
 			defaultAvailConfig.BootstrapPeers = BootstrappersToMaddr(BootstrapNodesAvailHex)
-			defaultAvailConfig.V1Protocol = protocol.ID("/Avail/kad")
+			defaultAvailConfig.V1Protocol = protocol.ID("/avail_kad/id/1.0.0-9d5ea6")
 			defaultAvailConfig.GenesisTime = AvailTuringGenesisTime // TODO: update this to latest calculus
 			defaultAvailConfig.ProtocolPrefix = &protocolPrefix
 			return defaultAvailConfig, nil
