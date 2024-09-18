@@ -13,41 +13,50 @@ import (
 
 var DefaultNetwork = models.Network{
 	Protocol:    ProtocolAvail,
-	NetworkName: NetworkNameAvailMainnet,
+	NetworkName: NetworkNameMainnet,
 	NetworkID:   0,
 }
 
 // Protocols
 const (
-	ProtocolUnknown     string = "UNKNOWN"
-	ProtocolLocalCustom string = "LOCAL"
-	ProtocolIPFS        string = "IPFS"
-	ProtocolAvail       string = "AVAIL"
+	ProtocolUnknown  string = "UNKNOWN"
+	ProtocolLocal    string = "LOCAL"
+	ProtocolIPFS     string = "IPFS"
+	ProtocolAvail    string = "AVAIL"
+	ProtocolCelestia string = "CELESTIA"
 )
 
 // Networks
 const (
+	// GENERIC
+	NetworkNameMainnet string = "MAINNET"
 	// IPFS
-	NetworkNameIPFSAmino string = "AMINO"
+	NetworkNameAmino string = "AMINO"
 	// AVAIL
-	NetworkNameAvailTuring  string = "TURING"
-	NetworkNameAvailMainnet string = "MAINNET"
-	NetworkNameAvailHex     string = "HEX"
+	NetworkNameTuring string = "TURING"
+	NetworkNameHex    string = "HEX"
+	// CELESTIA
+	NetworkNameMocha4 string = "MOCHA-4"
+
 	// LOCAL
-	NetworkNameLocalCustom string = "CUSTOM"
+	NetworkNameCustom string = "CUSTOM"
 )
 
 var AvailableProtocols map[string][]string = map[string][]string{
 	ProtocolIPFS: {
-		NetworkNameIPFSAmino,
+		NetworkNameAmino,
 	},
 	ProtocolAvail: {
-		NetworkNameAvailTuring,
-		NetworkNameAvailMainnet,
-		NetworkNameAvailHex,
+		NetworkNameTuring,
+		NetworkNameMainnet,
+		NetworkNameHex,
 	},
-	ProtocolLocalCustom: {
-		NetworkNameLocalCustom,
+	ProtocolCelestia: {
+		NetworkNameMainnet,
+		NetworkNameMocha4,
+	},
+	ProtocolLocal: {
+		NetworkNameCustom,
 	},
 }
 
@@ -59,6 +68,7 @@ func ListAllNetworkCombinations() string {
 		} else {
 			networks = networks + ListNetworksForProtocol(protocol)
 		}
+
 	}
 	return networks
 }
@@ -118,7 +128,7 @@ func ConfigureNetwork(network models.Network) (*NetworkConfiguration, error) {
 		// currently we only support the AMINO DHT
 		dafultIPFSconfig := DefaultIPFSNetworkConfig
 		switch network.NetworkName {
-		case NetworkNameIPFSAmino:
+		case NetworkNameAmino:
 			return &dafultIPFSconfig, nil
 
 		default:
@@ -130,23 +140,23 @@ func ConfigureNetwork(network models.Network) (*NetworkConfiguration, error) {
 		defaultAvailConfig := DefaultAvailNetworkConfig
 
 		switch network.NetworkName {
-		case NetworkNameAvailMainnet:
+		case NetworkNameMainnet:
 			defaultAvailConfig.BootstrapPeers = BootstrappersToMaddr(BootstrapNodesAvailMainnet)
 			defaultAvailConfig.V1Protocol = protocol.ID("/Avail/kad")
 			defaultAvailConfig.GenesisTime = AvailMainnetGenesisTime
 			defaultAvailConfig.ProtocolPrefix = &protocolPrefix
 			return defaultAvailConfig, nil
 
-		case NetworkNameAvailTuring:
+		case NetworkNameTuring:
 			defaultAvailConfig.BootstrapPeers = BootstrappersToMaddr(BootstrapNodesAvailTurin)
 			defaultAvailConfig.V1Protocol = protocol.ID("/Avail/kad")
 			defaultAvailConfig.GenesisTime = AvailTuringGenesisTime
 			defaultAvailConfig.ProtocolPrefix = &protocolPrefix
 			return defaultAvailConfig, nil
 
-		case NetworkNameAvailHex:
+		case NetworkNameHex:
 			defaultAvailConfig.BootstrapPeers = BootstrappersToMaddr(BootstrapNodesAvailHex)
-			defaultAvailConfig.V1Protocol = protocol.ID("/Avail/kad")
+			defaultAvailConfig.V1Protocol = protocol.ID("/avail_kad/id/1.0.0-9d5ea6")
 			defaultAvailConfig.GenesisTime = AvailTuringGenesisTime // TODO: update this to latest calculus
 			defaultAvailConfig.ProtocolPrefix = &protocolPrefix
 			return defaultAvailConfig, nil
@@ -155,13 +165,36 @@ func ConfigureNetwork(network models.Network) (*NetworkConfiguration, error) {
 			return &NetworkConfiguration{}, fmt.Errorf("unknown network identifier %s for protocol %s", network.NetworkName, network.Protocol)
 		}
 
-	case ProtocolLocalCustom:
+	case ProtocolCelestia:
+		protocolPrefix := GetCelestiaDHTProtocolPrefix(network.NetworkName)
+		defaultCelestiaConfig := DefaultCelestiaNetworkConfig
+
+		switch network.NetworkName {
+		case NetworkNameMainnet:
+			defaultCelestiaConfig.BootstrapPeers = BootstrappersToMaddr(BootstrapNodesCelestiaMainnet)
+			defaultCelestiaConfig.V1Protocol = ComposeCestiaDHTProtocolID(protocolPrefix)
+			defaultCelestiaConfig.GenesisTime = time.Time{}
+			defaultCelestiaConfig.ProtocolPrefix = &protocolPrefix
+			return defaultCelestiaConfig, nil
+
+		case NetworkNameMocha4:
+			defaultCelestiaConfig.BootstrapPeers = BootstrappersToMaddr(BootstrapNodesCelestiaMocha4)
+			defaultCelestiaConfig.V1Protocol = ComposeCestiaDHTProtocolID(protocolPrefix)
+			defaultCelestiaConfig.GenesisTime = AvailTuringGenesisTime
+			defaultCelestiaConfig.ProtocolPrefix = &protocolPrefix
+			return defaultCelestiaConfig, nil
+
+		default:
+			return &NetworkConfiguration{}, fmt.Errorf("unknown network identifier %s for protocol %s", network.NetworkName, network.Protocol)
+		}
+
+	case ProtocolLocal:
 		// mimic of the Avail Mainnet config, but without bootstrappers
 		protocolPrefix := ""
 		defaultAvailConfig := DefaultAvailNetworkConfig
 
 		switch network.NetworkName {
-		case NetworkNameLocalCustom:
+		case NetworkNameCustom:
 			defaultAvailConfig.BootstrapPeers = BootstrappersToMaddr([]string{})
 			defaultAvailConfig.V1Protocol = protocol.ID("/local_custom/kad")
 			defaultAvailConfig.GenesisTime = time.Time{}

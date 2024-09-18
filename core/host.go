@@ -32,6 +32,7 @@ type DHTHost interface {
 	FindClosestPeers(context.Context, string) (time.Duration, []peer.ID, error)
 	FindProviders(context.Context, cid.Cid) (time.Duration, []peer.AddrInfo, error)
 	FindValue(context.Context, string) (time.Duration, []byte, error)
+	FindPeers(context.Context, string, time.Duration) (time.Duration, []peer.AddrInfo, error)
 	PutValue(context.Context, string, []byte) (time.Duration, error)
 }
 
@@ -52,7 +53,7 @@ func composeHostForNetwork(ctx context.Context, networkConfig *config.NetworkCon
 			IP:                   commonCfg.IP,
 			Port:                 commonCfg.Port,
 			DialTimeout:          commonCfg.DialTimeout,
-			UserAgent:            commonCfg.AgentVersion,
+			AgentVersion:         commonCfg.AgentVersion,
 			DHTMode:              ParseAminoDHTHostMode(commonCfg.DHTMode),
 			Bootstrapers:         networkConfig.BootstrapPeers,
 			V1Protocol:           networkConfig.V1Protocol,

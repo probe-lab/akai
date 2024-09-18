@@ -6,6 +6,7 @@ var SegmentTableName = "segments"
 var segmentBatcherSize = 1024
 
 type AgnosticSegment struct {
+	VisitRound  uint64    `ch:"visit_round" json:"visit_round"`
 	Timestamp   time.Time `ch:"timestamp" json:"timestamp"`
 	BlobNumber  uint64    `ch:"blob_number" json:"blob_number"`
 	Key         string    `ch:"key" json:"key"`

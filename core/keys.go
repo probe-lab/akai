@@ -19,7 +19,9 @@ func ParseDHTKeyType(network models.Network, key string) (any, error) {
 		return config.AvailKeyFromString(key)
 	case config.ProtocolIPFS:
 		return amino.CidFromString(key)
-	case config.ProtocolLocalCustom:
+	case config.ProtocolCelestia:
+		return key, nil
+	case config.ProtocolLocal:
 		return config.AvailKeyFromString(key)
 
 	default:

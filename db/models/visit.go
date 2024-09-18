@@ -6,6 +6,7 @@ var VisitTableName = "visits"
 var visitBatcherSize = segmentBatcherSize * 4
 
 type AgnosticVisit struct {
+	VisitRound    uint64    `ch:"visit_round" json:"visit_round"`
 	Timestamp     time.Time `ch:"timestamp" json:"timestamp"`
 	Key           string    `ch:"key" json:"key"`
 	BlobNumber    uint64    `ch:"blob_number" json:"blob_number"`
@@ -28,6 +29,7 @@ func (b AgnosticVisit) TableName() string {
 
 func (b AgnosticVisit) QueryValues() map[string]any {
 	return map[string]any{
+		"visit_round":    b.VisitRound,
 		"timestamp":      b.Timestamp,
 		"key":            b.Key,
 		"blob_number":    b.BlobNumber,

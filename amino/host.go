@@ -15,6 +15,7 @@ import (
 
 	"github.com/libp2p/go-libp2p"
 	mplex "github.com/libp2p/go-libp2p-mplex"
+	"github.com/libp2p/go-libp2p/core/discovery"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -37,7 +38,7 @@ type DHTHostConfig struct {
 	Port                 int64
 	DialTimeout          time.Duration
 	DHTMode              kaddht.ModeOpt
-	UserAgent            string
+	AgentVersion         string
 	V1Protocol           protocol.ID
 	Bootstrapers         []peer.AddrInfo
 	CustomValidator      record.Validator
@@ -88,7 +89,7 @@ func NewDHTHost(ctx context.Context, opts *DHTHostConfig, netCfg *config.Network
 		libp2p.WithDialTimeout(opts.DialTimeout),
 		libp2p.ListenAddrs(mAddrs...),
 		libp2p.Security(noise.ID, noise.New),
-		libp2p.UserAgent(opts.UserAgent),
+		libp2p.UserAgent(opts.AgentVersion),
 		libp2p.ResourceManager(rm),
 		libp2p.DisableRelay(),
 		libp2p.Transport(tcp.NewTCPTransport),
@@ -99,16 +100,11 @@ func NewDHTHost(ctx context.Context, opts *DHTHostConfig, netCfg *config.Network
 	if err != nil {
 		return nil, err
 	}
-	err = bootstrapLibp2pHost(ctx, opts.HostID, h, opts.Bootstrapers)
-	if err != nil {
-		return nil, err
-	}
 
 	// DHT routing
 	dhtOpts := []kaddht.Option{
 		kaddht.Mode(opts.DHTMode),
 		kaddht.BootstrapPeers(opts.Bootstrapers...),
-		kaddht.V1ProtocolOverride(opts.V1Protocol),
 	}
 	// is there any need for a custom key-value validator?
 	if opts.CustomValidator != nil {
@@ -118,12 +114,23 @@ func NewDHTHost(ctx context.Context, opts *DHTHostConfig, netCfg *config.Network
 	// is there a custom protocol-prefix?
 	if opts.CustomProtocolPrefix != nil {
 		dhtOpts = append(dhtOpts, kaddht.ProtocolPrefix(protocol.ID(*opts.CustomProtocolPrefix)))
-
 	}
+
+	// // overrido custom V1 protocol
+	if opts.V1Protocol != "" {
+		dhtOpts = append(dhtOpts, kaddht.V1ProtocolOverride(opts.V1Protocol))
+	}
+
 	dhtCli, err = kaddht.New(ctx, h, dhtOpts...)
 	if err != nil {
 		return nil, err
 	}
+
+	err = bootstrapLibp2pHost(ctx, opts.HostID, h, opts.Bootstrapers)
+	if err != nil {
+		return nil, err
+	}
+
 	err = bootstrapDHT(ctx, opts.HostID, dhtCli)
 	if err != nil {
 		return nil, err
@@ -148,7 +155,7 @@ func NewDHTHost(ctx context.Context, opts *DHTHostConfig, netCfg *config.Network
 
 	log.WithFields(log.Fields{
 		"id":            opts.HostID,
-		"agent_version": opts.UserAgent,
+		"agent_version": opts.AgentVersion,
 		"peer_id":       h.ID().String(),
 		"multiaddrs":    h.Addrs(),
 		"protocols":     h.Mux().Protocols(),
@@ -180,13 +187,13 @@ func bootstrapLibp2pHost(ctx context.Context, id int, h host.Host, bootstrapers 
 
 	wg.Wait()
 
-	// // debug the protocols by the bootstrappers
-	// prots, err := h.Peerstore().GetProtocols(bootstrapers[0].ID)
-	// if err == nil {
-	// 	for _, prot := range prots {
-	// 		fmt.Println(prot)
-	// 	}
-	// }
+	if len(bootstrapers) > 0 {
+		// trace the protocols by the bootstrappers to see if we are speaking different protocols
+		prots, err := h.Peerstore().GetProtocols(bootstrapers[0].ID)
+		if err == nil {
+			log.WithField("protocols", prots).Trace("protocols supported by bootnodes")
+		}
+	}
 
 	// check connectivity with bootstrap nodes
 	if succCon > 0 {
@@ -293,10 +300,7 @@ func (h *DHTHost) FindValue(
 	return time.Since(startT), value, err
 }
 
-func (h *DHTHost) PutValue(
-	ctx context.Context,
-	key string,
-	value []byte) (time.Duration, error) {
+func (h *DHTHost) PutValue(ctx context.Context, key string, value []byte) (time.Duration, error) {
 
 	log.WithFields(log.Fields{
 		"host-id": h.id,
@@ -306,6 +310,46 @@ func (h *DHTHost) PutValue(
 	err := h.dhtCli.PutValue(ctx, key, value)
 
 	return time.Since(startT), err
+}
+
+func (h *DHTHost) FindPeers(ctx context.Context, key string, opDuration time.Duration) (time.Duration, []peer.AddrInfo, error) {
+	log.WithFields(log.Fields{
+		"host-id": h.id,
+		"key":     key,
+	}).Info("looking for providers")
+
+	providers := make(map[peer.ID]peer.AddrInfo)
+	res := make([]peer.AddrInfo, 0)
+	timeoutT := time.NewTicker(opDuration)
+
+	startT := time.Now()
+	peersC, err := h.dhtDisc.FindPeers(ctx, key, discovery.Limit(0))
+	if err != nil {
+		return time.Since(startT), res, err
+	}
+
+waitLoop:
+	for {
+		select {
+		case newPeer, ok := <-peersC:
+			if !ok {
+				break waitLoop
+			}
+
+			_, ok = providers[newPeer.ID]
+			if !ok || (ok && len(newPeer.Addrs) > 0) {
+				providers[newPeer.ID] = newPeer
+			}
+		case <-timeoutT.C:
+			break waitLoop
+		}
+	}
+
+	for _, val := range providers {
+		res = append(res, val)
+	}
+
+	return time.Since(startT), res, err
 }
 
 // initMetrics initializes various prometheus metrics and stores the meters

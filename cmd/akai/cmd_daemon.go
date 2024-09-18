@@ -169,7 +169,7 @@ func cmdDaemonAction(ctx context.Context, cmd *cli.Command) (err error) {
 	}
 
 	// start the DataSampler (requires DB)
-	daemonConfig.DataSamplerConfig.AkaiSamplingDetails, err = config.SamplingConfigForNetwork(network)
+	config.UpdateSamplingDetailFromNetworkConfig(&daemonConfig.DataSamplerConfig.AkaiSamplingDetails, networkConfig)
 	if err != nil {
 		return err
 	}

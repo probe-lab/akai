@@ -21,8 +21,8 @@ func generateClickhouseDatabase(t *testing.T, ctx context.Context, tables map[st
 	conDetails := DefaultClickhouseConnectionDetails
 	network := models.Network{
 		NetworkID:   0,
-		Protocol:    config.ProtocolLocalCustom,
-		NetworkName: config.NetworkNameLocalCustom,
+		Protocol:    config.ProtocolLocal,
+		NetworkName: config.NetworkNameCustom,
 	}
 	// generate new connection
 	clickhouseDB, err := NewClickHouseDB(conDetails, network)
