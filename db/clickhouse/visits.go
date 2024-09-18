@@ -20,6 +20,7 @@ var visistsTableDriver = tableDriver[models.AgnosticVisit]{
 func insertVisitQueryBase() string {
 	query := `
 	INSERT INTO %s (
+		visit_round,
 		timestamp,
 		key,
 		blob_number,
@@ -36,6 +37,7 @@ func insertVisitQueryBase() string {
 
 func convertVisitToInput(visits []models.AgnosticVisit) proto.Input {
 	var (
+		visitRounds  proto.ColUInt64
 		timestamps   proto.ColDateTime
 		keys         proto.ColStr
 		blobNumbers  proto.ColUInt64
@@ -49,6 +51,7 @@ func convertVisitToInput(visits []models.AgnosticVisit) proto.Input {
 	)
 
 	for _, visit := range visits {
+		visitRounds.Append(visit.VisitRound)
 		timestamps.Append(visit.Timestamp)
 		keys.Append(visit.Key)
 		blobNumbers.Append(visit.BlobNumber)
@@ -62,6 +65,7 @@ func convertVisitToInput(visits []models.AgnosticVisit) proto.Input {
 	}
 
 	return proto.Input{
+		{Name: "visit_round", Data: visitRounds},
 		{Name: "timestamp", Data: timestamps},
 		{Name: "key", Data: keys},
 		{Name: "blob_number", Data: blobNumbers},
@@ -78,6 +82,7 @@ func convertVisitToInput(visits []models.AgnosticVisit) proto.Input {
 func requestVisitWithCondition(ctx context.Context, highLevelConn driver.Conn, condition string) ([]models.AgnosticVisit, error) {
 	query := fmt.Sprintf(`
 		SELECT 
+			visit_round,
 			timestamp,
 			key,
 			blob_number,

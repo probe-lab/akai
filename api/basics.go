@@ -24,6 +24,7 @@ type Blob struct {
 	Network     models.Network `json:"network"`
 	Number      uint64         `json:"number"`
 	Hash        string         `json:"hash"`
+	Key         string         `json:"key"`
 	ParentHash  string         `json:"parent_hash"`
 	Rows        uint64         `json:"rows"`
 	Columns     uint64         `json:"columns"`

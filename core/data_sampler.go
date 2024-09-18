@@ -320,6 +320,7 @@ func (ds *DataSampler) updateNextVisitTime(segment *models.AgnosticSegment) (val
 			multCnt++
 		}
 
+		segment.VisitRound = uint64(multCnt)
 		segment.NextVisit = nextVisit
 		return nextVisit.Before(segment.SampleUntil)
 
@@ -335,6 +336,7 @@ func (ds *DataSampler) updateNextVisitTime(segment *models.AgnosticSegment) (val
 			multCnt++
 		}
 
+		segment.VisitRound = uint64(multCnt)
 		segment.NextVisit = nextVisit
 		return nextVisit.Before(segment.SampleUntil)
 
@@ -381,6 +383,7 @@ func (ds *DataSampler) initMetrics() (err error) {
 // logical sampler functions
 func sampleByFindProviders(ctx context.Context, h DHTHost, segmnt models.AgnosticSegment) (models.AgnosticVisit, error) {
 	visit := models.AgnosticVisit{
+		VisitRound:    segmnt.VisitRound,
 		Timestamp:     time.Now(),
 		Key:           segmnt.Key,
 		BlobNumber:    segmnt.BlobNumber,
@@ -422,6 +425,7 @@ func sampleByFindProviders(ctx context.Context, h DHTHost, segmnt models.Agnosti
 
 func sampleByFindPeers(ctx context.Context, h DHTHost, segmnt models.AgnosticSegment) (models.AgnosticVisit, error) {
 	visit := models.AgnosticVisit{
+		VisitRound:    segmnt.VisitRound,
 		Timestamp:     time.Now(),
 		Key:           segmnt.Key,
 		BlobNumber:    segmnt.BlobNumber,
@@ -461,6 +465,7 @@ func sampleByFindPeers(ctx context.Context, h DHTHost, segmnt models.AgnosticSeg
 func sampleByFindValue(ctx context.Context, h DHTHost, segmnt models.AgnosticSegment) (models.AgnosticVisit, error) {
 
 	visit := models.AgnosticVisit{
+		VisitRound:    segmnt.VisitRound,
 		Timestamp:     time.Now(),
 		Key:           segmnt.Key,
 		BlobNumber:    segmnt.BlobNumber,
