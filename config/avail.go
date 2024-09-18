@@ -21,8 +21,6 @@ const (
 	BlockTTL            = 24 * time.Hour
 )
 
-var ()
-
 func GenesisTimeFromNetwork(network models.Network) time.Time {
 	var genTime time.Time
 	switch network.NetworkName {
@@ -62,7 +60,7 @@ var DefaultAvailNetworkConfig = &NetworkConfiguration{
 
 	// network parameters
 	BootstrapPeers: BootstrappersToMaddr(BootstrapNodesAvailMainnet),
-	AgentVersion:   "avail-light-client/light-client/1.11.1/rust-client", // TODO: update or automate with github?
+	AgentVersion:   "avail-light-client/light-client/1.12.0/rust-client", // TODO: update or automate with github?
 
 	// dht paramets
 	HostType:        AminoLibp2pHost,
