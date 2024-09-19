@@ -112,13 +112,13 @@ type NetworkConfiguration struct {
 }
 
 func ConfigureNetwork(network models.Network) (*NetworkConfiguration, error) {
-	var ()
 	switch network.Protocol {
 	case ProtocolIPFS:
 		// currently we only support the AMINO DHT
 		dafultIPFSconfig := DefaultIPFSNetworkConfig
 		switch network.NetworkName {
 		case NetworkNameIPFSAmino:
+			dafultIPFSconfig.Network = network
 			return &dafultIPFSconfig, nil
 
 		default:
@@ -128,6 +128,7 @@ func ConfigureNetwork(network models.Network) (*NetworkConfiguration, error) {
 	case ProtocolAvail:
 		protocolPrefix := ""
 		defaultAvailConfig := DefaultAvailNetworkConfig
+		defaultAvailConfig.Network = network
 
 		switch network.NetworkName {
 		case NetworkNameAvailMainnet:
@@ -159,6 +160,7 @@ func ConfigureNetwork(network models.Network) (*NetworkConfiguration, error) {
 		// mimic of the Avail Mainnet config, but without bootstrappers
 		protocolPrefix := ""
 		defaultAvailConfig := DefaultAvailNetworkConfig
+		defaultAvailConfig.Network = network
 
 		switch network.NetworkName {
 		case NetworkNameLocalCustom:
