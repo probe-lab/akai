@@ -129,10 +129,12 @@ func (d *Daemon) Init(ctx context.Context) error {
 }
 
 func (d *Daemon) newBlobHandler(ctx context.Context, blob api.Blob) error {
-	log.WithFields(log.Fields{
-		"block": blob.Number,
-		"hash":  blob.Hash,
-	}).Info("new blob arrived to the daemon")
+	logEntry := log.WithFields(log.Fields{
+		"block":    blob.Number,
+		"hash":     blob.Hash,
+		"segments": len(blob.Segments),
+	})
+	logEntry.Info("new blob arrived to the daemon")
 
 	// check blob in cache, add it if it's new
 	_, ok := d.blobIDs.Get(blob.Number)
@@ -140,6 +142,7 @@ func (d *Daemon) newBlobHandler(ctx context.Context, blob api.Blob) error {
 		// we already processed the blob
 		return nil
 	}
+
 	agBlob := d.newAgnosticBlobFromAPIblob(blob)
 	d.blobIDs.Add(agBlob.BlobNumber, &agBlob)
 
@@ -196,6 +199,7 @@ func (d *Daemon) newSegmentsHandler(ctx context.Context, segments []api.BlobSegm
 	log.WithFields(log.Fields{
 		"number": len(segments),
 	}).Info("new segments arrived to the daemon")
+
 	// add the segment info to the DB
 	err := d.db.PersistNewSegments(ctx, d.newAgnosticSegmentsFromAPIsegments(segments))
 	if err != nil {

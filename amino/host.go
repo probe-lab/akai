@@ -124,7 +124,7 @@ func NewDHTHost(ctx context.Context, opts *DHTHostConfig, netCfg *config.Network
 	if err != nil {
 		return nil, err
 	}
-	err = bootstrapDHT(ctx, opts.HostID, dhtCli)
+	err = bootstrapDHT(ctx, opts.HostID, dhtCli, opts.Bootstrapers)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +198,7 @@ func bootstrapLibp2pHost(ctx context.Context, id int, h host.Host, bootstrapers 
 	return nil
 }
 
-func bootstrapDHT(ctx context.Context, id int, dhtCli *kaddht.IpfsDHT) error {
+func bootstrapDHT(ctx context.Context, id int, dhtCli *kaddht.IpfsDHT, bootstrappers []peer.AddrInfo) error {
 	hlog := log.WithField("host-id", id)
 
 	// bootstrap from existing connections
@@ -218,9 +218,9 @@ func bootstrapDHT(ctx context.Context, id int, dhtCli *kaddht.IpfsDHT) error {
 	if routingSize == 0 {
 		hlog.Warn("no error, but empty routing table after bootstraping")
 	}
-	log.WithField(
-		"peers_in_routing", routingSize,
-	).Info("dht cli bootstrapped")
+	log.WithFields(log.Fields{
+		"peers_in_routing": routingSize,
+	}).Info("dht cli bootstrapped")
 	return nil
 }
 
@@ -282,7 +282,7 @@ func (h *DHTHost) FindValue(
 	log.WithFields(log.Fields{
 		"host-id": h.id,
 		"key":     key,
-	}).Info("looking for providers")
+	}).Debug("looking for providers")
 
 	startT := time.Now()
 	value, err := h.dhtCli.GetValue(

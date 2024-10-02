@@ -24,7 +24,7 @@ var (
 
 var DefaultDataSamplerConfig = &config.AkaiDataSamplerConfig{
 	Network:         config.DefaultNetwork.String(),
-	Workers:         10,
+	Workers:         10000,
 	SamplingTimeout: 10 * time.Second,
 	DBsyncInterval:  10 * time.Minute,
 	Meter:           otel.GetMeterProvider().Meter("akai_data_sampler"),
@@ -272,7 +272,6 @@ func (ds *DataSampler) syncWithDatabase(ctx context.Context) error {
 				continue
 			}
 			ds.updateNextVisitTime(&seg)
-			fmt.Println(seg) /// REMOVE
 			ds.segSet.addSegment(&seg)
 		}
 		log.WithFields(log.Fields{
@@ -438,12 +437,12 @@ func sampleByFindValue(ctx context.Context, h DHTHost, segmnt models.AgnosticSeg
 		visit.Error = err.Error()
 	}
 	if len(bytes) > 0 {
+		visit.Providers = 1
 		visit.IsRetrievable = true
+		visit.Bytes = uint32(len(bytes))
 	}
 	// apply rest of values
 	visit.DurationMs = duration.Milliseconds()
-	visit.Bytes = uint32(len(bytes))
-	visit.Providers = 1
 
 	log.WithFields(log.Fields{
 		"timestamp": time.Now(),
@@ -451,7 +450,7 @@ func sampleByFindValue(ctx context.Context, h DHTHost, segmnt models.AgnosticSeg
 		"duration":  duration,
 		"bytes":     len(bytes),
 		"error":     visit.Error,
-	}).Debug("find value operation done")
+	}).Info("find value operation done")
 
 	return visit, nil
 }
