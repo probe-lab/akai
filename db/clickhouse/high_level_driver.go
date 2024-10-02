@@ -2,7 +2,6 @@ package clickhouse
 
 import (
 	"context"
-
 	"fmt"
 	"net"
 	"time"
@@ -15,8 +14,8 @@ import (
 
 func (s *ClickHouseDB) getHighLevelConnection(
 	_ context.Context,
-	conDetails *config.DatabaseDetails) (driver.Conn, error) {
-
+	conDetails *config.DatabaseDetails,
+) (driver.Conn, error) {
 	var dialCount int
 	// taken the example from: https://github.com/ClickHouse/clickhouse-go
 	opts := clickhouse.Options{
@@ -63,5 +62,4 @@ func (s *ClickHouseDB) getHighLevelConnection(
 		return nil, err
 	}
 	return conn, nil
-
 }

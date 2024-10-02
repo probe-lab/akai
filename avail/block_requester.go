@@ -98,7 +98,6 @@ func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 					err = r.processNewBlock(ctx, blockHeader)
 					if err != nil {
 						log.Panic(err)
-
 					}
 				}
 				proposalTicker.Reset(config.BlockIntervalTarget) // wait 20 seconds from last proposal

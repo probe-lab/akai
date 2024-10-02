@@ -54,7 +54,6 @@ func Test_AvailKeyPing(t *testing.T) {
 	for idx, char := range dhtValue {
 		require.Equal(t, char, value[idx])
 	}
-
 }
 
 func composeDemoDHTNetwork(ctx context.Context, t *testing.T, nodeNumbers int64) []DHTHost {

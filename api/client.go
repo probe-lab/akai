@@ -32,7 +32,6 @@ type Client struct {
 }
 
 func NewClient(cfg *config.AkaiAPIClientConfig) (*Client, error) {
-
 	// http client for the communication
 	httpCli := &http.Client{
 		Transport: &http.Transport{
@@ -91,8 +90,8 @@ func (c *Client) CheckConnection(ctx context.Context) error {
 func (c *Client) get(
 	ctx context.Context,
 	endpoint string,
-	query string) ([]byte, error) {
-
+	query string,
+) ([]byte, error) {
 	var respBody []byte
 
 	// set deadline
@@ -124,8 +123,8 @@ func (c *Client) get(
 func (c *Client) post(
 	ctx context.Context,
 	endpoint string,
-	item any) ([]byte, error) {
-
+	item any,
+) ([]byte, error) {
 	var respBody []byte
 
 	// set deadline

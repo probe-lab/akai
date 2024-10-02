@@ -20,8 +20,8 @@ func (c *lowLevelConn) persist(
 	ctx context.Context,
 	baseQuery string,
 	tableName string,
-	input proto.Input) error {
-
+	input proto.Input,
+) error {
 	c.Lock()
 	err := c.conn.Do(ctx, ch.Query{
 		Body:  fmt.Sprintf(baseQuery, tableName),
@@ -41,8 +41,8 @@ func (c *lowLevelConn) close() error {
 func (s *ClickHouseDB) getLowLevelConnection(
 	ctx context.Context,
 	conDetails *config.DatabaseDetails,
-	tag string) (*lowLevelConn, error) {
-
+	tag string,
+) (*lowLevelConn, error) {
 	opts := ch.Options{
 		Address:  conDetails.Address,
 		Database: conDetails.Database,

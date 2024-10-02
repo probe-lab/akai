@@ -127,7 +127,6 @@ func cmdPingAction(ctx context.Context, cmd *cli.Command) error {
 	}).Info("ping operation done")
 
 	return nil
-
 }
 
 // fetchCidProviders was a dedicated ping function for fetching CID's providers in the Amino DHT (IPFS)

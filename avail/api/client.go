@@ -31,7 +31,6 @@ type HTTPClient struct {
 }
 
 func NewHTTPCli(opts *config.AvailAPIConfig) (*HTTPClient, error) {
-
 	// http client for the communication
 	httpCli := &http.Client{
 		Transport: &http.Transport{
@@ -60,7 +59,6 @@ func NewHTTPCli(opts *config.AvailAPIConfig) (*HTTPClient, error) {
 }
 
 func (c *HTTPClient) Serve(ctx context.Context) error {
-
 	err := c.CheckConnection(ctx)
 	if err != nil {
 		log.Error("not connections with the avail-light-client", err)
@@ -93,8 +91,8 @@ func (c *HTTPClient) CheckConnection(ctx context.Context) error {
 func (c *HTTPClient) get(
 	ctx context.Context,
 	endpoint string,
-	query string) ([]byte, error) {
-
+	query string,
+) ([]byte, error) {
 	var respBody []byte
 
 	// set deadline

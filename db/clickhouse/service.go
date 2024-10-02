@@ -23,9 +23,7 @@ var DefaultClickhouseConnectionDetails = &config.DatabaseDetails{
 	Params:   "",
 }
 
-var (
-	MaxFlushInterval = 1 * time.Second
-)
+var MaxFlushInterval = 1 * time.Second
 
 type ClickHouseDB struct {
 	// Reference to the configuration
@@ -90,7 +88,6 @@ func (db *ClickHouseDB) Init(ctx context.Context, tableNames map[string]struct{}
 }
 
 func (db *ClickHouseDB) Serve(ctx context.Context) error {
-
 	go db.periodicBatchesFlusher(ctx, MaxFlushInterval)
 
 	<-ctx.Done()
@@ -143,7 +140,6 @@ func (db *ClickHouseDB) makeConnections(ctx context.Context, tableNames map[stri
 	db.highLevelClient = highCon
 	db.highMu.Unlock()
 	return nil
-
 }
 
 func (db *ClickHouseDB) ensureMigrations(_ context.Context) error {
@@ -296,8 +292,8 @@ func (db *ClickHouseDB) persistBatch(
 	tag string,
 	baseQuery string,
 	tableName string,
-	input proto.Input) error {
-
+	input proto.Input,
+) error {
 	hlog := log.WithFields(log.Fields{
 		"module":    "clickhouse-db",
 		"operation": "individual-persist",

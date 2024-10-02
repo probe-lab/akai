@@ -68,7 +68,6 @@ func ListAllNetworkCombinations() string {
 		} else {
 			networks = networks + ListNetworksForProtocol(protocol)
 		}
-
 	}
 	return networks
 }

@@ -47,7 +47,6 @@ type BlockAppLookupIndex struct {
 }
 
 func NewBlock(opts ...BlockOption) (*Block, error) {
-
 	block := &Block{
 		Extension: BlockExtension{
 			Commitments: make([]string, 0),

@@ -39,8 +39,8 @@ var _ flusheableBatcher = (*queryBatcher[struct{}])(nil)
 func newQueryBatcher[T any](
 	driver tableDriver[T],
 	maxFlushT time.Duration,
-	maxBatchSize int) (*queryBatcher[T], error) {
-
+	maxBatchSize int,
+) (*queryBatcher[T], error) {
 	return &queryBatcher[T]{
 		tableDriver:  driver,
 		maxFlushT:    maxFlushT,

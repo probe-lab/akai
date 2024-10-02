@@ -18,9 +18,7 @@ import (
 
 type SamplerFunction func(context.Context, DHTHost, models.AgnosticSegment) (models.AgnosticVisit, error)
 
-var (
-	minIterTime = 250 * time.Millisecond
-)
+var minIterTime = 250 * time.Millisecond
 
 var DefaultDataSamplerConfig = &config.AkaiDataSamplerConfig{
 	Network:         config.DefaultNetwork.String(),
@@ -53,8 +51,8 @@ func NewDataSampler(
 	cfg *config.AkaiDataSamplerConfig,
 	database db.Database,
 	h DHTHost,
-	samplerFn SamplerFunction) (*DataSampler, error) {
-
+	samplerFn SamplerFunction,
+) (*DataSampler, error) {
 	blobsCache, err := lru.New[uint64, *models.AgnosticBlob](cfg.BlobsSetCacheSize) // <block_number>, <block_ID_in_DB>
 	if err != nil {
 		return nil, err
@@ -463,7 +461,6 @@ func sampleByFindPeers(ctx context.Context, h DHTHost, segmnt models.AgnosticSeg
 }
 
 func sampleByFindValue(ctx context.Context, h DHTHost, segmnt models.AgnosticSegment) (models.AgnosticVisit, error) {
-
 	visit := models.AgnosticVisit{
 		VisitRound:    segmnt.VisitRound,
 		Timestamp:     time.Now(),

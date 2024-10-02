@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/ipfs/go-cid"
@@ -126,7 +125,6 @@ func NewDHTHost(ctx context.Context, opts *DHTHostConfig, netCfg *config.Network
 		return nil, err
 	}
 
-  
 	err = bootstrapDHT(ctx, opts.HostID, dhtCli, opts.Bootstrapers)
 	if err != nil {
 		return nil, err
@@ -161,48 +159,23 @@ func NewDHTHost(ctx context.Context, opts *DHTHostConfig, netCfg *config.Network
 	return dhtHost, nil
 }
 
-func bootstrapLibp2pHost(ctx context.Context, id int, h host.Host, bootstrapers []peer.AddrInfo) error {
-	var succCon int64
-	var wg sync.WaitGroup
-
+func bootstrapDHT(ctx context.Context, id int, dhtCli *kaddht.IpfsDHT, bootstrappers []peer.AddrInfo) error {
 	hlog := log.WithField("host-id", id)
 
-	for _, bnode := range bootstrapers {
+	// connect to the bootnodes
+	var wg sync.WaitGroup
+	for _, bnode := range bootstrappers {
 		wg.Add(1)
 		go func(bn peer.AddrInfo) {
 			defer wg.Done()
-			err := h.Connect(ctx, bn)
+			err := dhtCli.Host().Connect(ctx, bn)
 			if err != nil {
 				hlog.Warnf("unable to connect bootstrap node: %s - %s", bn.String(), err.Error())
 			} else {
 				hlog.Debug("successful connection to bootstrap node:", bn.String())
-				atomic.AddInt64(&succCon, 1)
 			}
 		}(bnode)
 	}
-
-	wg.Wait()
-
-	if len(bootstrapers) > 0 {
-		// trace the protocols by the bootstrappers to see if we are speaking different protocols
-		prots, err := h.Peerstore().GetProtocols(bootstrapers[0].ID)
-		if err == nil {
-			log.WithField("protocols", prots).Trace("protocols supported by bootnodes")
-		}
-	}
-
-	// check connectivity with bootstrap nodes
-	if succCon > 0 {
-		hlog.Infof("host got connected to %d bootstrap nodes", succCon)
-	} else {
-		hlog.Warnf("unable to connect any of the bootstrap nodes from KDHT")
-	}
-
-	return nil
-}
-
-func bootstrapDHT(ctx context.Context, id int, dhtCli *kaddht.IpfsDHT, bootstrappers []peer.AddrInfo) error {
-	hlog := log.WithField("host-id", id)
 
 	// bootstrap from existing connections
 	err := dhtCli.Bootstrap(ctx)
@@ -280,8 +253,8 @@ func (h *DHTHost) FindProviders(ctx context.Context, key cid.Cid) (time.Duration
 
 func (h *DHTHost) FindValue(
 	ctx context.Context,
-	key string) (time.Duration, []byte, error) {
-
+	key string,
+) (time.Duration, []byte, error) {
 	log.WithFields(log.Fields{
 		"host-id": h.id,
 		"key":     key,
@@ -297,7 +270,6 @@ func (h *DHTHost) FindValue(
 }
 
 func (h *DHTHost) PutValue(ctx context.Context, key string, value []byte) (time.Duration, error) {
-
 	log.WithFields(log.Fields{
 		"host-id": h.id,
 		"key":     key,

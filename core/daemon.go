@@ -35,8 +35,8 @@ func NewDaemon(
 	h DHTHost,
 	dbServ db.Database,
 	dataSampler *DataSampler,
-	apiServ *api.Service) (*Daemon, error) {
-
+	apiServ *api.Service,
+) (*Daemon, error) {
 	blobsCache := dataSampler.BlobsCache()
 
 	daemon := &Daemon{
