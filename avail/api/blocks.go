@@ -57,7 +57,7 @@ type V2BlockHeader struct {
 		} `json:"app_lookup"`
 	} `json:"extension"`
 	Digest struct {
-		Logs []string `json:"logs"`
+		Logs []map[string]interface{} `json:"logs"`
 	} `json:"digest"`
 }
 

@@ -13,7 +13,7 @@ const (
 
 type V2Version struct {
 	Version        string `json:"version"`
-	NetworkVersion string `json:"networ_kversion"`
+	NetworkVersion string `json:"network_version"`
 }
 
 func (c *HTTPClient) GetV2Version(ctx context.Context) (V2Version, error) {

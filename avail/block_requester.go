@@ -93,7 +93,7 @@ func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 					if err != nil {
 						log.WithField(
 							"requested_block", blockToRequest,
-						).Error(errors.Wrap(err, "requesting new block"))
+						).Panic(errors.Wrap(err, "requesting new block"))
 					}
 					err = r.processNewBlock(ctx, blockHeader)
 					if err != nil {
