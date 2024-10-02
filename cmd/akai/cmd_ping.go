@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
+	"go.opentelemetry.io/otel"
 
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/core"
@@ -14,7 +15,7 @@ import (
 )
 
 var pingConfig = &config.AkaiPing{
-	Network: models.Network{Protocol: config.ProtocolIPFS, NetworkName: config.NetworkNameIPFSAmino}.String(),
+	Network: models.Network{Protocol: config.ProtocolIPFS, NetworkName: config.NetworkNameAmino}.String(),
 	Key:     "",
 	Timeout: 60 * time.Second,
 }
@@ -81,6 +82,7 @@ func cmdPingAction(ctx context.Context, cmd *cli.Command) error {
 		DialTimeout:  10 * time.Second, // this is the DialTimeout, not the timeout for the operation
 		DHTMode:      config.DHTClient,
 		AgentVersion: networkConfig.AgentVersion,
+		Meter:        otel.GetMeterProvider().Meter("akai_host"),
 	}
 
 	dhtHost, err := core.NewDHTHost(ctx, networkConfig, dhtHostOpts)
@@ -109,10 +111,12 @@ func cmdPingAction(ctx context.Context, cmd *cli.Command) error {
 
 	visit, err := samplingFn(sampleCtx, dhtHost, sampleSegment)
 	if err != nil {
+		log.Error()
 		return err
 	}
 
 	log.WithFields(log.Fields{
+		"operation":      config.ParseSamplingType(networkConfig.SamplingType),
 		"timestamp":      time.Now(),
 		"key":            sampleSegment.Key,
 		"duration_ms":    visit.DurationMs,
@@ -120,7 +124,7 @@ func cmdPingAction(ctx context.Context, cmd *cli.Command) error {
 		"n_providers":    visit.Providers,
 		"bytes":          visit.Bytes,
 		"error":          visit.Error,
-	}).Info("find providers operation done")
+	}).Info("ping operation done")
 
 	return nil
 

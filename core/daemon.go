@@ -222,6 +222,7 @@ func (d *Daemon) newAgnosticBlobFromAPIblob(blob api.Blob) models.AgnosticBlob {
 		NetworkID:   d.network.NetworkID,
 		Timestamp:   blob.Timestamp,
 		Hash:        blob.Hash,
+		Key:         blob.Key,
 		BlobNumber:  blob.Number,
 		Rows:        uint32(blob.Rows),
 		Columns:     uint32(blob.Columns),
@@ -232,8 +233,8 @@ func (d *Daemon) newAgnosticBlobFromAPIblob(blob api.Blob) models.AgnosticBlob {
 func (d *Daemon) newAgnosticSegmentFromAPIsegment(segment api.BlobSegment) models.AgnosticSegment {
 	return models.AgnosticSegment{
 		Timestamp:   segment.Timestamp,
-		Key:         segment.Key,
 		BlobNumber:  segment.BlobNumber,
+		Key:         segment.Key,
 		Row:         uint32(segment.Row),
 		Column:      uint32(segment.Column),
 		SampleUntil: segment.SampleUntil,

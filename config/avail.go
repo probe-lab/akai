@@ -21,15 +21,13 @@ const (
 	BlockTTL            = 24 * time.Hour
 )
 
-var ()
-
 func GenesisTimeFromNetwork(network models.Network) time.Time {
 	var genTime time.Time
 	switch network.NetworkName {
-	case NetworkNameAvailTuring:
+	case NetworkNameTuring:
 		genTime = AvailTuringGenesisTime
 
-	case NetworkNameAvailMainnet:
+	case NetworkNameMainnet:
 		genTime = AvailMainnetGenesisTime
 
 	default:
@@ -57,7 +55,7 @@ var (
 var DefaultAvailNetworkConfig = &NetworkConfiguration{
 	Network: models.Network{
 		Protocol:    ProtocolAvail,
-		NetworkName: NetworkNameAvailMainnet,
+		NetworkName: NetworkNameMainnet,
 	},
 
 	// network parameters
@@ -69,7 +67,7 @@ var DefaultAvailNetworkConfig = &NetworkConfiguration{
 	DHTHostMode:     DHTClient,
 	V1Protocol:      protocol.ID("/Avail/kad"),
 	ProtocolPrefix:  nil,
-	CustomValidator: &KeyValidator{},
+	CustomValidator: &AvailKeyValidator{},
 
 	// sampling specifics
 	SamplingType:         SampleValue,
@@ -82,11 +80,11 @@ var DefaultAvailNetworkConfig = &NetworkConfiguration{
 	GenesisTime: AvailMainnetGenesisTime,
 }
 
-type KeyValidator struct{}
+type AvailKeyValidator struct{}
 
-var _ record.Validator = (*KeyValidator)(nil)
+var _ record.Validator = (*AvailKeyValidator)(nil)
 
-func (v *KeyValidator) Validate(key string, value []byte) error {
+func (v *AvailKeyValidator) Validate(key string, value []byte) error {
 	_, err := AvailKeyFromString(key)
 	if err != nil {
 		return errors.Wrap(ErrorNonValidKey, key)
@@ -99,11 +97,11 @@ func (v *KeyValidator) Validate(key string, value []byte) error {
 	return nil
 }
 
-func (v *KeyValidator) Select(key string, values [][]byte) (int, error) {
+func (v *AvailKeyValidator) Select(key string, values [][]byte) (int, error) {
 	if len(values) <= 0 {
 		return 0, ErrorNoValueForKey
 	}
 	err := v.Validate(key, values[0])
 	// there should be only one value for a given key, so no need to make extra stuff?
-	return 0, err
+	return 1, err
 }

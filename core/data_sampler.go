@@ -308,7 +308,7 @@ func (ds *DataSampler) BlobsCache() *lru.Cache[uint64, *models.AgnosticBlob] {
 func (ds *DataSampler) updateNextVisitTime(segment *models.AgnosticSegment) (validNextVisit bool) {
 	// TODO: COnsider having all these network parameters in as single struct per network
 	switch ds.network.Protocol {
-	case config.ProtocolIPFS:
+	case config.ProtocolIPFS, config.ProtocolCelestia:
 		// constant increment of 15/30 mins
 		multCnt := 1
 		delay := ds.cfg.DelayBase
@@ -320,10 +320,11 @@ func (ds *DataSampler) updateNextVisitTime(segment *models.AgnosticSegment) (val
 			multCnt++
 		}
 
+		segment.VisitRound = uint64(multCnt)
 		segment.NextVisit = nextVisit
 		return nextVisit.Before(segment.SampleUntil)
 
-	case config.ProtocolAvail, config.NetworkNameLocalCustom:
+	case config.ProtocolAvail, config.NetworkNameCustom:
 		// exponentially increasing delay until end date
 		multCnt := 1
 		delay := ds.cfg.DelayBase
@@ -335,6 +336,7 @@ func (ds *DataSampler) updateNextVisitTime(segment *models.AgnosticSegment) (val
 			multCnt++
 		}
 
+		segment.VisitRound = uint64(multCnt)
 		segment.NextVisit = nextVisit
 		return nextVisit.Before(segment.SampleUntil)
 
@@ -381,6 +383,7 @@ func (ds *DataSampler) initMetrics() (err error) {
 // logical sampler functions
 func sampleByFindProviders(ctx context.Context, h DHTHost, segmnt models.AgnosticSegment) (models.AgnosticVisit, error) {
 	visit := models.AgnosticVisit{
+		VisitRound:    segmnt.VisitRound,
 		Timestamp:     time.Now(),
 		Key:           segmnt.Key,
 		BlobNumber:    segmnt.BlobNumber,
@@ -414,15 +417,55 @@ func sampleByFindProviders(ctx context.Context, h DHTHost, segmnt models.Agnosti
 		"key":         segmnt.Key,
 		"duration":    duration,
 		"n_providers": len(providers),
-		"peer_ids":    ListPeerIDsFromAddrsInfos(providers),
 		"error":       visit.Error,
-	}).Info("find providers operation done")
+	}).Debug("find providers operation done")
+
+	return visit, nil
+}
+
+func sampleByFindPeers(ctx context.Context, h DHTHost, segmnt models.AgnosticSegment) (models.AgnosticVisit, error) {
+	visit := models.AgnosticVisit{
+		VisitRound:    segmnt.VisitRound,
+		Timestamp:     time.Now(),
+		Key:           segmnt.Key,
+		BlobNumber:    segmnt.BlobNumber,
+		Row:           segmnt.Row,
+		Column:        segmnt.Column,
+		IsRetrievable: false,
+		Providers:     0,
+		Bytes:         0,
+	}
+
+	// make the sampling
+	duration, peers, err := h.FindPeers(ctx, segmnt.Key, 15*time.Second)
+	if err != nil {
+		visit.Error = err.Error()
+	}
+	if len(peers) > 0 {
+		visit.IsRetrievable = true
+	}
+
+	// apply rest of values
+	visit.DurationMs = duration.Milliseconds()
+	visit.Bytes = 0
+	visit.Providers = uint32(len(peers))
+
+	log.WithFields(log.Fields{
+		"timestamp":   time.Now(),
+		"key":         segmnt.Key,
+		"duration":    duration,
+		"n_providers": len(peers),
+		"peer_ids":    ListPeerIDsFromAddrsInfos(peers),
+		"error":       visit.Error,
+	}).Debug("find peers operation done")
+
 	return visit, nil
 }
 
 func sampleByFindValue(ctx context.Context, h DHTHost, segmnt models.AgnosticSegment) (models.AgnosticVisit, error) {
 
 	visit := models.AgnosticVisit{
+		VisitRound:    segmnt.VisitRound,
 		Timestamp:     time.Now(),
 		Key:           segmnt.Key,
 		BlobNumber:    segmnt.BlobNumber,
@@ -462,6 +505,9 @@ func GetSamplingFnFromType(sampleType config.SamplingType) (SamplerFunction, err
 
 	case config.SampleValue:
 		return sampleByFindValue, nil
+
+	case config.SamplePeers:
+		return sampleByFindPeers, nil
 
 	default:
 		return func(_ context.Context, _ DHTHost, _ models.AgnosticSegment) (models.AgnosticVisit, error) {

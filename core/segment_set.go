@@ -109,7 +109,7 @@ func (s *segmentSet) NextVisitTime() (time.Time, bool) {
 	}
 
 	// we've reached the limit of the set
-	if s.pointer >= s.Len() {
+	if s.pointer+1 >= s.Len() {
 		return time.Time{}, true
 	}
 

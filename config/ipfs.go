@@ -20,7 +20,7 @@ var (
 var DefaultIPFSNetworkConfig = NetworkConfiguration{
 	Network: models.Network{
 		Protocol:    ProtocolIPFS,
-		NetworkName: NetworkNameIPFSAmino,
+		NetworkName: NetworkNameAmino,
 	},
 	// network parameters
 	BootstrapPeers: kaddht.GetDefaultBootstrapPeerAddrInfos(),

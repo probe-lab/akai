@@ -13,7 +13,7 @@ var (
 )
 
 func ComposeAkaiAgentVersion() string {
-	return fmt.Sprintf("%s/%s", Maintainer, ClientName)
+	return fmt.Sprintf("%s/%s", ClientName, ClientVersion)
 }
 
 type AkaiDaemonConfig struct {

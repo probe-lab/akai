@@ -34,6 +34,7 @@ PRIMARY KEY (blob_number, key);
 
 
 CREATE TABLE IF NOT EXISTS visits (
+    visit_round UInt64,
     timestamp DateTime,
     key String,
     blob_number UInt64,
