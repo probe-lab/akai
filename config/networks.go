@@ -133,21 +133,21 @@ func ConfigureNetwork(network models.Network) (*NetworkConfiguration, error) {
 		switch network.NetworkName {
 		case NetworkNameAvailMainnet:
 			defaultAvailConfig.BootstrapPeers = BootstrappersToMaddr(BootstrapNodesAvailMainnet)
-			defaultAvailConfig.V1Protocol = protocol.ID("/Avail/kad")
+			defaultAvailConfig.V1Protocol = protocol.ID("/avail_kad/id/1.0.0-b91746")
 			defaultAvailConfig.GenesisTime = AvailMainnetGenesisTime
 			defaultAvailConfig.ProtocolPrefix = &protocolPrefix
 			return defaultAvailConfig, nil
 
 		case NetworkNameAvailTuring:
 			defaultAvailConfig.BootstrapPeers = BootstrappersToMaddr(BootstrapNodesAvailTurin)
-			defaultAvailConfig.V1Protocol = protocol.ID("/Avail/kad")
+			defaultAvailConfig.V1Protocol = protocol.ID("/avail_kad/id/1.0.0-6f0996")
 			defaultAvailConfig.GenesisTime = AvailTuringGenesisTime
 			defaultAvailConfig.ProtocolPrefix = &protocolPrefix
 			return defaultAvailConfig, nil
 
 		case NetworkNameAvailHex:
 			defaultAvailConfig.BootstrapPeers = BootstrappersToMaddr(BootstrapNodesAvailHex)
-			defaultAvailConfig.V1Protocol = protocol.ID("/Avail/kad")
+			defaultAvailConfig.V1Protocol = protocol.ID("/avail_kad/id/1.0.0-9d5ea6")
 			defaultAvailConfig.GenesisTime = AvailTuringGenesisTime // TODO: update this to latest calculus
 			defaultAvailConfig.ProtocolPrefix = &protocolPrefix
 			return defaultAvailConfig, nil

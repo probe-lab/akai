@@ -17,6 +17,7 @@ var (
 
 	BootstrapNodesAvailHex = []string{
 		"/dns/bootnode.1.lightclient.hex.avail.so/tcp/37000/p2p/12D3KooWBMwfo5qyoLQDRat86kFcGAiJ2yxKM63rXHMw2rDuNZMA",
+		"/ip4/192.168.1.122/tcp/37000/p2p/12D3KooWHCKdXSYT4h75BKufXWSYVPXmJjA89Gk2pfCJRDivQ3Mw",
 	}
 
 	BootstrapNodesAvailMainnet = []string{
@@ -30,5 +31,25 @@ var (
 		"/dns/bootnode-mainnet-008.avail.so/tcp/30333/p2p/12D3KooWSYiWfRCigRwWU9UzVJfZRz3SkCpYySH9w5ZydXUJWVuJ",
 		"/dns/bootnode-mainnet-009.avail.so/tcp/30333/p2p/12D3KooWH1dPXxYyxwYjhbrjJ3PUJht9DyQkgdiJyiTtKVx5Voh4",
 		"/dns/bootnode-mainnet-010.avail.so/tcp/30333/p2p/12D3KooWLeXFyp1Ghm7oCt1EghhT39wnsNhZWT1jYEWTHn2pHU3E",
+	}
+
+	// Celestia bootnodes
+	BootstrapNodesCelestiaMainnet = []string{
+		"/dns4/da-bridge-1.celestia-bootstrap.net/tcp/2121/p2p/12D3KooWSqZaLcn5Guypo2mrHr297YPJnV8KMEMXNjs3qAS8msw8",
+		"/dns4/da-bridge-2.celestia-bootstrap.net/tcp/2121/p2p/12D3KooWQpuTFELgsUypqp9N4a1rKBccmrmQVY8Em9yhqppTJcXf",
+		"/dns4/da-bridge-3.celestia-bootstrap.net/tcp/2121/p2p/12D3KooWSGa4huD6ts816navn7KFYiStBiy5LrBQH1HuEahk4TzQ",
+		"/dns4/da-bridge-4.celestia-bootstrap.net/tcp/2121/p2p/12D3KooWHBXCmXaUNat6ooynXG837JXPsZpSTeSzZx6DpgNatMmR",
+		"/dns4/da-bridge-5.celestia-bootstrap.net/tcp/2121/p2p/12D3KooWDGTBK1a2Ru1qmnnRwP6Dmc44Zpsxi3xbgFk7ATEPfmEU",
+		"/dns4/da-bridge-6.celestia-bootstrap.net/tcp/2121/p2p/12D3KooWLTUFyf3QEGqYkHWQS2yCtuUcL78vnKBdXU5gABM1YDeH",
+		"/dns4/da-full-1.celestia-bootstrap.net/tcp/2121/p2p/12D3KooWKZCMcwGCYbL18iuw3YVpAZoyb1VBGbx9Kapsjw3soZgr",
+		"/dns4/da-full-2.celestia-bootstrap.net/tcp/2121/p2p/12D3KooWE3fmRtHgfk9DCuQFfY3H3JYEnTU3xZozv1Xmo8KWrWbK",
+		"/dns4/da-full-3.celestia-bootstrap.net/tcp/2121/p2p/12D3KooWK6Ftsd4XsWCsQZgZPNhTrE5urwmkoo5P61tGvnKmNVyv",
+	}
+
+	BootstrapNodesCelestiaMocha4 = []string{
+		"/dns4/da-bridge-mocha-4.celestia-mocha.com/tcp/2121/p2p/12D3KooWCBAbQbJSpCpCGKzqz3rAN4ixYbc63K68zJg9aisuAajg",
+		"/dns4/da-bridge-mocha-4-2.celestia-mocha.com/tcp/2121/p2p/12D3KooWK6wJkScGQniymdWtBwBuU36n6BRXp9rCDDUD6P5gJr3G",
+		"/dns4/da-full-1-mocha-4.celestia-mocha.com/tcp/2121/p2p/12D3KooWCUHPLqQXZzpTx1x3TAsdn3vYmTNDhzg66yG8hqoxGGN8",
+		"/dns4/da-full-2-mocha-4.celestia-mocha.com/tcp/2121/p2p/12D3KooWR6SHsXPkkvhCRn6vp1RqSefgaT1X1nMNvrVjU2o3GoYy",
 	}
 )
