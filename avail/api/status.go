@@ -13,6 +13,7 @@ const (
 
 type V2Status struct {
 	Modes       []string `json:"modes"`
+	AppID       string   `json:"app_id"`
 	GenesisHash string   `json:"genesis_hash"`
 	Network     string   `json:"network"`
 	Blocks      struct {
@@ -21,6 +22,21 @@ type V2Status struct {
 			First uint64 `json:"first"`
 			Last  uint64 `json:"last"`
 		} `json:"available"`
+		AppData struct {
+			First uint64 `json:"first"`
+			Last  uint64 `json:"last"`
+		} `json:"app_data"`
+		HistoricalSync struct {
+			Synced         bool `json:"sunced"`
+			AvailableRange struct {
+				First uint64 `json:"first"`
+				Last  uint64 `json:"last"`
+			} `json:"available"`
+			AppData struct {
+				First uint64 `json:"first"`
+				Last  uint64 `json:"last"`
+			} `json:"app_data"`
+		} `json:"historical_sync"`
 	} `json:"blocks"`
 }
 

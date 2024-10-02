@@ -2,8 +2,10 @@ package models
 
 import "time"
 
-var VisitTableName = "visits"
-var visitBatcherSize = segmentBatcherSize * 4
+var (
+	VisitTableName   = "visits"
+	visitBatcherSize = segmentBatcherSize * 4
+)
 
 type AgnosticVisit struct {
 	VisitRound    uint64    `ch:"visit_round" json:"visit_round"`

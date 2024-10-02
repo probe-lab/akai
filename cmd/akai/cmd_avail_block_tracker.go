@@ -122,7 +122,8 @@ var cmdAvailBlockTrackerFlags = []cli.Flag{
 		Usage:       "Port of Akai Daemon's HTTP API",
 		Value:       availBlockTrackerConf.AkaiAPIconfig.Timeout,
 		Destination: &availBlockTrackerConf.AkaiAPIconfig.Timeout,
-	}}
+	},
+}
 
 func cmdAvailBlockTrackerAction(ctx context.Context, cmd *cli.Command) error {
 	log.WithFields(log.Fields{
@@ -150,5 +151,4 @@ func cmdAvailBlockTrackerAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	return blockTracker.Start(ctx)
-
 }

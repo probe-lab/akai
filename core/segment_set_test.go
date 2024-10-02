@@ -54,5 +54,4 @@ func Test_SegmentSet(t *testing.T) {
 	require.Equal(t, true, isThereNext)
 	nextSegment = segmentSet.Segment()
 	require.Equal(t, segment1.Key, nextSegment.Key)
-
 }

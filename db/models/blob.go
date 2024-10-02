@@ -2,8 +2,10 @@ package models
 
 import "time"
 
-var BlobTableName = "blobs"
-var blobBatcherSize = 2
+var (
+	BlobTableName   = "blobs"
+	blobBatcherSize = 2
+)
 
 type AgnosticBlob struct {
 	NetworkID   uint16    `ch:"network_id" json:"network_id"`

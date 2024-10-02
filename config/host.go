@@ -6,8 +6,10 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-type HostType int8
-type DHTHostType int8
+type (
+	HostType    int8
+	DHTHostType int8
+)
 
 const (
 	// Host Type

@@ -68,7 +68,6 @@ func ListAllNetworkCombinations() string {
 		} else {
 			networks = networks + ListNetworksForProtocol(protocol)
 		}
-
 	}
 	return networks
 }
@@ -122,7 +121,6 @@ type NetworkConfiguration struct {
 }
 
 func ConfigureNetwork(network models.Network) (*NetworkConfiguration, error) {
-	var ()
 	switch network.Protocol {
 	case ProtocolIPFS:
 		// currently we only support the AMINO DHT
@@ -130,7 +128,6 @@ func ConfigureNetwork(network models.Network) (*NetworkConfiguration, error) {
 		switch network.NetworkName {
 		case NetworkNameAmino:
 			return &dafultIPFSconfig, nil
-
 		default:
 			return &NetworkConfiguration{}, fmt.Errorf("unknown network identifier %s for protocol %s", network.NetworkName, network.Protocol)
 		}
@@ -138,18 +135,19 @@ func ConfigureNetwork(network models.Network) (*NetworkConfiguration, error) {
 	case ProtocolAvail:
 		protocolPrefix := ""
 		defaultAvailConfig := DefaultAvailNetworkConfig
+		defaultAvailConfig.Network = network
 
 		switch network.NetworkName {
 		case NetworkNameMainnet:
 			defaultAvailConfig.BootstrapPeers = BootstrappersToMaddr(BootstrapNodesAvailMainnet)
-			defaultAvailConfig.V1Protocol = protocol.ID("/Avail/kad")
+			defaultAvailConfig.V1Protocol = protocol.ID("/avail_kad/id/1.0.0-b91746")
 			defaultAvailConfig.GenesisTime = AvailMainnetGenesisTime
 			defaultAvailConfig.ProtocolPrefix = &protocolPrefix
 			return defaultAvailConfig, nil
 
 		case NetworkNameTuring:
 			defaultAvailConfig.BootstrapPeers = BootstrappersToMaddr(BootstrapNodesAvailTurin)
-			defaultAvailConfig.V1Protocol = protocol.ID("/Avail/kad")
+			defaultAvailConfig.V1Protocol = protocol.ID("/avail_kad/id/1.0.0-6f0996")
 			defaultAvailConfig.GenesisTime = AvailTuringGenesisTime
 			defaultAvailConfig.ProtocolPrefix = &protocolPrefix
 			return defaultAvailConfig, nil
@@ -192,6 +190,7 @@ func ConfigureNetwork(network models.Network) (*NetworkConfiguration, error) {
 		// mimic of the Avail Mainnet config, but without bootstrappers
 		protocolPrefix := ""
 		defaultAvailConfig := DefaultAvailNetworkConfig
+		defaultAvailConfig.Network = network
 
 		switch network.NetworkName {
 		case NetworkNameCustom:

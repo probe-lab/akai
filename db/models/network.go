@@ -7,8 +7,10 @@ import (
 
 // DB table names
 
-var NetworkTableName = "networks"
-var networkBatcherSize = 1
+var (
+	NetworkTableName   = "networks"
+	networkBatcherSize = 1
+)
 
 type Network struct {
 	NetworkID   uint16 `ch:"network_id" json:"network_id"`

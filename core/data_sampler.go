@@ -18,13 +18,11 @@ import (
 
 type SamplerFunction func(context.Context, DHTHost, models.AgnosticSegment) (models.AgnosticVisit, error)
 
-var (
-	minIterTime = 250 * time.Millisecond
-)
+var minIterTime = 250 * time.Millisecond
 
 var DefaultDataSamplerConfig = &config.AkaiDataSamplerConfig{
 	Network:         config.DefaultNetwork.String(),
-	Workers:         10,
+	Workers:         10000,
 	SamplingTimeout: 10 * time.Second,
 	DBsyncInterval:  10 * time.Minute,
 	Meter:           otel.GetMeterProvider().Meter("akai_data_sampler"),
@@ -53,8 +51,8 @@ func NewDataSampler(
 	cfg *config.AkaiDataSamplerConfig,
 	database db.Database,
 	h DHTHost,
-	samplerFn SamplerFunction) (*DataSampler, error) {
-
+	samplerFn SamplerFunction,
+) (*DataSampler, error) {
 	blobsCache, err := lru.New[uint64, *models.AgnosticBlob](cfg.BlobsSetCacheSize) // <block_number>, <block_ID_in_DB>
 	if err != nil {
 		return nil, err
@@ -463,7 +461,6 @@ func sampleByFindPeers(ctx context.Context, h DHTHost, segmnt models.AgnosticSeg
 }
 
 func sampleByFindValue(ctx context.Context, h DHTHost, segmnt models.AgnosticSegment) (models.AgnosticVisit, error) {
-
 	visit := models.AgnosticVisit{
 		VisitRound:    segmnt.VisitRound,
 		Timestamp:     time.Now(),
@@ -480,12 +477,12 @@ func sampleByFindValue(ctx context.Context, h DHTHost, segmnt models.AgnosticSeg
 		visit.Error = err.Error()
 	}
 	if len(bytes) > 0 {
+		visit.Providers = 1
 		visit.IsRetrievable = true
+		visit.Bytes = uint32(len(bytes))
 	}
 	// apply rest of values
 	visit.DurationMs = duration.Milliseconds()
-	visit.Bytes = uint32(len(bytes))
-	visit.Providers = 1
 
 	log.WithFields(log.Fields{
 		"timestamp": time.Now(),
@@ -493,7 +490,7 @@ func sampleByFindValue(ctx context.Context, h DHTHost, segmnt models.AgnosticSeg
 		"duration":  duration,
 		"bytes":     len(bytes),
 		"error":     visit.Error,
-	}).Debug("find value operation done")
+	}).Info("find value operation done")
 
 	return visit, nil
 }

@@ -216,7 +216,6 @@ func configureLogger(_ context.Context, cmd *cli.Command) error {
 // The function returns an error if there is an issue with creating the meter
 // provider.
 func configureMetrics(ctx context.Context, _ *cli.Command) error {
-
 	// user wants to have metrics, use the prometheus meter provider
 	provider, err := metrics.PromMeterProvider(ctx)
 	if err != nil {

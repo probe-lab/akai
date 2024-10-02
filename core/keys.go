@@ -9,9 +9,7 @@ import (
 	"github.com/probe-lab/akai/db/models"
 )
 
-var (
-	ErrorNotValidNetwork error = fmt.Errorf("no defined key for that network")
-)
+var ErrorNotValidNetwork error = fmt.Errorf("no defined key for that network")
 
 func ParseDHTKeyType(network models.Network, key string) (any, error) {
 	switch network.Protocol {

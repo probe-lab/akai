@@ -17,6 +17,7 @@ var (
 
 	BootstrapNodesAvailHex = []string{
 		"/dns/bootnode.1.lightclient.hex.avail.so/tcp/37000/p2p/12D3KooWBMwfo5qyoLQDRat86kFcGAiJ2yxKM63rXHMw2rDuNZMA",
+		"/ip4/192.168.1.122/tcp/37000/p2p/12D3KooWHCKdXSYT4h75BKufXWSYVPXmJjA89Gk2pfCJRDivQ3Mw",
 	}
 
 	BootstrapNodesAvailMainnet = []string{
