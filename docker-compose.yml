@@ -9,17 +9,17 @@ services:
       hostname: clickhouse
       networks: [ cluster ]
       environment:
-        - CLICKHOUSE_DB=${CH_DB:-akai_default}
-        - CLICKHOUSE_USER=${CH_USER:-username}
+        - CLICKHOUSE_DB=${AKAI_CH_DB:-akai_default}
+        - CLICKHOUSE_USER=${AKAI_CH_USER:-username}
         - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
-        - CLICKHOUSE_PASSWORD=${CH_PASSWORD:-password}
+        - CLICKHOUSE_PASSWORD=${AKAI_CH_PASSWORD:-password}
       volumes:
         - ./external/db/clickhouse_data/data:/var/lib/clickhouse/
         - ./external/db/clickhouse_data/logs:/var/log/clickhouse-server/
       ports:
-        - "127.0.0.1:${CH_HTTP_PORT:-8123}:8123"
-        - "127.0.0.1:${CH_NATIVE_PORT:-9000}:9000"
-        - "127.0.0.1:${CH_SQL_PORT:-9005}:9005"
+        - "${CH_HTTP_PORT:-8123}:8123"
+        - "${CH_NATIVE_PORT:-9000}:9000"
+        - "${CH_SQL_PORT:-9005}:9005"
       healthcheck: # executed inside the container
         test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping
         interval: 5s
@@ -40,7 +40,40 @@ services:
       - '--storage.tsdb.retention.time=1y'
       - '--web.enable-remote-write-receiver'
     ports:
-      - "127.0.0.1:9090:9090"
+      - "9090:9090"
+
+  # Akai block-tracker
+    akai-block-tracker:
+    build:  
+      context: ./
+      dockerfile: Dockerfile
+    networks: [ cluster ]
+    depends_on:
+      - clickhouse
+      - akai-daemon
+    environment:
+      # root 
+      - AKAI_LOG_LEVEL=${AKAI_LOG_LEVEL}
+      - AKAI_LOG_FORMAT=${AKAI_LOG_FORMAT}
+      - AKAI_LOG_SOURCE=${AKAI_LOG_SOURCE}
+      - AKAI_LOG_NO_COLOR=${AKAI_LOG_NO_COLOR}
+      - AKAI_METRICS_ADDR=${AKAI_METRICS_ADDR}
+      - AKAI_METRICS_PORT=${AKAI_METRICS_PORT}
+      # avail-block-tracker
+      - AKAI_NETWORK=$(AKAI_NETWORK)
+      - AKAI_BLOCK_TRACKER_TEXT_CONSUMER=$(AKAI_BLOCK_TRACKER_TEXT_CONSUMER)
+      - AKAI_BLOCK_TRACKER_API_CONSUMER=$(AKAI_BLOCK_TRACKER_API_CONSUMER)
+      - AKAI_AVAIL_HTTP_HOST=$(AKAI_AVAIL_HTTP_HOST)
+      - AKAI_AVAIL_HTTP_PORT=$(AKAI_AVAIL_HTTP_PORT)
+      - AKAI_AVAIL_HTTP_TIMEOUT=$(AKAI_AVAIL_HTTP_TIMEOUT)
+      - AKAI_HTTP_HOST=$(AKAI_HTTP_HOST)
+      - AKAI_HTTP_PORT=$(AKAI_HTTP_PORT)
+      - AKAI_HTTP_TIMEOUT=$(AKAI_HTTP_TIMEOUT)
+    command: akai avail-block-tracker
+    ports:
+      - "${AKAI_HTTP_PORT:-8080}:8080"
+      - "${AKAI_METRICS_PORT:-9080}:9080"
+      - "${AKAI_HOST_PORT:-9020}:9020"
 
   # Akai daemon
   akai-daemon:
@@ -49,22 +82,27 @@ services:
       dockerfile: Dockerfile
     networks: [ cluster ]
     depends_on:
-      clickhouse:
-        condition: service_healthy
-    command: >-
-      ./akai
-      --log.level=${LOG_LEVEL}
-      --log.format=${LOG_FORMAT}
-      --metrics.addr="0.0.0.0"
-      daemon
-      --network=${NETWORK}
-      --api-http-host="0.0.0.0"
-      --db-driver=${DB_DRIVER}
-      --db-address="clickhouse:${CH_NATIVE_PORT:-9000}"
-      --db-user=${CH_USER}
-      --db-password=${CH_PASSWORD}
-      --db-database=${CH_DB} 
+      - clickhouse
+    environment:
+      # root 
+      - AKAI_LOG_LEVEL=${AKAI_LOG_LEVEL}
+      - AKAI_LOG_FORMAT=${AKAI_LOG_FORMAT}
+      - AKAI_LOG_SOURCE=${AKAI_LOG_SOURCE}
+      - AKAI_LOG_NO_COLOR=${AKAI_LOG_NO_COLOR}
+      - AKAI_METRICS_ADDR=${AKAI_METRICS_ADDR}
+      - AKAI_METRICS_PORT=${AKAI_METRICS_PORT}
+      # daemon
+      - AKAI_SERVICE_NETWORK=${AKAI_SERVICE_NETWORK}
+      - AKAI_DAEMON_API_HTTP_HOST=${AKAI_DAEMON_API_HTTP_HOST}
+      - AKAI_DAEMON_API_HTTP_PORT=${AKAI_DAEMON_API_HTTP_PORT}
+      - AKAI_DAEMON_DB_DRIVER=${AKAI_DAEMON_DB_DRIVER}
+      - AKAI_DAEMON_DB_ADDRESS="${AKAI_CH_HOST}:${AKAI_CH_NATIVE_PORT}"
+      - AKAI_DAEMON_DB_USER=${AKAI_CH_USER}
+      - AKAI_DAEMON_DB_PASSWORD=${AKAI_CH_PASSWORD}
+      - AKAI_DAEMON_DB_DATABASE=${AKAI_CH_DB}
+        
+    command: akai daemon 
     ports:
-      - "${AKAI_HTTP_HOST:-127.0.0.1}:${AKAI_HTTP_PORT:-8080}:8080"
-      - "${AKAI_METRICS_HOST:-127.0.0.1}:${AKAI_METRICS_PORT:-9080}:9080"
+      - "${AKAI_HTTP_PORT:-8080}:8080"
+      - "${AKAI_METRICS_PORT:-9080}:9080"
       - "${AKAI_HOST_PORT:-9020}:9020"
