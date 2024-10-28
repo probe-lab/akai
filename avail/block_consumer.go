@@ -75,7 +75,6 @@ func (tc *TextConsumer) ProccessNewBlock(ctx context.Context, blockNot *BlockNot
 	return nil
 }
 
-// TODO: add API interface with the Akai service
 type AkaiAPIconsumer struct {
 	config         *config.AkaiAPIClientConfig
 	networkConfing *config.NetworkConfiguration
@@ -89,6 +88,7 @@ func NewAkaiAPIconsumer(networkConfig *config.NetworkConfiguration, cfg *config.
 	if err != nil {
 		return nil, err
 	}
+
 	// ensure that the network is the same one
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
