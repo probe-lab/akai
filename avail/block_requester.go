@@ -2,6 +2,7 @@ package avail
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -9,6 +10,8 @@ import (
 	"github.com/probe-lab/akai/config"
 	log "github.com/sirupsen/logrus"
 )
+
+var availAPIretries = 3
 
 type BlockRequester struct {
 	httpAPICli *api.HTTPClient
@@ -36,11 +39,27 @@ func (r *BlockRequester) Serve(ctx context.Context) error {
 	return nil
 }
 
+func (r *BlockRequester) AvailAPIhealthcheck(ctx context.Context) error {
+	log.Info("avail API healthcheck...")
+	for i := 0; i < availAPIretries; i++ {
+		_, err := r.httpAPICli.GetV2Status(ctx)
+		if err != nil {
+			log.Errorf("healthchcheck %d failed %s", i, err.Error())
+		} else {
+			log.Info("got successfull connection to avail-light-api")
+			return nil
+		}
+		time.Sleep(10 * time.Second) // retry again in 10 secs?
+	}
+	return fmt.Errorf("no connection available to avail-light-api")
+}
+
 func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 	// request the genesis info
 	availStatus, err := r.httpAPICli.GetV2Status(ctx)
 	if err != nil {
-		log.Panic("requesting status to start block-requester", err)
+		log.Error("requesting status to start block-requester ", err)
+		return
 	}
 	// hot-fix: ensure that our last-seen is 1 block prior to the last available one
 	// TODO: we will probably have to fetch from the DB which is the last tracked Block
@@ -68,12 +87,14 @@ func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 	// once we are "on-time", keep requesting the block periodically
 	extraDelay := 1 * time.Second
 	proposalTicker := time.NewTicker(config.BlockIntervalTarget + extraDelay) // give 1 extra time to request next block
+	lastReqT := time.Now()
 	for {
 		select {
 		case <-proposalTicker.C:
 			headBlock, lastBlock, err := r.requestLastState(ctx)
 			if err != nil {
-				log.Panic("requesting new block from block-tracker", err)
+				log.Error("requesting new block from block-tracker", err)
+				return
 			}
 			log.WithFields(log.Fields{
 				"last_block": lastBlock,
@@ -82,7 +103,7 @@ func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 
 			if !r.isBlockNew(lastBlock) {
 				// should we wait 1 sec and try again?
-				log.WithField("delay", extraDelay).Warn("no new-block found, requesting it again")
+				log.WithField("delay", extraDelay).Debug("no new-block found, requesting it again")
 				proposalTicker.Reset(extraDelay)
 
 			} else {
@@ -93,12 +114,15 @@ func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 					if err != nil {
 						log.WithField(
 							"requested_block", blockToRequest,
-						).Panic(errors.Wrap(err, "requesting new block"))
+						).Error(errors.Wrap(err, "requesting new block"))
+						continue
 					}
-					err = r.processNewBlock(ctx, blockHeader)
+					err = r.processNewBlock(ctx, blockHeader, lastReqT)
 					if err != nil {
-						log.Panic(err)
+						log.Error(err)
+						return
 					}
+					lastReqT = time.Now()
 				}
 				proposalTicker.Reset(config.BlockIntervalTarget) // wait 20 seconds from last proposal
 				// TODO: more spammy alternative
@@ -112,13 +136,13 @@ func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 	}
 }
 
-func (r *BlockRequester) processNewBlock(ctx context.Context, blockHeader api.V2BlockHeader) error {
+func (r *BlockRequester) processNewBlock(ctx context.Context, blockHeader api.V2BlockHeader, lastReqT time.Time) error {
 	newBlockNot := &BlockNotification{
 		RequestTime: time.Now(),
 		BlockInfo:   blockHeader,
 	}
 	for _, consumer := range r.consumers {
-		err := consumer.ProccessNewBlock(ctx, newBlockNot)
+		err := consumer.ProccessNewBlock(ctx, newBlockNot, lastReqT)
 		if err != nil {
 			return err
 		}

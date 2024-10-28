@@ -37,7 +37,7 @@ var cmdDaemonFlags = []cli.Flag{
 		Name:    "network",
 		Aliases: []string{"n"},
 		Sources: cli.ValueSourceChain{
-			Chain: []cli.ValueSource{cli.EnvVar("AKAI_SERVICE_NETWORK")},
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_NETWORK")},
 		},
 		Usage:       "The network where the Akai will be launched.",
 		DefaultText: config.ListAllNetworkCombinations(),

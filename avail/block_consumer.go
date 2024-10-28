@@ -21,7 +21,7 @@ var (
 type BlockConsumer interface {
 	Type() ConsumerType
 	Serve(context.Context) error
-	ProccessNewBlock(context.Context, *BlockNotification) error
+	ProccessNewBlock(context.Context, *BlockNotification, time.Time) error
 }
 
 type BlockNotification struct {
@@ -55,20 +55,21 @@ func (tc *TextConsumer) Serve(ctx context.Context) error {
 	return nil
 }
 
-func (tc *TextConsumer) ProccessNewBlock(ctx context.Context, blockNot *BlockNotification) error {
+func (tc *TextConsumer) ProccessNewBlock(ctx context.Context, blockNot *BlockNotification, lastReqT time.Time) error {
 	block, err := NewBlock(FromAPIBlockHeader(blockNot.BlockInfo))
 	if err != nil {
 		return err
 	}
 
 	log.WithFields(log.Fields{
-		"req_time":  blockNot.RequestTime,
-		"hash":      blockNot.BlockInfo.Hash,
-		"number":    blockNot.BlockInfo.Number,
-		"rows":      blockNot.BlockInfo.Extension.Rows,
-		"colums":    blockNot.BlockInfo.Extension.Columns,
-		"data_root": blockNot.BlockInfo.Extension.DataRoot,
-		"cid":       block.Cid().Hash().B58String(),
+		"req_time":              blockNot.RequestTime,
+		"hash":                  blockNot.BlockInfo.Hash,
+		"number":                blockNot.BlockInfo.Number,
+		"rows":                  blockNot.BlockInfo.Extension.Rows,
+		"colums":                blockNot.BlockInfo.Extension.Columns,
+		"data_root":             blockNot.BlockInfo.Extension.DataRoot,
+		"cid":                   block.Cid().Hash().B58String(),
+		"time-since-last-block": time.Since(lastReqT),
 	}).Info("new avail block...")
 
 	return nil
@@ -80,6 +81,8 @@ type AkaiAPIconsumer struct {
 	networkConfing *config.NetworkConfiguration
 	cli            *akai_api.Client
 }
+
+var _ BlockConsumer = (*AkaiAPIconsumer)(nil)
 
 func NewAkaiAPIconsumer(networkConfig *config.NetworkConfiguration, cfg *config.AkaiAPIClientConfig) (*AkaiAPIconsumer, error) {
 	apiCli, err := akai_api.NewClient(cfg)
@@ -112,7 +115,7 @@ func (ac *AkaiAPIconsumer) Serve(ctx context.Context) error {
 	return ac.cli.Serve(ctx)
 }
 
-func (ac *AkaiAPIconsumer) ProccessNewBlock(ctx context.Context, blockNot *BlockNotification) error {
+func (ac *AkaiAPIconsumer) ProccessNewBlock(ctx context.Context, blockNot *BlockNotification, lastReqT time.Time) error {
 	block, err := NewBlock(FromAPIBlockHeader(blockNot.BlockInfo))
 	if err != nil {
 		return err
@@ -127,13 +130,14 @@ func (ac *AkaiAPIconsumer) ProccessNewBlock(ctx context.Context, blockNot *Block
 	}
 
 	log.WithFields(log.Fields{
-		"req_time":  blockNot.RequestTime,
-		"hash":      blockNot.BlockInfo.Hash,
-		"number":    blockNot.BlockInfo.Number,
-		"rows":      blockNot.BlockInfo.Extension.Rows,
-		"colums":    blockNot.BlockInfo.Extension.Columns,
-		"data_root": blockNot.BlockInfo.Extension.DataRoot,
-		"cid":       block.Cid().Hash().B58String(),
+		"req_time":              blockNot.RequestTime,
+		"hash":                  blockNot.BlockInfo.Hash,
+		"number":                blockNot.BlockInfo.Number,
+		"rows":                  blockNot.BlockInfo.Extension.Rows,
+		"colums":                blockNot.BlockInfo.Extension.Columns,
+		"data_root":             blockNot.BlockInfo.Extension.DataRoot,
+		"cid":                   block.Cid().Hash().B58String(),
+		"time-since-last-block": time.Since(lastReqT),
 	}).Info("new avail block...")
 
 	return nil

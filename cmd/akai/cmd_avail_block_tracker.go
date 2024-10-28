@@ -150,5 +150,10 @@ func cmdAvailBlockTrackerAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
+	err = blockTracker.BlockRequester.AvailAPIhealthcheck(ctx)
+	if err != nil {
+		return err
+	}
+
 	return blockTracker.Start(ctx)
 }
