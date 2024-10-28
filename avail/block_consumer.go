@@ -129,16 +129,5 @@ func (ac *AkaiAPIconsumer) ProccessNewBlock(ctx context.Context, blockNot *Block
 		return err
 	}
 
-	log.WithFields(log.Fields{
-		"req_time":              blockNot.RequestTime,
-		"hash":                  blockNot.BlockInfo.Hash,
-		"number":                blockNot.BlockInfo.Number,
-		"rows":                  blockNot.BlockInfo.Extension.Rows,
-		"colums":                blockNot.BlockInfo.Extension.Columns,
-		"data_root":             blockNot.BlockInfo.Extension.DataRoot,
-		"cid":                   block.Cid().Hash().B58String(),
-		"time-since-last-block": time.Since(lastReqT),
-	}).Info("new avail block...")
-
 	return nil
 }
