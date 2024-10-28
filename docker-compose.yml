@@ -69,6 +69,7 @@ services:
       - AKAI_HTTP_HOST=$(AKAI_HTTP_HOST)
       - AKAI_HTTP_PORT=$(AKAI_HTTP_PORT)
       - AKAI_HTTP_TIMEOUT=$(AKAI_HTTP_TIMEOUT)
+      - AKAI_DAEMON_DB_TLS=${AKAI_DAEMON_DB_TLS}
     command: akai avail-block-tracker
     ports:
       - "${AKAI_HTTP_PORT:-8080}:8080"

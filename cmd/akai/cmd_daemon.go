@@ -106,7 +106,6 @@ var cmdDaemonFlags = []cli.Flag{
 		Value:       daemonConfig.DBconfig.Password,
 		Destination: &daemonConfig.DBconfig.Password,
 	},
-
 	&cli.StringFlag{
 		Name:    "db-database",
 		Aliases: []string{"dbd"},
@@ -116,6 +115,15 @@ var cmdDaemonFlags = []cli.Flag{
 		Usage:       "Name of the Database that will keep all the raw data",
 		Value:       daemonConfig.DBconfig.Database,
 		Destination: &daemonConfig.DBconfig.Database,
+	},
+	&cli.BoolFlag{
+		Name: "db-tls",
+		Sources: cli.ValueSourceChain{
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_DAEMON_DB_TLS")},
+		},
+		Usage:       "use or not use of TLS while connecting clickhouse",
+		Value:       daemonConfig.DBconfig.TLSrequired,
+		Destination: &daemonConfig.DBconfig.TLSrequired,
 	},
 }
 
@@ -137,8 +145,8 @@ func cmdDaemonAction(ctx context.Context, cmd *cli.Command) (err error) {
 		"database-driver":   daemonConfig.DBconfig.Driver,
 		"database-address":  daemonConfig.DBconfig.Address,
 		"database-user":     daemonConfig.DBconfig.User,
-		"database-password": daemonConfig.DBconfig.Password,
 		"database-database": daemonConfig.DBconfig.Database,
+		"database-tls":      daemonConfig.DBconfig.TLSrequired,
 		"akai-api-host":     daemonConfig.APIconfig.Host,
 		"akai-api-port":     daemonConfig.APIconfig.Port,
 		"akai-metrics-host": rootConfig.MetricsAddr,

@@ -2,6 +2,7 @@ package clickhouse
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"sync"
 
@@ -49,6 +50,11 @@ func (s *ClickHouseDB) getLowLevelConnection(
 		User:     conDetails.User,
 		Password: conDetails.Password,
 	}
+
+	if conDetails.TLSrequired {
+		opts.TLS = &tls.Config{}
+	}
+
 	lowConn, err := ch.Dial(ctx, opts)
 	if err != nil {
 		return nil, err

@@ -10,12 +10,13 @@ import (
 )
 
 var DefaultConnectionDetails = &config.DatabaseDetails{
-	Driver:   "clickhouse",
-	Address:  "127.0.0.1:9000",
-	User:     "username",
-	Password: "password",
-	Database: "akai_test",
-	Params:   "",
+	Driver:      "clickhouse",
+	Address:     "127.0.0.1:9000",
+	User:        "username",
+	Password:    "password",
+	Database:    "akai_test",
+	TLSrequired: false,
+	Params:      "",
 }
 
 type Database interface {

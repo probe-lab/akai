@@ -7,12 +7,13 @@ import (
 )
 
 type DatabaseDetails struct {
-	Driver   string
-	Address  string
-	User     string
-	Password string
-	Database string
-	Params   string
+	Driver      string
+	Address     string
+	User        string
+	Password    string
+	Database    string
+	Params      string
+	TLSrequired bool
 
 	// metrics for the service
 	Meter metric.Meter

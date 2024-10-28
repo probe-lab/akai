@@ -2,6 +2,7 @@ package clickhouse
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"time"
@@ -55,6 +56,9 @@ func (s *ClickHouseDB) getHighLevelConnection(
 				{Name: config.ClientName, Version: config.ClientVersion},
 			},
 		},
+	}
+	if conDetails.TLSrequired {
+		opts.TLS = &tls.Config{}
 	}
 	// get a connection to the high level driver
 	conn, err := clickhouse.Open(&opts)
