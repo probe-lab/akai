@@ -13,11 +13,12 @@ import (
 func (s *ClickHouseDB) makeMigrations() error {
 	log.Infof("applying database migrations...")
 	// point to the migrations folder
-	s.conDetails.Params = s.conDetails.Params + "?x-multi-statement=true" // allow multistatements for the migrations
-	m, err := migrate.New("file://./db/clickhouse/migrations", s.conDetails.String())
+	migrationDSN := s.conDetails.MigrationDSN()
+	m, err := migrate.New("file://./db/clickhouse/migrations", migrationDSN)
 	if err != nil {
+		log.Warnf("Could not apply migrations from file://./db/clickhouse/migrations: %s", err)
 		// HOT_FIX tests need the path to be relative
-		m, err = migrate.New("file://migrations", s.conDetails.String())
+		m, err = migrate.New("file://migrations", migrationDSN)
 		if err != nil {
 			log.Errorf(err.Error())
 			return err

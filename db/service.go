@@ -16,7 +16,6 @@ var DefaultConnectionDetails = &config.DatabaseDetails{
 	Password:    "password",
 	Database:    "akai_test",
 	TLSrequired: false,
-	Params:      "",
 }
 
 type Database interface {

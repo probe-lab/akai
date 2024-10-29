@@ -20,7 +20,6 @@ var DefaultClickhouseConnectionDetails = &config.DatabaseDetails{
 	User:     "username",
 	Password: "password",
 	Database: "akai_test",
-	Params:   "",
 }
 
 var MaxFlushInterval = 1 * time.Second
