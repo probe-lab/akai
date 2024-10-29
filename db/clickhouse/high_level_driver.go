@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"net"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
@@ -17,19 +16,12 @@ func (s *ClickHouseDB) getHighLevelConnection(
 	_ context.Context,
 	conDetails *config.DatabaseDetails,
 ) (driver.Conn, error) {
-	var dialCount int
-	// taken the example from: https://github.com/ClickHouse/clickhouse-go
 	opts := clickhouse.Options{
 		Addr: []string{conDetails.Address},
 		Auth: clickhouse.Auth{
 			Database: conDetails.Database,
 			Username: conDetails.User,
 			Password: conDetails.Password,
-		},
-		DialContext: func(ctx context.Context, addr string) (net.Conn, error) {
-			dialCount++
-			var d net.Dialer
-			return d.DialContext(ctx, "tcp", addr)
 		},
 		Debug: false,
 		Debugf: func(format string, v ...any) {
