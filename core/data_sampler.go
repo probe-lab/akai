@@ -22,7 +22,7 @@ var minIterTime = 250 * time.Millisecond
 
 var DefaultDataSamplerConfig = &config.AkaiDataSamplerConfig{
 	Network:         config.DefaultNetwork.String(),
-	Workers:         10000,
+	Workers:         1000,
 	SamplingTimeout: 10 * time.Second,
 	DBsyncInterval:  10 * time.Minute,
 	Meter:           otel.GetMeterProvider().Meter("akai_data_sampler"),
@@ -88,7 +88,7 @@ func (ds *DataSampler) Serve(ctx context.Context) error {
 
 	// start the workers
 	var samplerWG sync.WaitGroup
-	for samplerID := 1; samplerID <= ds.cfg.Workers; samplerID++ {
+	for samplerID := int64(1); samplerID <= ds.cfg.Workers; samplerID++ {
 		samplerWG.Add(1)
 		go ds.runSampler(ctx, samplerID)
 	}
@@ -206,7 +206,7 @@ initLoop:
 	}
 }
 
-func (ds *DataSampler) runSampler(ctx context.Context, samplerID int) {
+func (ds *DataSampler) runSampler(ctx context.Context, samplerID int64) {
 	wlog := log.WithField("sampler-id", samplerID)
 	wlog.Debug("spawning new sampler")
 	defer func() {

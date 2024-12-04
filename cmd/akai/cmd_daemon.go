@@ -65,7 +65,6 @@ var cmdDaemonFlags = []cli.Flag{
 		Value:       daemonConfig.APIconfig.Port,
 		Destination: &daemonConfig.APIconfig.Port,
 	},
-
 	&cli.StringFlag{
 		Name: "db-driver",
 		Sources: cli.ValueSourceChain{
@@ -75,7 +74,6 @@ var cmdDaemonFlags = []cli.Flag{
 		Value:       daemonConfig.DBconfig.Driver,
 		Destination: &daemonConfig.DBconfig.Driver,
 	},
-
 	&cli.StringFlag{
 		Name:    "db-address",
 		Aliases: []string{"dba"},
@@ -125,6 +123,24 @@ var cmdDaemonFlags = []cli.Flag{
 		Value:       daemonConfig.DBconfig.TLSrequired,
 		Destination: &daemonConfig.DBconfig.TLSrequired,
 	},
+	&cli.IntFlag{
+		Name: "samplers",
+		Sources: cli.ValueSourceChain{
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_DAEMON_SAMPLERS")},
+		},
+		Usage:       "Number of workers the daemon will spawn to perform the sampling",
+		Value:       daemonConfig.DataSamplerConfig.Workers,
+		Destination: &daemonConfig.DataSamplerConfig.Workers,
+	},
+	&cli.DurationFlag{
+		Name: "sampling-timeout",
+		Sources: cli.ValueSourceChain{
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_DAEMON_SAMPLING_TIMEOUT")},
+		},
+		Usage:       "Timeout for each sampling operation at the daemon after we deduce it failed",
+		Value:       daemonConfig.DataSamplerConfig.SamplingTimeout,
+		Destination: &daemonConfig.DataSamplerConfig.SamplingTimeout,
+	},
 }
 
 func validateNetworkFlag(ctx context.Context, cli *cli.Command, s string) error {
@@ -149,8 +165,8 @@ func cmdDaemonAction(ctx context.Context, cmd *cli.Command) (err error) {
 		"database-tls":      daemonConfig.DBconfig.TLSrequired,
 		"akai-api-host":     daemonConfig.APIconfig.Host,
 		"akai-api-port":     daemonConfig.APIconfig.Port,
-		"akai-metrics-host": rootConfig.MetricsAddr,
-		"akai-metrics-port": rootConfig.MetricsPort,
+		"daemon-samplers":   daemonConfig.DataSamplerConfig.Workers,
+		"sampling-timeout":  daemonConfig.DataSamplerConfig.SamplingTimeout,
 	}).Info("starting akai-daemon...")
 	defer log.Infof("stopped akai-daemon for %s", daemonConfig.Network)
 
