@@ -114,7 +114,7 @@ func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 					if err != nil {
 						log.WithField(
 							"requested_block", blockToRequest,
-						).Error(errors.Wrap(err, "requesting new block"))
+						).Debug(errors.Wrap(err, "avail-light couldn't give block header"))
 						continue
 					}
 					err = r.processNewBlock(ctx, blockHeader, lastReqT)
