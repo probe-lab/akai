@@ -31,6 +31,8 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 )
 
+const summaryFreq = 30 * time.Second
+
 type DHTHostConfig struct {
 	HostID               int
 	IP                   string
@@ -161,6 +163,8 @@ func NewDHTHost(ctx context.Context, opts *DHTHostConfig, netCfg *config.Network
 		return nil, err
 	}
 
+	go dhtHost.internalsDebugger(ctx)
+
 	log.WithFields(log.Fields{
 		"id":            opts.HostID,
 		"agent_version": opts.AgentVersion,
@@ -178,6 +182,7 @@ func bootstrapDHT(ctx context.Context, id int, dhtCli *kaddht.IpfsDHT, bootstrap
 
 	// connect to the bootnodes
 	var wg sync.WaitGroup
+
 	succBootnodes := 0
 	for _, bnode := range bootstrappers {
 		wg.Add(1)
@@ -367,6 +372,35 @@ func (h *DHTHost) initMetrics() (err error) {
 		return fmt.Errorf("register routing_peers counter callback: %w", err)
 	}
 	return nil
+}
+
+func (h *DHTHost) internalsDebugger(ctx context.Context) {
+	tick := time.NewTicker(summaryFreq)
+	for {
+		select {
+		case <- ctx.Done():
+			return
+		case <- tick.C:
+			peers := h.getCurrentConnections()
+			// debug bootnodes
+			log.WithFields(log.Fields{
+				"peer-connections": len(peers),
+				"routing-nodes": h.dhtCli.RoutingTable().Size(),
+			}).Info("connectivity summary:")
+			for idx, peer := range peers {
+				attrs, err := h.getLibp2pHostInfo(peer)  
+				if err != nil {
+					continue
+				}
+				log.WithFields(log.Fields{
+					"agent_version": attrs["agent_version"],
+					"protocols": attrs["protocols"],
+					"protocol_versions": attrs["protocol_versions"],
+				}).Debugf("	* peer (%d): %s", idx, peer.String())	
+			}		
+			tick.Reset(summaryFreq)
+		}
+	}
 }
 
 func (h *DHTHost) getCurrentConnections() []peer.ID {

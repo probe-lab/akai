@@ -210,7 +210,7 @@ func (ds *DataSampler) runSampler(ctx context.Context, samplerID int) {
 	wlog := log.WithField("sampler-id", samplerID)
 	wlog.Debug("spawning new sampler")
 	defer func() {
-		wlog.Info("sampler closed")
+		wlog.Debug("sampler closed")
 	}()
 
 	for {
