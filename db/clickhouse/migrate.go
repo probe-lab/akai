@@ -25,13 +25,13 @@ func (s *ClickHouseDB) makeMigrations() error {
 	if err != nil {
 		return fmt.Errorf("create tmp directory for migrations: %w", err)
 	}
-	defer func(){
+	defer func() {
 		err = os.RemoveAll(tmpDir)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"tmpDir": tmpDir,
-				"error": err,
-			}).Warn("Could not clean up tmp directory")		
+				"error":  err,
+			}).Warn("Could not clean up tmp directory")
 		}
 	}()
 	log.WithField("dir", tmpDir).Debugln("Created temporary directory")
@@ -57,7 +57,7 @@ func (s *ClickHouseDB) makeMigrations() error {
 	// point to the migrations folder
 	m, err := migrate.New("file://"+filepath.Join(tmpDir, "migrations"), s.conDetails.MigrationDSN())
 	if err != nil {
-		return fmt.Errorf("applying migrations: %w", err)	
+		return fmt.Errorf("applying migrations: %w", err)
 	}
 	// bring up the migrations to the last version
 	if err := m.Up(); err != nil {

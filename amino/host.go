@@ -146,15 +146,15 @@ func NewDHTHost(ctx context.Context, opts *DHTHostConfig, netCfg *config.Network
 
 	// debug bootnodes
 	for _, bootnode := range opts.Bootstrapers {
-		attrs, err := dhtHost.getLibp2pHostInfo(bootnode.ID)  
+		attrs, err := dhtHost.getLibp2pHostInfo(bootnode.ID)
 		if err != nil {
 			log.Warnf("loading host (%s) info: %s", bootnode.ID.String(), err.Error())
 		} else {
 			log.WithFields(log.Fields{
-				"agent_version": attrs["agent_version"],
-				"protocols": attrs["protocols"],
+				"agent_version":     attrs["agent_version"],
+				"protocols":         attrs["protocols"],
 				"protocol_versions": attrs["protocol_versions"],
-			}).Info("bootnode info")	
+			}).Info("bootnode info")
 		}
 	}
 
@@ -378,26 +378,26 @@ func (h *DHTHost) internalsDebugger(ctx context.Context) {
 	tick := time.NewTicker(summaryFreq)
 	for {
 		select {
-		case <- ctx.Done():
+		case <-ctx.Done():
 			return
-		case <- tick.C:
+		case <-tick.C:
 			peers := h.getCurrentConnections()
 			// debug bootnodes
 			log.WithFields(log.Fields{
 				"peer-connections": len(peers),
-				"routing-nodes": h.dhtCli.RoutingTable().Size(),
+				"routing-nodes":    h.dhtCli.RoutingTable().Size(),
 			}).Info("connectivity summary:")
 			for idx, peer := range peers {
-				attrs, err := h.getLibp2pHostInfo(peer)  
+				attrs, err := h.getLibp2pHostInfo(peer)
 				if err != nil {
 					continue
 				}
 				log.WithFields(log.Fields{
-					"agent_version": attrs["agent_version"],
-					"protocols": attrs["protocols"],
+					"agent_version":     attrs["agent_version"],
+					"protocols":         attrs["protocols"],
 					"protocol_versions": attrs["protocol_versions"],
-				}).Debugf("	* peer (%d): %s", idx, peer.String())	
-			}		
+				}).Debugf("	* peer (%d): %s", idx, peer.String())
+			}
 			tick.Reset(summaryFreq)
 		}
 	}
@@ -411,13 +411,13 @@ func (h *DHTHost) getLibp2pHostInfo(pID peer.ID) (map[string]any, error) {
 	attrs := make(map[string]any)
 	// read from the local peerstore
 	// agent version
-	var av any  = "unknown"
+	var av any = "unknown"
 	av, err := h.host.Peerstore().Get(pID, "AgentVersion")
 	if err != nil {
 		return attrs, err
 	}
 	attrs["agent_version"] = av
-	
+
 	// protocols
 	prots, err := h.host.Network().Peerstore().GetProtocols(pID)
 	if err != nil {
