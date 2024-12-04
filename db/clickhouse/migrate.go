@@ -43,9 +43,9 @@ func (s *ClickHouseDB) makeMigrations() error {
 			return os.MkdirAll(join, 0o755)
 		}
 
-		data, err := migrations.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("read file: %w", err)
+		data, readErr := migrations.ReadFile(path)
+		if readErr != nil {
+			return fmt.Errorf("read file: %w", readErr)
 		}
 
 		return os.WriteFile(join, data, 0o644)
