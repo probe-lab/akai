@@ -159,6 +159,12 @@ func rootBefore(c context.Context, cmd *cli.Command) error {
 		return err
 	}
 
+	log.WithFields(log.Fields{
+		"akai-log-level":       rootConfig.LogLevel,
+		"akai-log-format":      rootConfig.LogFormat,
+		"akai-metrics-address": rootConfig.MetricsAddr,
+		"akai-metrics-port":    rootConfig.MetricsPort,
+	}).Info("running ookla command...")
 	return nil
 }
 

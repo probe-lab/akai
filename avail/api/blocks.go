@@ -36,7 +36,6 @@ func (c *HTTPClient) GetV2BlockStatus(ctx context.Context, block uint64) (V2Bloc
 }
 
 // API docs: https://docs.availproject.org/docs/operate-a-node/run-a-light-client/light-client-api-reference#v2blocksblock_numberheader
-
 type V2BlockHeader struct {
 	Hash           string `json:"hash"`
 	ParentHash     string `json:"parent_hash"`
@@ -47,7 +46,7 @@ type V2BlockHeader struct {
 		Rows        uint64   `json:"rows"`
 		Columns     uint64   `json:"cols"`
 		DataRoot    string   `json:"data_root"`
-		Commitments []string `json:"commitment"`
+		Commitments []string `json:"commitments"`
 		AppLookup   struct {
 			Size  uint64
 			Index []struct {
@@ -71,7 +70,7 @@ func (c *HTTPClient) GetV2BlockHeader(ctx context.Context, block uint64) (V2Bloc
 	err = json.Unmarshal(resp, &blockHeader)
 	if err != nil {
 		errStr := string(resp)
-		return V2BlockHeader{}, fmt.Errorf("v2-block-header from http request reported: %s (block %d)", errStr, block)
+		return V2BlockHeader{}, fmt.Errorf("v2-block-header from http request reported: %s (block %d) (err: %s)", errStr, block, err.Error())
 	}
 
 	return blockHeader, nil

@@ -17,7 +17,7 @@ const (
 
 type AkaiDataSamplerConfig struct {
 	Network         string
-	Workers         int
+	Workers         int64
 	SamplingTimeout time.Duration
 	DBsyncInterval  time.Duration
 	AkaiSamplingDetails

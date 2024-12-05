@@ -20,7 +20,6 @@ var DefaultClickhouseConnectionDetails = &config.DatabaseDetails{
 	User:     "username",
 	Password: "password",
 	Database: "akai_test",
-	Params:   "",
 }
 
 var MaxFlushInterval = 1 * time.Second
@@ -233,7 +232,7 @@ func (db *ClickHouseDB) composeBatchersForTables(tables map[string]struct{}) err
 }
 
 func (db *ClickHouseDB) periodicBatchesFlusher(ctx context.Context, interval time.Duration) {
-	log.Info("run periodic flusher for batchers every", interval)
+	log.WithField("freq", interval).Info("clickhouse batch-flusher")
 	flushT := time.NewTicker(interval)
 	for {
 		select {

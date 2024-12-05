@@ -1,8 +1,13 @@
 package clickhouse
 
 import (
-	_ "github.com/ClickHouse/clickhouse-go/v2"
+	"embed"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
 
+	_ "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/clickhouse"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -10,18 +15,49 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+//go:embed migrations
+var migrations embed.FS
+
 func (s *ClickHouseDB) makeMigrations() error {
 	log.Infof("applying database migrations...")
-	// point to the migrations folder
-	s.conDetails.Params = s.conDetails.Params + "?x-multi-statement=true" // allow multistatements for the migrations
-	m, err := migrate.New("file://./db/clickhouse/migrations", s.conDetails.String())
+
+	tmpDir, err := os.MkdirTemp("", "akai")
 	if err != nil {
-		// HOT_FIX tests need the path to be relative
-		m, err = migrate.New("file://migrations", s.conDetails.String())
+		return fmt.Errorf("create tmp directory for migrations: %w", err)
+	}
+	defer func() {
+		err = os.RemoveAll(tmpDir)
 		if err != nil {
-			log.Errorf(err.Error())
-			return err
+			log.WithFields(log.Fields{
+				"tmpDir": tmpDir,
+				"error":  err,
+			}).Warn("Could not clean up tmp directory")
 		}
+	}()
+	log.WithField("dir", tmpDir).Debugln("Created temporary directory")
+
+	// copy migrations to tempDir
+	err = fs.WalkDir(migrations, ".", func(path string, d fs.DirEntry, err error) error {
+		join := filepath.Join(tmpDir, path)
+		if d.IsDir() {
+			return os.MkdirAll(join, 0o755)
+		}
+
+		data, readErr := migrations.ReadFile(path)
+		if readErr != nil {
+			return fmt.Errorf("read file: %w", readErr)
+		}
+
+		return os.WriteFile(join, data, 0o644)
+	})
+	if err != nil {
+		return fmt.Errorf("create migration files: %w", err)
+	}
+
+	// point to the migrations folder
+	m, err := migrate.New("file://"+filepath.Join(tmpDir, "migrations"), s.conDetails.MigrationDSN())
+	if err != nil {
+		return fmt.Errorf("applying migrations: %w", err)
 	}
 	// bring up the migrations to the last version
 	if err := m.Up(); err != nil {
@@ -29,6 +65,7 @@ func (s *ClickHouseDB) makeMigrations() error {
 			return err
 		}
 	}
+
 	// close the migrator
 	connErr, dbErr := m.Close()
 	if connErr != nil {

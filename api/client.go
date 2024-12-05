@@ -16,6 +16,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const apiCliConnectionRetries = 5
+
 var DefaultClientConfig = &config.AkaiAPIClientConfig{
 	Host:       "127.0.0.1",
 	Port:       8080,
@@ -80,9 +82,15 @@ func (c *Client) Serve(ctx context.Context) error {
 }
 
 func (c *Client) CheckConnection(ctx context.Context) error {
-	// try the API agains the V2Version call
-	if err := c.Ping(ctx); err != nil {
-		return errors.Wrap(err, "testing connectivity")
+	for i := 0; i < apiCliConnectionRetries; i++ {
+		// try the API agains the V2Version call
+		err := c.Ping(ctx)
+		if err == nil {
+			return nil
+		} else {
+			log.Errorf("unable to connect with akai-api (attempt %d) (err: %s)", i, err.Error())
+		}
+		time.Sleep(15 * time.Second)
 	}
 	return nil
 }

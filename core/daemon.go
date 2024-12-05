@@ -117,7 +117,7 @@ func (d *Daemon) configureInternalCaches() error {
 		log.Info("synced with the DB at blob", lastBlob.BlobNumber)
 		d.blobIDs.Add(lastBlob.BlobNumber, &lastBlob)
 	} else {
-		log.Warn("no blob was found at DB")
+		log.Warn("found no-blobs at DB")
 	}
 
 	// no need to cache the segments at daemon level (blobs should be enough)

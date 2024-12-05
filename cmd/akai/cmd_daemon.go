@@ -37,7 +37,7 @@ var cmdDaemonFlags = []cli.Flag{
 		Name:    "network",
 		Aliases: []string{"n"},
 		Sources: cli.ValueSourceChain{
-			Chain: []cli.ValueSource{cli.EnvVar("AKAI_SERVICE_NETWORK")},
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_NETWORK")},
 		},
 		Usage:       "The network where the Akai will be launched.",
 		DefaultText: config.ListAllNetworkCombinations(),
@@ -65,7 +65,6 @@ var cmdDaemonFlags = []cli.Flag{
 		Value:       daemonConfig.APIconfig.Port,
 		Destination: &daemonConfig.APIconfig.Port,
 	},
-
 	&cli.StringFlag{
 		Name: "db-driver",
 		Sources: cli.ValueSourceChain{
@@ -75,7 +74,6 @@ var cmdDaemonFlags = []cli.Flag{
 		Value:       daemonConfig.DBconfig.Driver,
 		Destination: &daemonConfig.DBconfig.Driver,
 	},
-
 	&cli.StringFlag{
 		Name:    "db-address",
 		Aliases: []string{"dba"},
@@ -106,7 +104,6 @@ var cmdDaemonFlags = []cli.Flag{
 		Value:       daemonConfig.DBconfig.Password,
 		Destination: &daemonConfig.DBconfig.Password,
 	},
-
 	&cli.StringFlag{
 		Name:    "db-database",
 		Aliases: []string{"dbd"},
@@ -116,6 +113,33 @@ var cmdDaemonFlags = []cli.Flag{
 		Usage:       "Name of the Database that will keep all the raw data",
 		Value:       daemonConfig.DBconfig.Database,
 		Destination: &daemonConfig.DBconfig.Database,
+	},
+	&cli.BoolFlag{
+		Name: "db-tls",
+		Sources: cli.ValueSourceChain{
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_DAEMON_DB_TLS")},
+		},
+		Usage:       "use or not use of TLS while connecting clickhouse",
+		Value:       daemonConfig.DBconfig.TLSrequired,
+		Destination: &daemonConfig.DBconfig.TLSrequired,
+	},
+	&cli.IntFlag{
+		Name: "samplers",
+		Sources: cli.ValueSourceChain{
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_DAEMON_SAMPLERS")},
+		},
+		Usage:       "Number of workers the daemon will spawn to perform the sampling",
+		Value:       daemonConfig.DataSamplerConfig.Workers,
+		Destination: &daemonConfig.DataSamplerConfig.Workers,
+	},
+	&cli.DurationFlag{
+		Name: "sampling-timeout",
+		Sources: cli.ValueSourceChain{
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_DAEMON_SAMPLING_TIMEOUT")},
+		},
+		Usage:       "Timeout for each sampling operation at the daemon after we deduce it failed",
+		Value:       daemonConfig.DataSamplerConfig.SamplingTimeout,
+		Destination: &daemonConfig.DataSamplerConfig.SamplingTimeout,
 	},
 }
 
@@ -137,12 +161,12 @@ func cmdDaemonAction(ctx context.Context, cmd *cli.Command) (err error) {
 		"database-driver":   daemonConfig.DBconfig.Driver,
 		"database-address":  daemonConfig.DBconfig.Address,
 		"database-user":     daemonConfig.DBconfig.User,
-		"database-password": daemonConfig.DBconfig.Password,
 		"database-database": daemonConfig.DBconfig.Database,
+		"database-tls":      daemonConfig.DBconfig.TLSrequired,
 		"akai-api-host":     daemonConfig.APIconfig.Host,
 		"akai-api-port":     daemonConfig.APIconfig.Port,
-		"akai-metrics-host": rootConfig.MetricsAddr,
-		"akai-metrics-port": rootConfig.MetricsPort,
+		"daemon-samplers":   daemonConfig.DataSamplerConfig.Workers,
+		"sampling-timeout":  daemonConfig.DataSamplerConfig.SamplingTimeout,
 	}).Info("starting akai-daemon...")
 	defer log.Infof("stopped akai-daemon for %s", daemonConfig.Network)
 

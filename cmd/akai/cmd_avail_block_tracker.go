@@ -32,7 +32,7 @@ var cmdAvailBlockTrackerFlags = []cli.Flag{
 		Name:    "network",
 		Aliases: []string{"n"},
 		Sources: cli.ValueSourceChain{
-			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_BLOCK_TRACKER_NETWORK")},
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_NETWORK")},
 		},
 		Usage:       "The network where the Akai will be launched.",
 		DefaultText: config.ListNetworksForProtocol(config.ProtocolAvail),
@@ -44,7 +44,7 @@ var cmdAvailBlockTrackerFlags = []cli.Flag{
 		Name:    "text-consumer",
 		Aliases: []string{"tc"},
 		Sources: cli.ValueSourceChain{
-			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_BLOCK_TRACKER_TEXT_CONSUMER")},
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_BLOCK_TRACKER_TEXT_CONSUMER")},
 		},
 		Usage:       "Text-log processing when a new Avail block is tracked",
 		DefaultText: "true",
@@ -55,7 +55,7 @@ var cmdAvailBlockTrackerFlags = []cli.Flag{
 		Name:    "api-consumer",
 		Aliases: []string{"ac"},
 		Sources: cli.ValueSourceChain{
-			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_BLOCK_TRACKER_API_CONSUMER")},
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_BLOCK_TRACKER_API_CONSUMER")},
 		},
 		Usage:       "Process new blocks sending them to Akai's API service after a new Avail block is tracked",
 		DefaultText: "false",
@@ -66,7 +66,7 @@ var cmdAvailBlockTrackerFlags = []cli.Flag{
 		Name:    "avail-http-host",
 		Aliases: []string{"avh"},
 		Sources: cli.ValueSourceChain{
-			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_BLOCK_TRACKER_AVAIL_HTTP_HOST")},
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_HTTP_HOST")},
 		},
 		Usage:       "Host IP of the avail-light client's HTTP API",
 		Value:       availBlockTrackerConf.AvailAPIconfig.Host,
@@ -76,7 +76,7 @@ var cmdAvailBlockTrackerFlags = []cli.Flag{
 		Name:    "avail-http-port",
 		Aliases: []string{"avp"},
 		Sources: cli.ValueSourceChain{
-			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_BLOCK_TRACKER_AVAIL_HTTP_HOST")},
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_HTTP_PORT")},
 		},
 		Usage:       "Port of the avail-light client's HTTP API",
 		Value:       availBlockTrackerConf.AvailAPIconfig.Port,
@@ -86,7 +86,7 @@ var cmdAvailBlockTrackerFlags = []cli.Flag{
 		Name:    "avail-http-timeout",
 		Aliases: []string{"t"},
 		Sources: cli.ValueSourceChain{
-			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_BLOCK_TRACKER_HTTP_TIMEOUT")},
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_HTTP_TIMEOUT")},
 		},
 		Usage:       "Duration for the HTTP API operations (20s, 1min)",
 		DefaultText: availBlockTrackerConf.AvailAPIconfig.Timeout.String(),
@@ -97,7 +97,7 @@ var cmdAvailBlockTrackerFlags = []cli.Flag{
 		Name:    "akai-http-host",
 		Aliases: []string{"akh"},
 		Sources: cli.ValueSourceChain{
-			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_BLOCK_TRACKER_AVAIL_HTTP_HOST")},
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_HTTP_HOST")},
 		},
 		Usage:       "Port for the Akai's HTTP API server",
 		Value:       availBlockTrackerConf.AkaiAPIconfig.Host,
@@ -107,7 +107,7 @@ var cmdAvailBlockTrackerFlags = []cli.Flag{
 		Name:    "akai-http-port",
 		Aliases: []string{"akp"},
 		Sources: cli.ValueSourceChain{
-			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_BLOCK_TRACKER_AKAI_HTTP_PORT")},
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_HTTP_PORT")},
 		},
 		Usage:       "Port of Akai Daemon's HTTP API",
 		Value:       availBlockTrackerConf.AkaiAPIconfig.Port,
@@ -117,7 +117,7 @@ var cmdAvailBlockTrackerFlags = []cli.Flag{
 		Name:    "akai-http-timeout",
 		Aliases: []string{"akt"},
 		Sources: cli.ValueSourceChain{
-			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_BLOCK_TRACKER_AKAI_HTTP_TIMEOUT")},
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_HTTP_TIMEOUT")},
 		},
 		Usage:       "Port of Akai Daemon's HTTP API",
 		Value:       availBlockTrackerConf.AkaiAPIconfig.Timeout,
@@ -146,6 +146,11 @@ func cmdAvailBlockTrackerAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	blockTracker, err := avail.NewBlockTracker(blockTrackerConfig)
+	if err != nil {
+		return err
+	}
+
+	err = blockTracker.BlockRequester.AvailAPIhealthcheck(ctx)
 	if err != nil {
 		return err
 	}

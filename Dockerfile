@@ -1,4 +1,4 @@
-FROM golang:1.22 AS builder
+FROM golang:1.23 AS builder
 
 # Switch to an isolated build directory
 WORKDIR /build
@@ -19,7 +19,7 @@ RUN adduser --system --no-create-home --disabled-login --group akai
 WORKDIR /home/akai
 USER akai
 
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /build/akai ./akai
-COPY --from=builder /build/db/clickhouse/migrations ./db/clickhouse/migrations
 
 CMD ["./akai"]

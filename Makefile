@@ -6,10 +6,11 @@ BIN=./build/akai
 
 # Git Variables
 GIT_PACKAGE=github.com/probe-lab/akai
+GIT_SHA=$(shell git rev-parse --short HEAD)
 
 
 # Make Operations
-.PHONY: install uninstall build clean tidy audit test-avail-api test-db
+.PHONY: install uninstall build clean tidy audit test-avail-api test-db docker
 
 install:
 	$(GOCC) install $(GIT_PACKAGE)
@@ -33,6 +34,9 @@ audit:
 	$(GOCC) vet ./...
 	$(GOCC) run honnef.co/go/tools/cmd/staticcheck@latest ./...
 	$(GOCC) test -race -buildvcs -vet=off $(TARGET_PATH)
+
+docker:
+	docker build -t probe-lab/akai:latest -t probe-lab/akai-$(GIT_SHA) .
 
 test:
 	$(GOCC) test -v ./core
