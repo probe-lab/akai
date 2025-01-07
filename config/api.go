@@ -10,6 +10,7 @@ type AkaiPing struct {
 	Network string
 	Key     string
 	Timeout time.Duration
+	Retries int64
 }
 
 type AkaiAPIClientConfig struct {
