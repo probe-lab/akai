@@ -49,7 +49,7 @@ func (s *segmentSet) addSegment(c *models.AgnosticSegment) {
 	defer s.Unlock()
 
 	s.segmentMap[c.Key] = c
-	s.segmentArray = append(s.segmentArray, c)
+	s.segmentArray = append([]*models.AgnosticSegment{c}, s.segmentArray...)
 
 	if !s.init {
 		s.init = true
