@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+
 	"go.opentelemetry.io/otel/metric"
 )
 
