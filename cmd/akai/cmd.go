@@ -143,20 +143,20 @@ func main() {
 	}
 }
 
-func rootBefore(c context.Context, cmd *cli.Command) error {
+func rootBefore(c context.Context, cmd *cli.Command) (context.Context, error) {
 	// don't set up anything if akai is run without arguments
 	if cmd.NArg() == 0 {
-		return nil
+		return c, nil
 	}
 
 	// read CLI args and configure the global logger
 	if err := configureLogger(c, cmd); err != nil {
-		return err
+		return c, err
 	}
 
 	// read CLI args and configure the global meter provider
 	if err := configureMetrics(c, cmd); err != nil {
-		return err
+		return c, err
 	}
 
 	log.WithFields(log.Fields{
@@ -165,7 +165,7 @@ func rootBefore(c context.Context, cmd *cli.Command) error {
 		"akai-metrics-address": rootConfig.MetricsAddr,
 		"akai-metrics-port":    rootConfig.MetricsPort,
 	}).Info("running ookla command...")
-	return nil
+	return c, nil
 }
 
 func rootAfter(c context.Context, cmd *cli.Command) error {
