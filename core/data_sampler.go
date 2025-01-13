@@ -157,16 +157,9 @@ initLoop:
 			<-minTimeT.C // ensure minimal interval between resets to not spam the DB nor wasting CPU cicles
 			minTimeT.Reset(minIterTime)
 
-			if !ds.segSet.Next() {
-				log.Debug("there is no next segment to visit")
-				updateSegSet()
-				updateSamplerMetrics()
-				continue
-			}
-
-			nextSegment := ds.segSet.Segment()
+			nextSegment := ds.segSet.Next()
 			if nextSegment == nil {
-				log.Debug("next segment to visit was nil")
+				log.Debug("there is no next segment to visit")
 				updateSegSet()
 				updateSamplerMetrics()
 				continue
