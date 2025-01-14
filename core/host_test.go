@@ -63,7 +63,8 @@ func composeDemoDHTNetwork(ctx context.Context, t *testing.T, nodeNumbers int64)
 
 	// base parameters
 	port := 9020
-	networkConfig.AgentVersion = fmt.Sprintf("%s_%d", networkConfig.AgentVersion, port)
+	baseAgentVersion := networkConfig.AgentVersion
+	networkConfig.AgentVersion = fmt.Sprintf("%s_%d", baseAgentVersion, port)
 	networkConfig.DHTHostMode = config.DHTServer
 
 	// get the bootstrapper
@@ -83,7 +84,7 @@ func composeDemoDHTNetwork(ctx context.Context, t *testing.T, nodeNumbers int64)
 	for i := int64(1); i <= nodeNumbers; i++ {
 		// dht_host specifics
 		port := 9020 + i
-		networkConfig.AgentVersion = fmt.Sprintf("%s_%d", networkConfig.AgentVersion, port)
+		networkConfig.AgentVersion = fmt.Sprintf("%s_%d", baseAgentVersion, port)
 
 		// create dht_host
 		host := composeDHTHost(t, ctx, port, networkConfig)

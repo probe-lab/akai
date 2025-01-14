@@ -19,6 +19,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/libp2p/go-libp2p/core/routing"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
 
 	kaddht "github.com/libp2p/go-libp2p-kad-dht"
@@ -239,18 +240,6 @@ func (h *DHTHost) GetMAddrsOfPeer(p peer.ID) []ma.Multiaddr {
 	return h.host.Peerstore().Addrs(p)
 }
 
-// conside moving this to the Host
-// func (h *DHTHost) isPeerConnected(pID peer.ID) bool {
-// 	// check if we already have a connection open to the peer
-// 	peerList := h.host.Network().Peers()
-// 	for _, p := range peerList {
-// 		if p == pID {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
-
 func (h *DHTHost) FindClosestPeers(ctx context.Context, key string) (time.Duration, []peer.ID, error) {
 	log.WithFields(log.Fields{
 		"host-id": h.id,
@@ -277,18 +266,35 @@ func (h *DHTHost) FindProviders(ctx context.Context, key cid.Cid) (time.Duration
 func (h *DHTHost) FindValue(
 	ctx context.Context,
 	key string,
-) (time.Duration, []byte, error) {
+) (t time.Duration, value []byte, err error) {
 	log.WithFields(log.Fields{
 		"host-id": h.id,
 		"key":     key,
 	}).Debug("looking for providers")
 
+	opCtx, opCancel := context.WithCancel(ctx)
+	defer opCancel()
 	startT := time.Now()
-	value, err := h.dhtCli.GetValue(
-		ctx,
+	outC, err := h.dhtCli.SearchValue(
+		opCtx,
 		key,
 		kaddht.Quorum(1),
 	)
+
+	var ok bool
+	select {
+	case value, ok = <-outC:
+		// pass (record value)
+	case <-opCtx.Done():
+		// pass (deadline exceeded)
+	}
+	if len(value) <= 0 && err == nil {
+		if !ok {
+			err = routing.ErrNotFound
+		} else {
+			err = context.DeadlineExceeded
+		}
+	}
 	return time.Since(startT), value, err
 }
 

@@ -346,7 +346,7 @@ func (ds *DataSampler) initMetrics() (err error) {
 	}
 
 	_, err = ds.cfg.Meter.RegisterCallback(func(ctx context.Context, obs metric.Observer) error {
-		obs.ObserveInt64(ds.currentSamplesCount, int64(ds.segSet.Len()))
+		obs.ObserveInt64(ds.currentSamplesCount, int64(len(ds.segSet.segmentArray)))
 		return nil
 	}, ds.currentSamplesCount)
 	if err != nil {
@@ -473,6 +473,16 @@ func sampleByFindValue(ctx context.Context, h DHTHost, segmnt models.AgnosticSeg
 		visit.Providers = 1
 		visit.IsRetrievable = true
 		visit.Bytes = uint32(len(bytes))
+		// there is an edgy case where the sampling reports a failure
+		// but the content was retrieved -> Err = ContextDeadlineExceeded
+		// rewrite the error to nil/Empty
+		if err == context.DeadlineExceeded {
+			log.WithFields(log.Fields{
+				"key":   segmnt.Key,
+				"bytes": len(bytes),
+			}).Warn("key retrieved, but context was exceeded")
+			visit.Error = ""
+		}
 	}
 	// apply rest of values
 	visit.DurationMs = duration.Milliseconds()
@@ -483,7 +493,7 @@ func sampleByFindValue(ctx context.Context, h DHTHost, segmnt models.AgnosticSeg
 		"duration":  duration,
 		"bytes":     len(bytes),
 		"error":     visit.Error,
-	}).Info("find value operation done")
+	}).Debug("find value operation done")
 
 	return visit, nil
 }
