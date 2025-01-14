@@ -18,7 +18,7 @@ var pingConfig = &config.AkaiPing{
 	Network: models.Network{Protocol: config.ProtocolIPFS, NetworkName: config.NetworkNameAmino}.String(),
 	Key:     "",
 	Timeout: 60 * time.Second,
-	Retries: 3, 
+	Retries: 3,
 }
 
 var cmdPing = &cli.Command{
@@ -63,13 +63,13 @@ var cmdPingFlags = []cli.Flag{
 		Destination: &pingConfig.Timeout,
 	},
 	&cli.IntFlag{
-		Name: "retries",
+		Name:    "retries",
 		Aliases: []string{"r"},
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_PING_RETRIES")},
 		},
-		Usage: "Number of attempts that akai will try to fetch the content",
-		Value: pingConfig.Retries,
+		Usage:       "Number of attempts that akai will try to fetch the content",
+		Value:       pingConfig.Retries,
 		Destination: &pingConfig.Retries,
 	},
 }
@@ -127,25 +127,25 @@ func cmdPingAction(ctx context.Context, cmd *cli.Command) error {
 			return err
 		} else {
 			switch visit.Error {
-				case "":
-					log.WithFields(log.Fields{
-						"operation":      config.ParseSamplingType(networkConfig.SamplingType),
-						"timestamp":      time.Now(),
-						"key":            sampleSegment.Key,
-						"duration_ms":    visit.DurationMs,
-						"is_retriebable": visit.IsRetrievable,
-						"n_providers":    visit.Providers,
-						"bytes":          visit.Bytes,
-						"error":          visit.Error,
-					}).Infof("ping done: (retry: %d)", retry)
-					return nil
+			case "":
+				log.WithFields(log.Fields{
+					"operation":      config.ParseSamplingType(networkConfig.SamplingType),
+					"timestamp":      time.Now(),
+					"key":            sampleSegment.Key,
+					"duration_ms":    visit.DurationMs,
+					"is_retriebable": visit.IsRetrievable,
+					"n_providers":    visit.Providers,
+					"bytes":          visit.Bytes,
+					"error":          visit.Error,
+				}).Infof("ping done: (retry: %d)", retry)
+				return nil
 
-				default:
-					log.WithFields(log.Fields{
-						"retry": retry,
-						"error": visit.Error,
-					}).Warnf("key not found")
-					continue
+			default:
+				log.WithFields(log.Fields{
+					"retry": retry,
+					"error": visit.Error,
+				}).Warnf("key not found")
+				continue
 			}
 		}
 	}
