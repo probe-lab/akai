@@ -14,8 +14,9 @@ import (
 
 	"github.com/libp2p/go-libp2p"
 	mplex "github.com/libp2p/go-libp2p-mplex"
-	"github.com/libp2p/go-libp2p/core/discovery"
+	"github.com/libp2p/go-libp2p/core/discovery" 
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/routing"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
@@ -279,14 +280,20 @@ func (h *DHTHost) FindValue(
 		key,
 		kaddht.Quorum(1),
 	)
+
+	var ok bool
 	select {
-	case value = <-outC:
+	case value, ok = <-outC:
 		// pass (record value)
 	case <-opCtx.Done():
 		// pass (deadline exceeded)
 	}
 	if len(value) <= 0 && err == nil {
-		err = context.DeadlineExceeded
+		if !ok {
+			err = routing.ErrNotFound
+		} else {
+			err = context.DeadlineExceeded
+		}
 	}
 	return time.Since(startT), value, err
 }
