@@ -18,6 +18,7 @@ var pingConfig = &config.AkaiPing{
 	Network: models.Network{Protocol: config.ProtocolIPFS, NetworkName: config.NetworkNameAmino}.String(),
 	Key:     "",
 	Timeout: 60 * time.Second,
+	Retries: 3,
 }
 
 var cmdPing = &cli.Command{
@@ -61,6 +62,16 @@ var cmdPingFlags = []cli.Flag{
 		Value:       pingConfig.Timeout,
 		Destination: &pingConfig.Timeout,
 	},
+	&cli.IntFlag{
+		Name:    "retries",
+		Aliases: []string{"r"},
+		Sources: cli.ValueSourceChain{
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_PING_RETRIES")},
+		},
+		Usage:       "Number of attempts that akai will try to fetch the content",
+		Value:       pingConfig.Retries,
+		Destination: &pingConfig.Retries,
+	},
 }
 
 func cmdPingAction(ctx context.Context, cmd *cli.Command) error {
@@ -68,6 +79,7 @@ func cmdPingAction(ctx context.Context, cmd *cli.Command) error {
 		"key":     pingConfig.Key,
 		"network": pingConfig.Network,
 		"timeout": pingConfig.Timeout,
+		"retries": pingConfig.Retries,
 	}).Info("requesting key from given DHT...")
 
 	network := models.NetworkFromStr(pingConfig.Network)
@@ -79,7 +91,7 @@ func cmdPingAction(ctx context.Context, cmd *cli.Command) error {
 	dhtHostOpts := &config.CommonDHTHostOpts{
 		IP:           "0.0.0.0",        // default?
 		Port:         9020,             // default?
-		DialTimeout:  10 * time.Second, // this is the DialTimeout, not the timeout for the operation
+		DialTimeout:  20 * time.Second, // this is the DialTimeout, not the timeout for the operation
 		DHTMode:      config.DHTClient,
 		AgentVersion: networkConfig.AgentVersion,
 		Meter:        otel.GetMeterProvider().Meter("akai_host"),
@@ -109,83 +121,33 @@ func cmdPingAction(ctx context.Context, cmd *cli.Command) error {
 	sampleCtx, cancel := context.WithTimeout(ctx, pingConfig.Timeout)
 	defer cancel()
 
-	visit, err := samplingFn(sampleCtx, dhtHost, sampleSegment)
-	if err != nil {
-		log.Error()
-		return err
+	for retry := int64(1); retry <= pingConfig.Retries; retry++ {
+		visit, err := samplingFn(sampleCtx, dhtHost, sampleSegment)
+		if err != nil {
+			return err
+		} else {
+			switch visit.Error {
+			case "":
+				log.WithFields(log.Fields{
+					"operation":      config.ParseSamplingType(networkConfig.SamplingType),
+					"timestamp":      time.Now(),
+					"key":            sampleSegment.Key,
+					"duration_ms":    visit.DurationMs,
+					"is_retriebable": visit.IsRetrievable,
+					"n_providers":    visit.Providers,
+					"bytes":          visit.Bytes,
+					"error":          visit.Error,
+				}).Infof("ping done: (retry: %d)", retry)
+				return nil
+
+			default:
+				log.WithFields(log.Fields{
+					"retry": retry,
+					"error": visit.Error,
+				}).Warnf("key not found")
+				continue
+			}
+		}
 	}
-
-	log.WithFields(log.Fields{
-		"operation":      config.ParseSamplingType(networkConfig.SamplingType),
-		"timestamp":      time.Now(),
-		"key":            sampleSegment.Key,
-		"duration_ms":    visit.DurationMs,
-		"is_retriebable": visit.IsRetrievable,
-		"n_providers":    visit.Providers,
-		"bytes":          visit.Bytes,
-		"error":          visit.Error,
-	}).Info("ping operation done")
-
 	return nil
 }
-
-// fetchCidProviders was a dedicated ping function for fetching CID's providers in the Amino DHT (IPFS)
-// DEPRECATED in favor of core.GetSamplingFnFromType()
-// func fetchCidProviders(ctx context.Context, h core.DHTHost, key amino.Cid) error {
-// 	// request the key from the network
-// 	findCtx, cancel := context.WithTimeout(ctx, pingConfig.Timeout)
-// 	defer cancel()
-
-// 	opDuration, providers, err := h.FindProviders(findCtx, key.Cid())
-// 	if err != nil {
-// 		return errors.Wrap(err, "finding providers for key")
-// 	}
-
-// 	log.WithFields(log.Fields{
-// 		"duration":    opDuration,
-// 		"n_providers": len(providers),
-// 		"peer_ids":    core.ListPeerIDsFromAddrsInfos(providers),
-// 	}).Info("find providers operation done")
-
-// 	return nil
-// }
-
-// fetchCidProviders was a dedicated ping function for fetching CIDs content in the Amino DHT (Avail)
-// DEPRECATED in favor of core.GetSamplingFnFromType()
-// func fetchAvailKey(ctx context.Context, h core.DHTHost, key config.AvailKey) error {
-
-// 	log.WithFields(log.Fields{
-// 		"block":  key.Block,
-// 		"row":    key.Row,
-// 		"column": key.Column,
-// 	}).Info("finding providers for cell...")
-
-// 	// request the key from the network
-// 	findCtx, cancel := context.WithTimeout(ctx, pingConfig.Timeout)
-// 	defer cancel()
-
-// 	dhtKey := key.String()
-
-// 	findPeersDuration, closesPs, err := h.FindClosestPeers(findCtx, dhtKey)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	log.WithFields(log.Fields{
-// 		"duration": findPeersDuration,
-// 		"peers":    len(closesPs),
-// 		"peer_ids": closesPs,
-// 	}).Info("found closest peers to cell...")
-
-// 	findDuration, bytes, err := h.FindValue(findCtx, dhtKey)
-// 	if err != nil {
-// 		log.WithFields(log.Fields{
-// 			"duration": findDuration,
-// 		}).Warn("no cell found for block...")
-// 	} else {
-// 		log.WithFields(log.Fields{
-// 			"duration": findDuration,
-// 			"bytes":    string(bytes),
-// 		}).Info("found block cell...")
-// 	}
-// 	return nil
-// }
