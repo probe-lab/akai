@@ -9,31 +9,34 @@ import (
 )
 
 // segmentSet is a simple queue of Segments that allows rapid access to content through maps,
-// while being abel to sort the array by closer next ping time to determine which is
+// while being able to sort the array by closer next ping time to determine which is
 // the next segment to be sampled
 // adaptation of https://github.com/cortze/ipfs-cid-hoarder/blob/master/pkg/hoarder/cid_set.go
 type segmentSet struct {
 	sync.RWMutex
 
 	segmentMap   map[string]*models.AgnosticSegment
-	segmentArray []*models.AgnosticSegment
+	segmentArray sortableSegmentArray
 
-	init    bool
 	pointer int
 }
+
+type sortableSegmentArray []*models.AgnosticSegment
 
 // newSegmentSet creates a new segmentSet
 func newSegmentSet() *segmentSet {
 	return &segmentSet{
 		segmentMap:   make(map[string]*models.AgnosticSegment),
 		segmentArray: make([]*models.AgnosticSegment, 0),
-		init:         false,
 		pointer:      -1,
 	}
 }
 
 func (s *segmentSet) isInit() bool {
-	return s.init
+	s.RLock()
+	defer s.RUnlock()
+
+	return len(s.segmentArray) > 0
 }
 
 func (s *segmentSet) isSegmentAlready(c string) bool {
@@ -44,72 +47,76 @@ func (s *segmentSet) isSegmentAlready(c string) bool {
 	return ok
 }
 
-func (s *segmentSet) addSegment(c *models.AgnosticSegment) {
+// addSegment adds the given segment to the segment set. If the segment already
+// exists in the set it won't be added nor overwritten. Instead, the return value
+// will be false. You can use this signal to remove the segment with [removeSegment]
+// and then add it again. The method returns true if the given segment was added
+// to the set.
+func (s *segmentSet) addSegment(c *models.AgnosticSegment) bool {
 	s.Lock()
 	defer s.Unlock()
+
+	// don't add the segment if it already exists
+	if _, ok := s.segmentMap[c.Key]; ok {
+		return false
+	}
 
 	s.segmentMap[c.Key] = c
 	s.segmentArray = append(s.segmentArray, c)
 
-	if !s.init {
-		s.init = true
-	}
+	return true
 }
 
-func (s *segmentSet) removeSegment(cStr string) {
-	delete(s.segmentMap, cStr)
-	// check if len of the s.eue is only one
-	if s.Len() == 1 {
-		s.segmentArray = make([]*models.AgnosticSegment, 0)
-		return
+func (s *segmentSet) removeSegment(key string) bool {
+	s.Lock()
+	defer s.Unlock()
+
+	if _, found := s.segmentMap[key]; !found {
+		return false
 	}
-	item := -1
+
+	delete(s.segmentMap, key)
+
 	for idx, c := range s.segmentArray {
-		if c.Key == cStr {
-			item = idx
-			break
+		if c.Key == key {
+			s.segmentArray = append(s.segmentArray[:idx], s.segmentArray[(idx+1):]...)
+			return true
 		}
 	}
-	// check if the item was found
-	if item >= 0 {
-		s.segmentArray = append(s.segmentArray[:item], s.segmentArray[(item+1):]...)
-	}
+
+	return false
 }
 
 // Iterators
 
-func (s *segmentSet) Next() bool {
-	s.RLock()
-	defer s.RUnlock()
-	return s.pointer < s.Len() && s.pointer >= 0
-}
+func (s *segmentSet) Next() *models.AgnosticSegment {
+	s.Lock()
+	defer s.Unlock()
 
-func (s *segmentSet) Segment() *models.AgnosticSegment {
-	if s.pointer >= s.Len() {
+	if s.pointer >= len(s.segmentArray) || s.pointer < 0 {
 		return nil
 	}
-	s.Lock()
-	defer func() {
-		s.pointer++
-		s.Unlock()
-	}()
-	return s.segmentArray[s.pointer]
+
+	segment := s.segmentArray[s.pointer]
+	s.pointer++
+	return segment
 }
 
 // common usage
 
-// time to next visit + bool to see if we need to sort back the segment set
+// NextVisitTime returns the time until the next visit + bool to see if we need
+// to sort back the segment set
 func (s *segmentSet) NextVisitTime() (time.Time, bool) {
 	s.RLock()
 	defer s.RUnlock()
 
-	// we only have on single sample
-	if s.pointer == 0 && s.Len() == 1 {
+	// we only have a single sample
+	if s.pointer == 0 && len(s.segmentArray) == 1 {
 		return s.segmentArray[s.pointer].NextVisit, true
 	}
 
 	// we've reached the limit of the set
-	if s.pointer+1 >= s.Len() {
+	if s.pointer+1 >= len(s.segmentArray) {
 		return time.Time{}, true
 	}
 
@@ -128,51 +135,39 @@ func (s *segmentSet) getSegment(cStr string) (*models.AgnosticSegment, bool) {
 func (s *segmentSet) getSegmentList() []*models.AgnosticSegment {
 	s.RLock()
 	defer s.RUnlock()
-	cidList := make([]*models.AgnosticSegment, s.Len())
+
+	cidList := make([]*models.AgnosticSegment, 0, len(s.segmentArray))
 	cidList = append(cidList, s.segmentArray...)
 	return cidList
 }
 
 func (s *segmentSet) SortSegmentList() {
-	sort.Sort(s)
+	s.Lock()
+	defer s.Unlock()
+
+	var ssa sortableSegmentArray = s.segmentArray
+	sort.Sort(ssa)
 	s.pointer = 0
 }
 
 // Swap is part of sort.Interface.
-func (s *segmentSet) Swap(i, j int) {
-	s.Lock()
-	defer s.Unlock()
-
-	s.segmentArray[i], s.segmentArray[j] = s.segmentArray[j], s.segmentArray[i]
+func (s sortableSegmentArray) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
 }
 
 // Less is part of sort.Interface. We use c.PeerList.NextConnection as the value to sort by.
-func (s *segmentSet) Less(i, j int) bool {
-	s.RLock()
-	defer s.RUnlock()
-
-	return s.segmentArray[i].NextVisit.Before(s.segmentArray[j].NextVisit)
+func (s sortableSegmentArray) Less(i, j int) bool {
+	return s[i].NextVisit.Before(s[j].NextVisit)
 }
 
 // Len is part of sort.Interface. We use the peer list to get the length of the array.
+func (s sortableSegmentArray) Len() int {
+	return len(s)
+}
+
 func (s *segmentSet) Len() int {
 	s.RLock()
 	defer s.RUnlock()
 
 	return len(s.segmentArray)
-}
-
-func (s *segmentSet) NextValidTimeToPing() (time.Time, bool) {
-	var validTime time.Time
-	s.RLock()
-	defer s.RUnlock()
-	for _, cid := range s.segmentArray {
-		nextping := cid.NextVisit
-		// asume that the array is sorted
-		if validTime.IsZero() && !nextping.IsZero() {
-			validTime = nextping
-			return validTime, true
-		}
-	}
-	return validTime, false
 }
