@@ -18,7 +18,7 @@ var pingConfig = &config.AkaiPing{
 	Network: models.Network{Protocol: config.ProtocolIPFS, NetworkName: config.NetworkNameAmino}.String(),
 	Key:     "",
 	Timeout: 60 * time.Second,
-	
+	Retries: 3, 
 }
 
 var cmdPing = &cli.Command{
