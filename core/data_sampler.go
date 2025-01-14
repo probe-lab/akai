@@ -473,10 +473,6 @@ func sampleByFindValue(ctx context.Context, h DHTHost, segmnt models.AgnosticSeg
 		visit.Providers = 1
 		visit.IsRetrievable = true
 		visit.Bytes = uint32(len(bytes))
-		log.WithFields(log.Fields{
-			"key": visit.Key,
-			"content": bytes,
-		}).Info("key found")
 	}
 	// apply rest of values
 	visit.DurationMs = duration.Milliseconds()
@@ -487,7 +483,7 @@ func sampleByFindValue(ctx context.Context, h DHTHost, segmnt models.AgnosticSeg
 		"duration":  duration,
 		"bytes":     len(bytes),
 		"error":     visit.Error,
-	}).Debug("find value operation done")
+	}).Info("find value operation done")
 
 	return visit, nil
 }

@@ -62,7 +62,7 @@ func (s *segmentSet) addSegment(c *models.AgnosticSegment) bool {
 	}
 
 	s.segmentMap[c.Key] = c
-	s.segmentArray = append([]*models.AgnosticSegment{c}, s.segmentArray...)
+	s.segmentArray = append(s.segmentArray, c)
 
 	return true
 }
