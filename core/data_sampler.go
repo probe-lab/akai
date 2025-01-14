@@ -478,7 +478,7 @@ func sampleByFindValue(ctx context.Context, h DHTHost, segmnt models.AgnosticSeg
 		// rewrite the error to nil/Empty
 		if err == context.DeadlineExceeded {
 			log.WithFields(log.Fields{
-				"key": segmnt.Key,
+				"key":   segmnt.Key,
 				"bytes": len(bytes),
 			}).Warn("key retrieved, but context was exceeded")
 			visit.Error = ""

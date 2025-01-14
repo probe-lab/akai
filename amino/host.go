@@ -270,7 +270,7 @@ func (h *DHTHost) FindValue(
 		"host-id": h.id,
 		"key":     key,
 	}).Debug("looking for providers")
-	
+
 	opCtx, opCancel := context.WithCancel(ctx)
 	defer opCancel()
 	startT := time.Now()
@@ -280,13 +280,13 @@ func (h *DHTHost) FindValue(
 		kaddht.Quorum(1),
 	)
 	select {
-		case value = <- outC:
-			// pass (record value)
-		case <- opCtx.Done():
-			// pass (deadline exceeded)
+	case value = <-outC:
+		// pass (record value)
+	case <-opCtx.Done():
+		// pass (deadline exceeded)
 	}
 	if len(value) <= 0 && err == nil {
-		err = context.DeadlineExceeded		
+		err = context.DeadlineExceeded
 	}
 	return time.Since(startT), value, err
 }
