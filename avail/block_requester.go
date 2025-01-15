@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var availAPIretries = 3
+var availAPIretries = 5
 
 type BlockRequester struct {
 	httpAPICli *api.HTTPClient
@@ -49,7 +49,7 @@ func (r *BlockRequester) AvailAPIhealthcheck(ctx context.Context) error {
 			log.Info("got successfull connection to avail-light-api")
 			return nil
 		}
-		time.Sleep(10 * time.Second) // retry again in 10 secs?
+		time.Sleep(30 * time.Second)
 	}
 	return fmt.Errorf("no connection available to avail-light-api")
 }

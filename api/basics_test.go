@@ -123,7 +123,7 @@ func basicServiceAndClient(t *testing.T, ctx context.Context) (*Service, *Client
 
 	// create and init the API client
 	cliCfg := DefaultClientConfig
-	cli, err := NewClient(cliCfg)
+	cli, err := NewClient(ctx, cliCfg)
 	require.NoError(t, err)
 	return ser, cli
 }

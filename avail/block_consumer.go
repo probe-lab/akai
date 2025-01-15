@@ -83,16 +83,16 @@ type AkaiAPIconsumer struct {
 
 var _ BlockConsumer = (*AkaiAPIconsumer)(nil)
 
-func NewAkaiAPIconsumer(networkConfig *config.NetworkConfiguration, cfg *config.AkaiAPIClientConfig) (*AkaiAPIconsumer, error) {
-	apiCli, err := akai_api.NewClient(cfg)
+func NewAkaiAPIconsumer(ctx context.Context, networkConfig *config.NetworkConfiguration, cfg *config.AkaiAPIClientConfig) (*AkaiAPIconsumer, error) {
+	apiCli, err := akai_api.NewClient(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	// ensure that the network is the same one
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	opCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	apiNet, err := apiCli.GetSupportedNetworks(ctx)
+	apiNet, err := apiCli.GetSupportedNetworks(opCtx)
 	if err != nil {
 		return nil, err
 	}

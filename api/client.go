@@ -16,7 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const apiCliConnectionRetries = 5
+const apiCliConnectionRetries = 10
 
 var DefaultClientConfig = &config.AkaiAPIClientConfig{
 	Host:       "127.0.0.1",
@@ -33,7 +33,7 @@ type Client struct {
 	client  *http.Client
 }
 
-func NewClient(cfg *config.AkaiAPIClientConfig) (*Client, error) {
+func NewClient(ctx context.Context, cfg *config.AkaiAPIClientConfig) (*Client, error) {
 	// http client for the communication
 	httpCli := &http.Client{
 		Transport: &http.Transport{
@@ -58,8 +58,6 @@ func NewClient(cfg *config.AkaiAPIClientConfig) (*Client, error) {
 	}
 
 	// test connection
-	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
-	defer cancel()
 	err = apiCli.CheckConnection(ctx)
 	if err != nil {
 		log.Error("not connections with the akai-api-server", err)
@@ -81,18 +79,21 @@ func (c *Client) Serve(ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) CheckConnection(ctx context.Context) error {
+func (c *Client) CheckConnection(ctx context.Context) (err error) {
 	for i := 0; i < apiCliConnectionRetries; i++ {
 		// try the API agains the V2Version call
-		err := c.Ping(ctx)
+		ctx, cancel := context.WithTimeout(context.Background(), c.config.Timeout)
+		defer cancel()
+
+		err = c.Ping(ctx)
 		if err == nil {
 			return nil
 		} else {
 			log.Errorf("unable to connect with akai-api (attempt %d) (err: %s)", i, err.Error())
 		}
-		time.Sleep(15 * time.Second)
+		time.Sleep(30 * time.Second)
 	}
-	return nil
+	return fmt.Errorf("unable to connect to akai-api (%d attempts) (err :%s)", apiCliConnectionRetries, err.Error())
 }
 
 func (c *Client) get(
