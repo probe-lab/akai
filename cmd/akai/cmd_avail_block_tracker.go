@@ -145,7 +145,7 @@ func cmdAvailBlockTrackerAction(ctx context.Context, cmd *cli.Command) error {
 		Meter:           otel.GetMeterProvider().Meter("akai_avail_block_tracker"),
 	}
 
-	blockTracker, err := avail.NewBlockTracker(blockTrackerConfig)
+	blockTracker, err := avail.NewBlockTracker(ctx, blockTrackerConfig)
 	if err != nil {
 		return err
 	}

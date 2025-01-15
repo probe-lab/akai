@@ -26,7 +26,7 @@ type BlockTracker struct {
 	lastBlockGau     metric.Int64ObservableGauge
 }
 
-func NewBlockTracker(cfg *config.AvailBlockTracker) (*BlockTracker, error) {
+func NewBlockTracker(ctx context.Context, cfg *config.AvailBlockTracker) (*BlockTracker, error) {
 	// api
 	httpAPICli, err := api.NewHTTPCli(cfg.AvailAPIconfig)
 	if err != nil {
@@ -49,7 +49,7 @@ func NewBlockTracker(cfg *config.AvailBlockTracker) (*BlockTracker, error) {
 		blockConsumers = append(blockConsumers, textConsumer)
 	}
 	if cfg.AkaiAPIconsumer {
-		akaiAPIconsumer, err := NewAkaiAPIconsumer(networkConfig, cfg.AkaiAPIconfig)
+		akaiAPIconsumer, err := NewAkaiAPIconsumer(ctx, networkConfig, cfg.AkaiAPIconfig)
 		if err != nil {
 			return nil, err
 		}
