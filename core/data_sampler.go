@@ -225,9 +225,9 @@ func (ds *DataSampler) runSampler(ctx context.Context, samplerID int64) {
 
 func (ds *DataSampler) syncWithDatabase(ctx context.Context) error {
 	// sample the blobs
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	opCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	sampleableBlobs, err := ds.db.GetSampleableBlobs(ctx)
+	sampleableBlobs, err := ds.db.GetSampleableBlobs(opCtx)
 	if err != nil {
 		return err
 	}
@@ -248,9 +248,10 @@ func (ds *DataSampler) syncWithDatabase(ctx context.Context) error {
 	}
 
 	// sample the segments
-	ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+	opCtx, cancel = context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-	sampleableSegs, err := ds.db.GetSampleableSegments(ctx)
+	t := time.Now()
+	sampleableSegs, err := ds.db.GetSampleableSegments(opCtx)
 	if err != nil {
 		return err
 	}
@@ -258,17 +259,22 @@ func (ds *DataSampler) syncWithDatabase(ctx context.Context) error {
 		first := sampleableSegs[0].Key
 		last := sampleableSegs[0].Key
 		for _, seg := range sampleableSegs {
-			last = seg.Key
-			if ds.segSet.isSegmentAlready(seg.Key) {
-				continue
+			key, err := config.AvailKeyFromString(seg.Key)
+			if err != nil {
+				return err
 			}
+			seg.BlobNumber = uint64(key.Block)
+			seg.Column = uint32(key.Column)
+			seg.Row = uint32(key.Row)
+			last = seg.Key
 			ds.updateNextVisitTime(&seg)
-			ds.segSet.addSegment(&seg)
+			_ = ds.segSet.addSegment(&seg)
 		}
 		log.WithFields(log.Fields{
-			"from":  first,
-			"to":    last,
-			"total": len(sampleableSegs),
+			"from":        first,
+			"to":          last,
+			"total":       len(sampleableSegs),
+			"import-time": time.Since(t),
 		}).Info("synced data-sampler's sampleable segments with the DB")
 	} else {
 		log.Warn("no sampleable segments were found at DB")

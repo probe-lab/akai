@@ -63,15 +63,10 @@ func requestSegmentWithCondition(ctx context.Context, highLevelConn driver.Conn,
 	query := fmt.Sprintf(`
 		SELECT 
 			timestamp,
-			blob_number,
 			key,
-			row,
-			column,
 			sample_until,
 		FROM %s
-		%s
-		ORDER BY blob_number, row, column;
-		`,
+		%s;`,
 		segmentTableDriver.tableName,
 		condition,
 	)
