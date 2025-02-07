@@ -110,10 +110,6 @@ func (b *Block) ToAkaiAPIBlob(network models.Network, fillSegments bool) akai_ap
 	return blob
 }
 
-func (b *Block) chainTimestamp(genesis time.Time, block int64) time.Time {
-	return genesis.Add(config.BlockIntervalTarget * time.Duration(block))
-}
-
 func FromAPIBlockHeader(blockHeader api.V2BlockHeader) BlockOption {
 	return func(block *Block) (err error) {
 		// parse block-number
