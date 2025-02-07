@@ -11,7 +11,7 @@ import (
 
 var (
 	localAvailTestIP   = "localhost"
-	localAvailTestPort = int64(5000)
+	localAvailTestPort = int64(7007)
 	ConnectionTimeout  = 10 * time.Second
 )
 

@@ -58,6 +58,7 @@ type V2BlockHeader struct {
 	Digest struct {
 		Logs []map[string]interface{} `json:"logs"`
 	} `json:"digest"`
+	ReceivedAt uint64 `json:"received_at"`
 }
 
 func (c *HTTPClient) GetV2BlockHeader(ctx context.Context, block uint64) (V2BlockHeader, error) {
