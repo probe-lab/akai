@@ -18,6 +18,7 @@ import (
 type BlockOption func(*Block) error
 
 type Block struct {
+	ReceivedAt     int64
 	Hash           mh.Multihash
 	ParentHash     mh.Multihash
 	Number         uint64
@@ -71,9 +72,9 @@ func (b *Block) Cid() cid.Cid {
 }
 
 func (b *Block) ToAkaiAPIBlob(network models.Network, fillSegments bool) akai_api.Blob {
-	slotStartT := b.chainTimestamp(config.GenesisTimeFromNetwork(network), int64(b.Number))
+	timestamp := time.Unix(int64(b.ReceivedAt), 0).UTC()
 	blob := akai_api.Blob{
-		Timestamp:   slotStartT,
+		Timestamp:   timestamp,
 		Network:     network,
 		Number:      b.Number,
 		Hash:        b.Hash.HexString(),
@@ -82,7 +83,7 @@ func (b *Block) ToAkaiAPIBlob(network models.Network, fillSegments bool) akai_ap
 		Columns:     b.Extension.Columns,
 		Segments:    make([]akai_api.BlobSegment, 0),
 		Metadata:    make(map[string]any, 0),
-		SampleUntil: slotStartT.Add(config.BlockTTL + 3*time.Hour), // add 3 hours extra to ensure that we sample also after the 24 hour mark
+		SampleUntil: timestamp.Add(config.BlockTTL + 3*time.Hour), // add 3 hours extra to ensure that we sample also after the 24 hour mark
 	}
 	// if needed, add all the inner segments into the blob struct for the API (make 1 single API call)
 	if fillSegments {
@@ -107,10 +108,6 @@ func (b *Block) ToAkaiAPIBlob(network models.Network, fillSegments bool) akai_ap
 		}
 	}
 	return blob
-}
-
-func (b *Block) chainTimestamp(genesis time.Time, block int64) time.Time {
-	return genesis.Add(config.BlockIntervalTarget * time.Duration(block))
 }
 
 func FromAPIBlockHeader(blockHeader api.V2BlockHeader) BlockOption {

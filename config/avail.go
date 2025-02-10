@@ -21,26 +21,7 @@ const (
 	BlockTTL            = 24 * time.Hour
 )
 
-func GenesisTimeFromNetwork(network models.Network) time.Time {
-	var genTime time.Time
-	switch network.NetworkName {
-	case NetworkNameTuring:
-		genTime = AvailTuringGenesisTime
-
-	case NetworkNameMainnet:
-		genTime = AvailMainnetGenesisTime
-
-	default:
-	}
-	return genTime
-}
-
 var (
-	// chain genesis time
-	// from first block https://explorer.avail.so/#/explorer/query/1
-	AvailTuringGenesisTime  = time.Unix(int64(1711605040), int64(0))
-	AvailMainnetGenesisTime = time.Unix(int64(1720075080), int64(0))
-
 	// sampling delay parameters
 	AvailDelayBase       = 3 * time.Minute
 	AvailDelayMultiplier = 2
@@ -60,7 +41,7 @@ var DefaultAvailNetworkConfig = &NetworkConfiguration{
 
 	// network parameters
 	BootstrapPeers: BootstrappersToMaddr(BootstrapNodesAvailMainnet),
-	AgentVersion:   "avail-light-client/light-client/1.12.3/rust-client", // TODO: update or automate with github?
+	AgentVersion:   "avail-light-client/light-client/1.12.5/rust-client", // TODO: update or automate with github?
 
 	// dht paramets
 	HostType:        AminoLibp2pHost,
@@ -75,9 +56,6 @@ var DefaultAvailNetworkConfig = &NetworkConfiguration{
 	SegmentsSetCacheSize: AvailSegmentsSetCacheSize,
 	DelayBase:            AvailDelayBase,
 	DelayMultiplier:      AvailDelayMultiplier,
-
-	// Chain
-	GenesisTime: AvailMainnetGenesisTime,
 }
 
 type AvailKeyValidator struct{}
