@@ -98,7 +98,7 @@ func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 	trackDurationT := time.NewTicker(r.trackDuration)
 	trackIntervalT := time.NewTicker(r.trackInterval)
 	invertSegmentTrack := func() {
-		*&trackSegmentsFlag = !trackSegmentsFlag
+		trackSegmentsFlag = !trackSegmentsFlag
 	}
 
 	// once we are "on-time", keep requesting the block periodically
