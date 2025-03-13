@@ -41,7 +41,7 @@ var DefaultAvailNetworkConfig = &NetworkConfiguration{
 
 	// network parameters
 	BootstrapPeers: BootstrappersToMaddr(BootstrapNodesAvailMainnet),
-	AgentVersion:   "avail-light-client/light-client/1.12.5/rust-client", // TODO: update or automate with github?
+	AgentVersion:   "avail-light-client/light-client/1.12.9/rust-client", // TODO: update or automate with github?
 
 	// dht paramets
 	HostType:        AminoLibp2pHost,

@@ -57,7 +57,7 @@ func NewBlockTracker(ctx context.Context, cfg *config.AvailBlockTracker) (*Block
 	}
 
 	// block requester
-	blockReq, err := NewBlockRequester(httpAPICli, networkConfig, blockConsumers)
+	blockReq, err := NewBlockRequester(httpAPICli, networkConfig, blockConsumers, cfg.TrackDuration, cfg.TrackInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -72,6 +72,8 @@ func NewBlockTracker(ctx context.Context, cfg *config.AvailBlockTracker) (*Block
 	}
 
 	log.WithFields(log.Fields{
+		"track-duration":           cfg.TrackDuration,
+		"track-interval":           cfg.TrackInterval,
 		"new_block_check_interval": config.BlockIntervalTarget,
 		"consumers":                getTypesFromBlockConsumers(bTracker.blockConsumers),
 	}).Info("avail block tracker successfully created...")

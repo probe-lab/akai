@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"time"
 
 	akai_api "github.com/probe-lab/akai/api"
 	"github.com/probe-lab/akai/avail"
@@ -18,6 +19,8 @@ var availBlockTrackerConf = &config.AvailBlockTracker{
 	Network:         config.DefaultNetwork.String(),
 	AvailAPIconfig:  api.DefaultClientConfig,
 	AkaiAPIconfig:   akai_api.DefaultClientConfig,
+	TrackDuration:   15 * time.Minute,
+	TrackInterval:   6 * time.Hour,
 }
 
 var cmdAvailBlockTracker = &cli.Command{
@@ -123,6 +126,24 @@ var cmdAvailBlockTrackerFlags = []cli.Flag{
 		Value:       availBlockTrackerConf.AkaiAPIconfig.Timeout,
 		Destination: &availBlockTrackerConf.AkaiAPIconfig.Timeout,
 	},
+	&cli.DurationFlag{
+		Name: "track-duration",
+		Sources: cli.ValueSourceChain{
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_BLOCK_TRACKER_TRACK_DURATION")},
+		},
+		Usage:       "Time duration over which the block tracker will add independent segments (15min, 30min, 1h)",
+		Value:       availBlockTrackerConf.TrackDuration,
+		Destination: &availBlockTrackerConf.TrackDuration,
+	},
+	&cli.DurationFlag{
+		Name: "track-interval",
+		Sources: cli.ValueSourceChain{
+			Chain: []cli.ValueSource{cli.EnvVar("AKAI_BLOCK_TRACKER_TRACK_INTERVAL")},
+		},
+		Usage:       "Time interval at which the block tracker will start adding independent segments (1h, 4h, 12h)",
+		Value:       availBlockTrackerConf.TrackInterval,
+		Destination: &availBlockTrackerConf.TrackInterval,
+	},
 }
 
 func cmdAvailBlockTrackerAction(ctx context.Context, cmd *cli.Command) error {
@@ -133,6 +154,8 @@ func cmdAvailBlockTrackerAction(ctx context.Context, cmd *cli.Command) error {
 		"timeout":         availBlockTrackerConf.AvailAPIconfig.Timeout,
 		"text-consumer":   availBlockTrackerConf.TextConsumer,
 		"api-consumer":    availBlockTrackerConf.AkaiAPIconsumer,
+		"track-duration":  availBlockTrackerConf.TrackDuration,
+		"track-interval":  availBlockTrackerConf.TrackInterval,
 	}).Info("starting avail-block-tracker...")
 	defer log.Infof("stopped akai-block-tracker for %s", availBlockTrackerConf.Network)
 
@@ -142,6 +165,8 @@ func cmdAvailBlockTrackerAction(ctx context.Context, cmd *cli.Command) error {
 		Network:         availBlockTrackerConf.Network,
 		AvailAPIconfig:  availBlockTrackerConf.AvailAPIconfig,
 		AkaiAPIconfig:   availBlockTrackerConf.AkaiAPIconfig,
+		TrackDuration:   availBlockTrackerConf.TrackDuration,
+		TrackInterval:   availBlockTrackerConf.TrackInterval,
 		Meter:           otel.GetMeterProvider().Meter("akai_avail_block_tracker"),
 	}
 
