@@ -9,6 +9,10 @@ import (
 // Block Tracker configuration
 type AvailBlockTracker struct {
 	Network string
+	// defines for how long will the block tracker submit segments to the akai-API
+	TrackDuration time.Duration
+	// Defines every how ofter the block tracker will start to track again the segments
+	TrackInterval time.Duration
 
 	// type of consumers
 	TextConsumer    bool

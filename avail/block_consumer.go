@@ -21,7 +21,7 @@ var (
 type BlockConsumer interface {
 	Type() ConsumerType
 	Serve(context.Context) error
-	ProccessNewBlock(context.Context, *BlockNotification, time.Time) error
+	ProccessNewBlock(context.Context, *BlockNotification, time.Time, bool) error
 }
 
 type BlockNotification struct {
@@ -55,7 +55,11 @@ func (tc *TextConsumer) Serve(ctx context.Context) error {
 	return nil
 }
 
-func (tc *TextConsumer) ProccessNewBlock(ctx context.Context, blockNot *BlockNotification, lastReqT time.Time) error {
+func (tc *TextConsumer) ProccessNewBlock(
+	ctx context.Context,
+	blockNot *BlockNotification,
+	lastReqT time.Time,
+	trackSegments bool) error {
 	block, err := NewBlock(FromAPIBlockHeader(blockNot.BlockInfo))
 	if err != nil {
 		return err
@@ -70,6 +74,7 @@ func (tc *TextConsumer) ProccessNewBlock(ctx context.Context, blockNot *BlockNot
 		"data_root":             blockNot.BlockInfo.Extension.DataRoot,
 		"cid":                   block.Cid().Hash().B58String(),
 		"time-since-last-block": time.Since(lastReqT),
+		"track-segments":        trackSegments,
 	}).Info("new avail block...")
 
 	return nil
@@ -115,13 +120,17 @@ func (ac *AkaiAPIconsumer) Serve(ctx context.Context) error {
 	return ac.cli.Serve(ctx)
 }
 
-func (ac *AkaiAPIconsumer) ProccessNewBlock(ctx context.Context, blockNot *BlockNotification, lastReqT time.Time) error {
+func (ac *AkaiAPIconsumer) ProccessNewBlock(
+	ctx context.Context,
+	blockNot *BlockNotification,
+	lastReqT time.Time,
+	trackSegments bool) error {
 	block, err := NewBlock(FromAPIBlockHeader(blockNot.BlockInfo))
 	if err != nil {
 		return err
 	}
 
-	apiBlob := block.ToAkaiAPIBlob(ac.networkConfing.Network, true)
+	apiBlob := block.ToAkaiAPIBlob(ac.networkConfing.Network, trackSegments)
 	ctx, cancel := context.WithTimeout(ctx, ac.config.Timeout)
 	defer cancel()
 	err = ac.cli.PostNewBlob(ctx, apiBlob)
