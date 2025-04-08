@@ -12,9 +12,9 @@ USER := `id -un`
 VERSION := `git describe --tags --abbrev=0 || true`
 
 default:
-	@just --list --jusfile {{ justfile() }}
-	
-install: 
+	@just --list --jusfile {{justfile()}}
+
+install:
 	{{GOCC}} install {GIT_PACKAGE}
 
 uninstall:
@@ -34,10 +34,10 @@ lint:
 	{{GOCC}} mod verify
 	{{GOCC}} vet ./...
 	{{GOCC}} run honnef.co/go/tools/cmd/staticcheck@latest ./...
-	{{GOCC}} test -race -buildvcs -vet=off $(TARGET_PATH)
+	{{GOCC}} test -race -buildvcs -vet=off {{TARGET_PATH}}
 
 docker:
-	docker build -t probe-lab/akai:latest -t probe-lab/akai-$(GIT_SHA) .
+	docker build -t probe-lab/akai:latest -t probe-lab/akai-{{COMMIT}} .
 
 test:
 	{{GOCC}} test -v ./core
@@ -45,12 +45,9 @@ test:
 	{{GOCC}} test -v ./api
 
 test-db:
-	@echo "go test ./db/clickhouse"; \
-	{{GOCC}} test -v ./db/clickhouse || @echo "the test requires a clickhouse db"
+	@echo "go test ./db/clickhouse"
+	{{GOCC}} test -v ./db/clickhouse
 
 test-avail-api:
-	@echo "go test ./avail/api"; \
-	{{GOCC}} test -v ./avail/api || @echo "the test requires an avail-light client running an http-api at the 5000 port"
-
-
-
+	@echo "go test ./avail/api"
+	{{GOCC}} test -v ./avail/api

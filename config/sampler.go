@@ -10,9 +10,11 @@ type SamplingType int
 
 const (
 	SampleUnknown SamplingType = iota
+	SampleClosest
 	SampleProviders
 	SampleValue
 	SamplePeers
+	SamplePeer
 )
 
 type AkaiDataSamplerConfig struct {
@@ -42,10 +44,14 @@ func UpdateSamplingDetailFromNetworkConfig(samplCfg *AkaiSamplingDetails, netCfg
 
 func ParseSamplingType(t SamplingType) string {
 	switch t {
+	case SampleClosest:
+		return "FIND_CLOSEST"
 	case SampleProviders:
 		return "FIND_PROVIDERS"
-	case SamplePeers:
+	case SamplePeer:
 		return "FIND_PEERS"
+	case SamplePeers:
+		return "FIND_PEER"
 	case SampleValue:
 		return "FIND_VALUE"
 	case SampleUnknown:

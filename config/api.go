@@ -6,7 +6,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-type AkaiPing struct {
+type AkaiFindOP struct {
 	Network string
 	Key     string
 	Timeout time.Duration

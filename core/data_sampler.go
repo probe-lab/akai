@@ -16,7 +16,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-type SamplerFunction func(context.Context, DHTHost, models.AgnosticSegment) (models.AgnosticVisit, error)
+type SamplerFunction func(context.Context, DHTHost, models.AgnosticSegment, time.Duration) (models.AgnosticVisit, error)
 
 var minIterTime = 250 * time.Millisecond
 
@@ -210,9 +210,7 @@ func (ds *DataSampler) runSampler(ctx context.Context, samplerID int64) {
 		select {
 		case samplingSegment := <-ds.visitTaskC:
 			wlog.Debugf("sampling %s", samplingSegment.Key)
-			samplingCtx, cancel := context.WithTimeout(ctx, ds.cfg.SamplingTimeout)
-			defer cancel()
-			err := ds.sampleSegment(samplingCtx, *samplingSegment)
+			err := ds.sampleSegment(ctx, *samplingSegment, ds.cfg.SamplingTimeout)
 			if err != nil {
 				log.Panicf("error persinting sampling visit - %s", err)
 			}
@@ -283,13 +281,17 @@ func (ds *DataSampler) syncWithDatabase(ctx context.Context) error {
 	return nil
 }
 
-func (ds *DataSampler) sampleSegment(ctx context.Context, segment models.AgnosticSegment) error {
+func (ds *DataSampler) sampleSegment(
+	ctx context.Context,
+	segment models.AgnosticSegment,
+	timeout time.Duration,
+) error {
 	log.WithFields(log.Fields{
 		"segment":          segment.Key,
 		"sampleable_until": segment.SampleUntil,
 	}).Debug("sampling segment of blob")
 
-	visit, err := ds.samplerFn(ctx, ds.h, segment)
+	visit, err := ds.samplerFn(ctx, ds.h, segment, timeout)
 	if err != nil {
 		return err
 	}
@@ -378,7 +380,12 @@ func (ds *DataSampler) initMetrics() (err error) {
 }
 
 // logical sampler functions
-func sampleByFindProviders(ctx context.Context, h DHTHost, segmnt models.AgnosticSegment) (models.AgnosticVisit, error) {
+func sampleByFindProviders(
+	ctx context.Context,
+	h DHTHost,
+	segmnt models.AgnosticSegment,
+	timeout time.Duration,
+) (models.AgnosticVisit, error) {
 	visit := models.AgnosticVisit{
 		VisitRound:    segmnt.VisitRound,
 		Timestamp:     time.Now(),
@@ -397,7 +404,7 @@ func sampleByFindProviders(ctx context.Context, h DHTHost, segmnt models.Agnosti
 	}
 
 	// make the sampling
-	duration, providers, err := h.FindProviders(ctx, cid.Cid())
+	duration, providers, err := h.FindProviders(ctx, cid.Cid(), timeout)
 	if err != nil {
 		visit.Error = err.Error()
 	}
@@ -420,7 +427,12 @@ func sampleByFindProviders(ctx context.Context, h DHTHost, segmnt models.Agnosti
 	return visit, nil
 }
 
-func sampleByFindPeers(ctx context.Context, h DHTHost, segmnt models.AgnosticSegment) (models.AgnosticVisit, error) {
+func sampleByFindPeers(
+	ctx context.Context,
+	h DHTHost,
+	segmnt models.AgnosticSegment,
+	timeout time.Duration,
+) (models.AgnosticVisit, error) {
 	visit := models.AgnosticVisit{
 		VisitRound:    segmnt.VisitRound,
 		Timestamp:     time.Now(),
@@ -434,7 +446,7 @@ func sampleByFindPeers(ctx context.Context, h DHTHost, segmnt models.AgnosticSeg
 	}
 
 	// make the sampling
-	duration, peers, err := h.FindPeers(ctx, segmnt.Key, 15*time.Second)
+	duration, peers, err := h.FindPeers(ctx, segmnt.Key, timeout)
 	if err != nil {
 		visit.Error = err.Error()
 	}
@@ -459,7 +471,12 @@ func sampleByFindPeers(ctx context.Context, h DHTHost, segmnt models.AgnosticSeg
 	return visit, nil
 }
 
-func sampleByFindValue(ctx context.Context, h DHTHost, segmnt models.AgnosticSegment) (models.AgnosticVisit, error) {
+func sampleByFindValue(
+	ctx context.Context,
+	h DHTHost,
+	segmnt models.AgnosticSegment,
+	timeout time.Duration,
+) (models.AgnosticVisit, error) {
 	visit := models.AgnosticVisit{
 		VisitRound:    segmnt.VisitRound,
 		Timestamp:     time.Now(),
@@ -471,7 +488,7 @@ func sampleByFindValue(ctx context.Context, h DHTHost, segmnt models.AgnosticSeg
 	}
 
 	// make the sampling
-	duration, bytes, err := h.FindValue(ctx, segmnt.Key)
+	duration, bytes, err := h.FindValue(ctx, segmnt.Key, timeout)
 	if err != nil {
 		visit.Error = err.Error()
 	}
@@ -516,7 +533,12 @@ func GetSamplingFnFromType(sampleType config.SamplingType) (SamplerFunction, err
 		return sampleByFindPeers, nil
 
 	default:
-		return func(_ context.Context, _ DHTHost, _ models.AgnosticSegment) (models.AgnosticVisit, error) {
+		return func(
+			_ context.Context,
+			_ DHTHost,
+			_ models.AgnosticSegment,
+			_ time.Duration,
+		) (models.AgnosticVisit, error) {
 			return models.AgnosticVisit{}, nil
 		}, nil
 	}

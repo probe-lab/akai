@@ -44,12 +44,12 @@ func Test_AvailKeyPing(t *testing.T) {
 	time.Sleep(2 * time.Second)
 	// seed the DHT with such key
 	seeder := hosts[1]
-	_, err = seeder.PutValue(textCtx, key.String(), value)
+	_, err = seeder.PutValue(textCtx, key.String(), value, 1*time.Second)
 	require.NoError(t, err)
 
 	// retrieve it
 	retriever := hosts[2]
-	_, dhtValue, err := retriever.FindValue(textCtx, key.String())
+	_, dhtValue, err := retriever.FindValue(textCtx, key.String(), 1*time.Second)
 	require.NoError(t, err)
 	for idx, char := range dhtValue {
 		require.Equal(t, char, value[idx])

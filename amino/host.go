@@ -240,40 +240,48 @@ func (h *DHTHost) GetMAddrsOfPeer(p peer.ID) []ma.Multiaddr {
 	return h.host.Peerstore().Addrs(p)
 }
 
-func (h *DHTHost) FindClosestPeers(ctx context.Context, key string) (time.Duration, []peer.ID, error) {
+func (h *DHTHost) FindClosestPeers(ctx context.Context, key string, timeout time.Duration) (time.Duration, []peer.ID, error) {
+	opCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	log.WithFields(log.Fields{
 		"host-id": h.id,
 		"cid":     key,
 	}).Debug("looking for peers close to key")
 	startT := time.Now()
-	closePeers, err := h.dhtCli.GetClosestPeers(ctx, key)
+	closePeers, err := h.dhtCli.GetClosestPeers(opCtx, key)
 	if err != nil {
 		return time.Since(startT), []peer.ID{}, err
 	}
 	return time.Since(startT), closePeers, err
 }
 
-func (h *DHTHost) FindProviders(ctx context.Context, key cid.Cid) (time.Duration, []peer.AddrInfo, error) {
+func (h *DHTHost) FindProviders(ctx context.Context, key cid.Cid, timeout time.Duration) (time.Duration, []peer.AddrInfo, error) {
+	opCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	log.WithFields(log.Fields{
 		"host-id": h.id,
 		"cid":     key.Hash().B58String(),
 	}).Debug("looking for providers")
 	startT := time.Now()
-	providers, err := h.dhtCli.FindProviders(ctx, key)
+	providers, err := h.dhtCli.FindProviders(opCtx, key)
 	return time.Since(startT), providers, err
 }
 
 func (h *DHTHost) FindValue(
 	ctx context.Context,
 	key string,
+	timeout time.Duration,
 ) (t time.Duration, value []byte, err error) {
+	opCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	log.WithFields(log.Fields{
 		"host-id": h.id,
 		"key":     key,
 	}).Debug("looking for providers")
 
-	opCtx, opCancel := context.WithCancel(ctx)
-	defer opCancel()
 	startT := time.Now()
 	outC, err := h.dhtCli.SearchValue(
 		opCtx,
@@ -298,18 +306,31 @@ func (h *DHTHost) FindValue(
 	return time.Since(startT), value, err
 }
 
-func (h *DHTHost) PutValue(ctx context.Context, key string, value []byte) (time.Duration, error) {
+func (h *DHTHost) PutValue(
+	ctx context.Context,
+	key string,
+	value []byte,
+	timeout time.Duration,
+) (time.Duration, error) {
+	opCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	log.WithFields(log.Fields{
 		"host-id": h.id,
 		"key":     key,
 	}).Debug("looking for providers")
 	startT := time.Now()
-	err := h.dhtCli.PutValue(ctx, key, value)
+	err := h.dhtCli.PutValue(opCtx, key, value)
 
 	return time.Since(startT), err
 }
 
-func (h *DHTHost) FindPeers(ctx context.Context, key string, opDuration time.Duration) (time.Duration, []peer.AddrInfo, error) {
+func (h *DHTHost) FindPeers(
+	ctx context.Context,
+	key string,
+	timeout time.Duration,
+) (time.Duration, []peer.AddrInfo, error) {
+
 	log.WithFields(log.Fields{
 		"host-id": h.id,
 		"key":     key,
@@ -317,7 +338,7 @@ func (h *DHTHost) FindPeers(ctx context.Context, key string, opDuration time.Dur
 
 	providers := make(map[peer.ID]peer.AddrInfo)
 	res := make([]peer.AddrInfo, 0)
-	timeoutT := time.NewTicker(opDuration)
+	timeoutT := time.NewTicker(timeout)
 
 	startT := time.Now()
 	peersC, err := h.dhtDisc.FindPeers(ctx, key, discovery.Limit(0))
@@ -347,6 +368,23 @@ waitLoop:
 	}
 
 	return time.Since(startT), res, err
+}
+
+func (h *DHTHost) FindPeer(
+	ctx context.Context,
+	peerID peer.ID,
+	timeout time.Duration,
+) (time.Duration, peer.AddrInfo, error) {
+	opCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	log.WithFields(log.Fields{
+		"host-id": h.id,
+		"peer_id": peerID.String(),
+	}).Debug("looking for info of a peer")
+	startT := time.Now()
+	pInfo, err := h.dhtCli.FindPeer(opCtx, peerID)
+	return time.Since(startT), pInfo, err
 }
 
 // initMetrics initializes various prometheus metrics and stores the meters
@@ -411,6 +449,37 @@ func (h *DHTHost) internalsDebugger(ctx context.Context) {
 
 func (h *DHTHost) getCurrentConnections() []peer.ID {
 	return h.host.Network().Peers()
+}
+
+func (h *DHTHost) ConnectAndIdentifyPeer(
+	ctx context.Context,
+	pi peer.AddrInfo,
+	retries int,
+	timeout time.Duration,
+) (result map[string]any, err error) {
+	log.WithFields(log.Fields{
+		"peer_id":    pi.ID.String(),
+		"maddresses": pi.Addrs,
+	}).Info("trying to connect...")
+
+	for retry := 0; retry < retries; retry++ {
+		opCtx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+
+		err = h.host.Connect(opCtx, pi)
+		switch err {
+		case nil:
+			return h.getLibp2pHostInfo(pi.ID)
+
+		default:
+			log.WithFields(log.Fields{
+				"retry": retry,
+				"error": err,
+			}).Warnf("connection attempt failed...")
+			continue
+		}
+	}
+	return result, err
 }
 
 func (h *DHTHost) getLibp2pHostInfo(pID peer.ID) (map[string]any, error) {

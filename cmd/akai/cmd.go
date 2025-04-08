@@ -40,7 +40,7 @@ var app = &cli.Command{
 	Before:                rootBefore,
 	Commands: []*cli.Command{
 		cmdService,
-		cmdPing,
+		cmdFindOP,
 		cmdAvailBlockTracker,
 	},
 	After: rootAfter,
