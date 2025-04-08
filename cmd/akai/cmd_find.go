@@ -25,7 +25,7 @@ var cmdFindOP = &cli.Command{
 		cmdFindProviders,
 		cmdFindValue,
 		cmdFindPeers,
-		cmdFindPeer,
+		cmdFindPeerInfo,
 	},
 }
 

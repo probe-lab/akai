@@ -14,7 +14,7 @@ const (
 	SampleProviders
 	SampleValue
 	SamplePeers
-	SamplePeer
+	SamplePeerInfo
 )
 
 type AkaiDataSamplerConfig struct {
@@ -48,10 +48,10 @@ func ParseSamplingType(t SamplingType) string {
 		return "FIND_CLOSEST"
 	case SampleProviders:
 		return "FIND_PROVIDERS"
-	case SamplePeer:
-		return "FIND_PEERS"
+	case SamplePeerInfo:
+		return "FIND_PEER_INFO"
 	case SamplePeers:
-		return "FIND_PEER"
+		return "FIND_PEERS"
 	case SampleValue:
 		return "FIND_VALUE"
 	case SampleUnknown:

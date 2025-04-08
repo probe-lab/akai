@@ -16,16 +16,16 @@ import (
 	"github.com/probe-lab/akai/db/models"
 )
 
-var cmdFindPeer = &cli.Command{
+var cmdFindPeerInfo = &cli.Command{
 	Name:   "peer-info",
 	Usage:  "Finds all the existing information about a PeerID at the given network's DHT",
 	Flags:  []cli.Flag{},
-	Action: cmdFindPeerAction,
+	Action: cmdFindPeerInfoAction,
 }
 
-func cmdFindPeerAction(ctx context.Context, cmd *cli.Command) error {
+func cmdFindPeerInfoAction(ctx context.Context, cmd *cli.Command) error {
 	log.WithFields(log.Fields{
-		"operation": config.ParseSamplingType(config.SamplePeer),
+		"operation": config.ParseSamplingType(config.SamplePeerInfo),
 		"peer_id":   findOP.Key,
 		"network":   findOP.Network,
 		"timeout":   findOP.Timeout,
@@ -70,7 +70,7 @@ func cmdFindPeerAction(ctx context.Context, cmd *cli.Command) error {
 				errStr = err.Error()
 			}
 			log.WithFields(log.Fields{
-				"operation":   config.ParseSamplingType(config.SamplePeer),
+				"operation":   config.ParseSamplingType(config.SamplePeerInfo),
 				"timestamp":   t,
 				"peer_id":     peerID.String(),
 				"maddres":     peerInfo.Addrs,
@@ -88,5 +88,5 @@ func cmdFindPeerAction(ctx context.Context, cmd *cli.Command) error {
 			continue
 		}
 	}
-	return fmt.Errorf("the %s operation couldn't report any successful result", config.ParseSamplingType(config.SamplePeer))
+	return fmt.Errorf("the %s operation couldn't report any successful result", config.ParseSamplingType(config.SamplePeerInfo))
 }
