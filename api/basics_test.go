@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/probe-lab/akai/db/models"
+	"github.com/probe-lab/akai/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,21 +44,21 @@ func Test_PostNewBlob(t *testing.T) {
 	ensureClientServerConnection(t, ctx, cli)
 
 	// send a valid item
-	blob := Blob{
-		Network:    models.NetworkFromStr(DefaulServiceConfig.Network),
+	block := Block{
+		Network:    config.NetworkFromStr(DefaulServiceConfig.Network),
 		Number:     1,
 		Hash:       "0xHASH",
 		ParentHash: "OxPARENTHASH",
 		Rows:       1,
 		Columns:    1,
-		Segments:   make([]BlobSegment, 0),
+		Items:      make([]DASItem, 0),
 		Metadata:   make(map[string]any),
 	}
-	err := cli.PostNewBlob(ctx, blob)
+	err := cli.PostNewBlock(ctx, block)
 	require.NoError(t, err)
 }
 
-func Test_PostNewSegment(t *testing.T) {
+func Test_PostNewitem(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		cancel()
@@ -67,18 +67,20 @@ func Test_PostNewSegment(t *testing.T) {
 	_, cli := basicServiceAndClient(t, ctx)
 	ensureClientServerConnection(t, ctx, cli)
 
-	segment := BlobSegment{
-		BlobNumber: 1,
-		Row:        1,
-		Column:     1,
-		Key:        "0xSEGMENT",
-		Bytes:      make([]byte, 0),
+	item := DASItem{
+		Timestamp: time.Now(),
+		Network:   config.NetworkFromStr(DefaulServiceConfig.Network),
+		BlockLink: 1,
+		Key:       "0xitem",
+		Hash:      "0xhash",
+		Row:       1,
+		Column:    1,
 	}
-	err := cli.PostNewSegment(ctx, segment)
+	err := cli.PostNewItem(ctx, item)
 	require.NoError(t, err)
 }
 
-func Test_PostNewSegments(t *testing.T) {
+func Test_PostNewitems(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		cancel()
@@ -87,24 +89,22 @@ func Test_PostNewSegments(t *testing.T) {
 	_, cli := basicServiceAndClient(t, ctx)
 	ensureClientServerConnection(t, ctx, cli)
 
-	segments := []BlobSegment{
+	items := []DASItem{
 		{
-			BlobNumber: 1,
-			Row:        1,
-			Column:     1,
-			Key:        "0xSEGMENT",
-			Bytes:      make([]byte, 0),
+			BlockLink: 1,
+			Row:       1,
+			Column:    1,
+			Key:       "0xitem",
 		},
 		{
-			BlobNumber: 2,
-			Row:        1,
-			Column:     1,
-			Key:        "0xSEGMENT_2",
-			Bytes:      make([]byte, 0),
+			BlockLink: 2,
+			Row:       1,
+			Column:    1,
+			Key:       "0xitem_2",
 		},
 	}
 
-	err := cli.PostNewSegments(ctx, segments)
+	err := cli.PostNewItems(ctx, items)
 	require.NoError(t, err)
 }
 
