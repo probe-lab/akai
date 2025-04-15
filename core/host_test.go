@@ -11,7 +11,6 @@ import (
 	"go.opentelemetry.io/otel"
 
 	"github.com/probe-lab/akai/config"
-	"github.com/probe-lab/akai/db/models"
 
 	"github.com/stretchr/testify/require"
 )
@@ -57,7 +56,7 @@ func Test_AvailKeyPing(t *testing.T) {
 }
 
 func composeDemoDHTNetwork(ctx context.Context, t *testing.T, nodeNumbers int64) []DHTHost {
-	network := models.Network{Protocol: config.ProtocolLocal, NetworkName: config.NetworkNameCustom}
+	network := config.Network{Protocol: config.ProtocolLocal, NetworkName: config.NetworkNameCustom}
 	networkConfig, err := config.ConfigureNetwork(network)
 	require.NoError(t, err)
 

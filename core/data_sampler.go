@@ -6,8 +6,7 @@ import (
 	"sync"
 	"time"
 
-	lru "github.com/hashicorp/golang-lru/v2"
-	"github.com/probe-lab/akai/amino"
+	"github.com/ipfs/go-cid"
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/db"
 	"github.com/probe-lab/akai/db/models"
@@ -16,7 +15,12 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-type SamplerFunction func(context.Context, DHTHost, models.AgnosticSegment, time.Duration) (models.AgnosticVisit, error)
+type SamplerFunction func(
+	context.Context,
+	DHTHost,
+	*models.SamplingItem,
+	int,
+	time.Duration) (models.GeneralVisit, error)
 
 var minIterTime = 250 * time.Millisecond
 
@@ -30,15 +34,14 @@ var DefaultDataSamplerConfig = &config.AkaiDataSamplerConfig{
 
 type DataSampler struct {
 	cfg     *config.AkaiDataSamplerConfig
-	network models.Network
+	network config.Network
 
-	db        db.Database
-	h         DHTHost
-	samplerFn SamplerFunction
+	h               DHTHost
+	networkScrapper NetworkScrapper
+	db              db.Database
+	itemSet         *dasItemSet
 
-	blobIDs    *lru.Cache[uint64, *models.AgnosticBlob]
-	segSet     *segmentSet
-	visitTaskC chan *models.AgnosticSegment
+	samplingTaskC chan SamplingTask
 
 	// metrics
 	currentSamplesCount     metric.Int64ObservableGauge
@@ -50,23 +53,17 @@ type DataSampler struct {
 func NewDataSampler(
 	cfg *config.AkaiDataSamplerConfig,
 	database db.Database,
+	networkScrapper NetworkScrapper,
 	h DHTHost,
-	samplerFn SamplerFunction,
 ) (*DataSampler, error) {
-	blobsCache, err := lru.New[uint64, *models.AgnosticBlob](cfg.BlobsSetCacheSize) // <block_number>, <block_ID_in_DB>
-	if err != nil {
-		return nil, err
-	}
 
 	ds := &DataSampler{
-		cfg:        cfg,
-		network:    models.NetworkFromStr(cfg.Network),
-		db:         database,
-		h:          h,
-		samplerFn:  samplerFn,
-		segSet:     newSegmentSet(),
-		visitTaskC: make(chan *models.AgnosticSegment, cfg.Workers),
-		blobIDs:    blobsCache,
+		cfg:           cfg,
+		network:       config.NetworkFromStr(cfg.Network),
+		db:            database,
+		h:             h,
+		itemSet:       newDASItemSet(),
+		samplingTaskC: make(chan SamplingTask, cfg.Workers),
 	}
 
 	return ds, nil
@@ -78,10 +75,10 @@ func (ds *DataSampler) Serve(ctx context.Context) error {
 		return err
 	}
 
-	err = ds.syncWithDatabase(ctx)
-	if err != nil {
-		return err
-	}
+	// TODO: add here the init and serve of the Network networkScrapper
+	// - init it
+	// - read from the channel
+	// - update the it
 
 	// start the orchester
 	go ds.runSampleOrchester(ctx)
@@ -105,13 +102,13 @@ func (ds *DataSampler) runSampleOrchester(ctx context.Context) {
 		olog.Info("sample orchester closed")
 	}()
 
-	// ensure that the segmentSet is not freshly created
+	// ensure that the ItemSet is not freshly created
 	minTimeT := time.NewTicker(minIterTime)
 initLoop:
-	for !ds.segSet.isInit() {
+	for !ds.itemSet.isInit() {
 		select {
 		case <-minTimeT.C:
-			olog.Trace("segment_set still not initialized")
+			olog.Trace("Item_set still not initialized")
 			minTimeT.Reset(minIterTime)
 		case <-ctx.Done():
 			break initLoop
@@ -123,10 +120,10 @@ initLoop:
 	var currentLoopVisitCounter int64 = 0
 	loopStartTime := time.Now()
 
-	// check if we need to update the segment set
+	// check if we need to update the Item set
 	updateSegSet := func() {
-		olog.Debugf("reorgananizing (%d) Segments based on their next visit time", ds.segSet.Len())
-		ds.segSet.SortSegmentList()
+		olog.Debugf("reorgananizing (%d) Items based on their next visit time", ds.itemSet.Len())
+		ds.itemSet.SortItemList()
 		currentLoopVisitCounter = 0
 		loopStartTime = time.Now()
 	}
@@ -135,7 +132,7 @@ initLoop:
 		ds.loopVisitCount.Record(ctx, currentLoopVisitCounter)
 		ds.loopTimeDurationSeconds.Record(ctx, int64(time.Since(loopStartTime).Seconds()))
 
-		nextT, sortedNeeded := ds.segSet.NextVisitTime()
+		nextT, sortedNeeded := ds.itemSet.NextVisitTime()
 		if sortedNeeded {
 			if nextT.IsZero() {
 				ds.delaySecsToNextVisit.Record(ctx, int64(0))
@@ -157,41 +154,44 @@ initLoop:
 			<-minTimeT.C // ensure minimal interval between resets to not spam the DB nor wasting CPU cicles
 			minTimeT.Reset(minIterTime)
 
-			nextSegment := ds.segSet.Next()
-			if nextSegment == nil {
-				log.Debug("there is no next segment to visit")
+			nextItem := ds.itemSet.Next()
+			if nextItem == nil {
+				log.Debug("there is no next Item to visit")
 				updateSegSet()
 				updateSamplerMetrics()
 				continue
 			}
 
 			// check if we have to sort again
-			if !nextSegment.IsReadyForNextPing() {
-				if nextSegment.NextVisit.IsZero() {
-					// as we organize the segments by nextVisitTime, "zero" time gets first
+			if !nextItem.IsReadyForNextPing() {
+				if nextItem.NextVisit.IsZero() {
+					// as we organize the Items by nextVisitTime, "zero" time gets first
 					// breaking always the loop until all the Cids have been generated
 					// and published, thus, let the foor loop find a valid time
-					olog.Debugf("not in time to visit %s next visit in zero (%s)", nextSegment.Key, time.Until(nextSegment.NextVisit))
+					olog.Debugf("not in time to visit %s next visit in zero (%s)", nextItem.Key, time.Until(nextItem.NextVisit))
 				}
-				olog.Debugf("not in time to visit %s next visit in %s", nextSegment.Key, time.Until(nextSegment.NextVisit))
+				olog.Debugf("not in time to visit %s next visit in %s", nextItem.Key, time.Until(nextItem.NextVisit))
 				// we have to update anyways
 				updateSegSet()
 				updateSamplerMetrics()
 				continue
 			}
 
-			// update the segment for the next visit
-			hasValidNextVisit := ds.updateNextVisitTime(nextSegment)
+			// update the Item for the next visit
+			visitRound, hasValidNextVisit := ds.updateNextVisitTime(nextItem)
 			if !hasValidNextVisit {
-				ds.segSet.removeSegment(nextSegment.Key)
+				ds.itemSet.removeItem(nextItem.Key)
 			}
-			ds.visitTaskC <- nextSegment
+			ds.samplingTaskC <- SamplingTask{
+				visitRound: visitRound,
+				item:       nextItem,
+			}
 
 			// metrics
 			currentLoopVisitCounter++
 			updateSamplerMetrics()
 
-			_, sortNeeded := ds.segSet.NextVisitTime()
+			_, sortNeeded := ds.itemSet.NextVisitTime()
 			if sortNeeded {
 				updateSegSet()
 			}
@@ -208,9 +208,9 @@ func (ds *DataSampler) runSampler(ctx context.Context, samplerID int64) {
 
 	for {
 		select {
-		case samplingSegment := <-ds.visitTaskC:
-			wlog.Debugf("sampling %s", samplingSegment.Key)
-			err := ds.sampleSegment(ctx, *samplingSegment, ds.cfg.SamplingTimeout)
+		case task := <-ds.samplingTaskC:
+			wlog.Debugf("sampling %s", task.item.Key)
+			err := ds.sampleItem(ctx, task.visitRound, task.item, ds.cfg.SamplingTimeout)
 			if err != nil {
 				log.Panicf("error persinting sampling visit - %s", err)
 			}
@@ -221,128 +221,107 @@ func (ds *DataSampler) runSampler(ctx context.Context, samplerID int64) {
 	}
 }
 
-func (ds *DataSampler) syncWithDatabase(ctx context.Context) error {
-	// sample the blobs
-	opCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	sampleableBlobs, err := ds.db.GetSampleableBlobs(opCtx)
-	if err != nil {
-		return err
-	}
-	if len(sampleableBlobs) > 0 {
-		first := sampleableBlobs[0].BlobNumber
-		last := sampleableBlobs[0].BlobNumber
-		for _, blob := range sampleableBlobs {
-			ds.blobIDs.Add(blob.BlobNumber, &blob)
-			last = blob.BlobNumber
-		}
-		log.WithFields(log.Fields{
-			"from":  first,
-			"to":    last,
-			"total": len(sampleableBlobs),
-		}).Info("synced data-sampler's sampleable blobs with the DB")
-	} else {
-		log.Warn("no sampleable blobs were found at DB")
-	}
-
-	// sample the segments
-	opCtx, cancel = context.WithTimeout(ctx, 2*time.Minute)
-	defer cancel()
-	t := time.Now()
-	sampleableSegs, err := ds.db.GetSampleableSegments(opCtx)
-	if err != nil {
-		return err
-	}
-	if len(sampleableSegs) > 0 {
-		first := sampleableSegs[0].Key
-		last := sampleableSegs[0].Key
-		for _, seg := range sampleableSegs {
-			key, err := config.AvailKeyFromString(seg.Key)
-			if err != nil {
-				return err
-			}
-			seg.BlobNumber = uint64(key.Block)
-			seg.Column = uint32(key.Column)
-			seg.Row = uint32(key.Row)
-			last = seg.Key
-			ds.updateNextVisitTime(&seg)
-			_ = ds.segSet.addSegment(&seg)
-		}
-		log.WithFields(log.Fields{
-			"from":        first,
-			"to":          last,
-			"total":       len(sampleableSegs),
-			"import-time": time.Since(t),
-		}).Info("synced data-sampler's sampleable segments with the DB")
-	} else {
-		log.Warn("no sampleable segments were found at DB")
-	}
-
-	return nil
-}
-
-func (ds *DataSampler) sampleSegment(
+func (ds *DataSampler) sampleItem(
 	ctx context.Context,
-	segment models.AgnosticSegment,
+	visitRound int,
+	item *models.SamplingItem,
 	timeout time.Duration,
 ) error {
 	log.WithFields(log.Fields{
-		"segment":          segment.Key,
-		"sampleable_until": segment.SampleUntil,
-	}).Debug("sampling segment of blob")
+		"Item":             item.Key,
+		"sampleable_until": item.SampleUntil,
+	}).Debug("sampling Item of blob")
 
-	visit, err := ds.samplerFn(ctx, ds.h, segment, timeout)
+	samplerFn, err := samplingFnFromType(item.SampleType)
 	if err != nil {
 		return err
 	}
 
-	// update the DB with the result of the visit
-	return ds.db.PersistNewSegmentVisit(ctx, visit)
+	resVisit, err := samplerFn(ctx, ds.h, item, visitRound, timeout)
+	if err != nil {
+		return err
+	}
+	// Iter through all the items in the visits
+	// - Generic Visists
+	if genericVisits := resVisit.GetGenericVisit(); genericVisits != nil {
+		for _, visit := range genericVisits {
+			err = ds.db.PersistNewSampleGenericVisit(ctx, visit)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	// - Value Visists
+	if valueVisits := resVisit.GetGenericValueVisit(); valueVisits != nil {
+		for _, visit := range valueVisits {
+			err = ds.db.PersistNewSampleValueVisit(ctx, visit)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
-func (ds *DataSampler) BlobsCache() *lru.Cache[uint64, *models.AgnosticBlob] {
-	return ds.blobIDs
-}
-
-func (ds *DataSampler) updateNextVisitTime(segment *models.AgnosticSegment) (validNextVisit bool) {
+func (ds *DataSampler) updateNextVisitTime(item *models.SamplingItem) (visitRound int, validNextVisit bool) {
 	// TODO: COnsider having all these network parameters in as single struct per network
 	switch ds.network.Protocol {
 	case config.ProtocolIPFS, config.ProtocolCelestia:
 		// constant increment of 15/30 mins
-		multCnt := 1
-		delay := ds.cfg.DelayBase
-		nextVisit := segment.Timestamp.Add(delay)
-		multCnt++
-		for (nextVisit.Before(segment.NextVisit) && nextVisit.Equal(segment.NextVisit)) || nextVisit.Before(time.Now()) {
-			delay = delay + ds.cfg.DelayBase
-			nextVisit = segment.Timestamp.Add(delay)
-			multCnt++
-		}
+		visitRound, nextVisitTime := computeNextvisitTime(
+			item.Timestamp,
+			item.NextVisit,
+			ds.cfg.DelayBase,
+			ds.cfg.DelayMultiplier,
+			addConstantDelay,
+		)
 
-		segment.VisitRound = uint64(multCnt)
-		segment.NextVisit = nextVisit
-		return nextVisit.Before(segment.SampleUntil)
+		item.NextVisit = nextVisitTime
+		return visitRound, nextVisitTime.Before(item.SampleUntil)
 
-	case config.ProtocolAvail, config.NetworkNameCustom:
+	case config.ProtocolAvail, config.ProtocolLocal:
 		// exponentially increasing delay until end date
-		multCnt := 1
-		delay := ds.cfg.DelayBase
-		nextVisit := segment.Timestamp.Add(delay)
-		multCnt++
-		for (nextVisit.Before(segment.NextVisit) && nextVisit.Equal(segment.NextVisit)) || nextVisit.Before(time.Now()) {
-			delay = delay * time.Duration(ds.cfg.DelayMultiplier)
-			nextVisit = segment.Timestamp.Add(delay)
-			multCnt++
-		}
-
-		segment.VisitRound = uint64(multCnt)
-		segment.NextVisit = nextVisit
-		return nextVisit.Before(segment.SampleUntil)
+		visitRound, nextVisitTime := computeNextvisitTime(
+			item.Timestamp,
+			item.NextVisit,
+			ds.cfg.DelayBase,
+			ds.cfg.DelayMultiplier,
+			addExponentialDelay,
+		)
+		item.NextVisit = nextVisitTime
+		return visitRound, nextVisitTime.Before(item.SampleUntil)
 
 	default:
 		log.Panic("unable to apply delay for next visit, as the network is not supported")
-		return false
+		return 0, false
 	}
+}
+
+func computeNextvisitTime(
+	itemT, itemNextV time.Time,
+	delayBase time.Duration,
+	delayMultiplier int,
+	delayApplier func(*time.Duration, int, time.Duration),
+) (visitRound int, nextVisitTime time.Time) {
+
+	multCnt := 1
+	delay := delayBase
+	nextVisit := itemT.Add(delay)
+	multCnt++
+	for (nextVisit.Before(itemNextV) && nextVisit.Equal(itemNextV)) || nextVisit.Before(time.Now()) {
+		delayApplier(&delay, delayMultiplier, delayBase)
+		nextVisit = itemT.Add(delay)
+		multCnt = multCnt + 1
+	}
+	return multCnt, nextVisit
+}
+
+func addExponentialDelay(delay *time.Duration, delayMultiplier int, _ time.Duration) {
+	*delay = *delay * time.Duration(delayMultiplier)
+}
+
+func addConstantDelay(delay *time.Duration, _ int, delayBase time.Duration) {
+	*delay = *delay + delayBase
 }
 
 // initMetrics initializes various prometheus metrics and stores the meters
@@ -354,7 +333,7 @@ func (ds *DataSampler) initMetrics() (err error) {
 	}
 
 	_, err = ds.cfg.Meter.RegisterCallback(func(ctx context.Context, obs metric.Observer) error {
-		obs.ObserveInt64(ds.currentSamplesCount, int64(len(ds.segSet.segmentArray)))
+		obs.ObserveInt64(ds.currentSamplesCount, int64(ds.itemSet.Len()))
 		return nil
 	}, ds.currentSamplesCount)
 	if err != nil {
@@ -379,129 +358,155 @@ func (ds *DataSampler) initMetrics() (err error) {
 	return nil
 }
 
+// TODO: in the future, this could be extended to make a "smarter" division of the tasks:
+// - key-space filltering
+// - host selection
+// - or similars
+type SamplingTask struct {
+	visitRound int
+	item       *models.SamplingItem
+}
+
 // logical sampler functions
 func sampleByFindProviders(
 	ctx context.Context,
 	h DHTHost,
-	segmnt models.AgnosticSegment,
+	item *models.SamplingItem,
+	visitRound int,
 	timeout time.Duration,
-) (models.AgnosticVisit, error) {
-	visit := models.AgnosticVisit{
-		VisitRound:    segmnt.VisitRound,
+) (models.GeneralVisit, error) {
+	// generate the base for the generic visit
+	visit := models.SampleGenericVisit{
+		VisitType:     config.SampleProviders.String(),
+		VisitRound:    uint64(visitRound),
+		Network:       item.Network.String(),
 		Timestamp:     time.Now(),
-		Key:           segmnt.Key,
-		BlobNumber:    segmnt.BlobNumber,
-		Row:           segmnt.Row,
-		Column:        segmnt.Column,
-		IsRetrievable: false,
-		Providers:     0,
-		Bytes:         0,
+		Key:           item.Key,
+		DurationMs:    int64(0),
+		ResponseItems: 0,
+		Peers:         make([]string, 0),
+		Error:         "",
 	}
 
-	cid, err := amino.CidFromString(segmnt.Key)
+	contentID, err := cid.Decode(item.Key)
 	if err != nil {
-		visit.Error = "segment key doesn't represent a valid CID"
+		visit.Error = "Item key doesn't represent a valid CID"
 	}
 
 	// make the sampling
-	duration, providers, err := h.FindProviders(ctx, cid.Cid(), timeout)
+	duration, providers, err := h.FindProviders(ctx, contentID, timeout)
 	if err != nil {
 		visit.Error = err.Error()
 	}
-	if len(providers) > 0 {
-		visit.IsRetrievable = true
-	}
 	// apply rest of values
 	visit.DurationMs = duration.Milliseconds()
-	visit.Bytes = 0
-	visit.Providers = uint32(len(providers))
+	visit.ResponseItems = int32(len(providers))
+	for _, pr := range providers {
+		visit.Peers = append(visit.Peers, pr.ID.String())
+	}
 
 	log.WithFields(log.Fields{
 		"timestamp":   time.Now(),
-		"key":         segmnt.Key,
+		"key":         item.Key,
 		"duration":    duration,
 		"n_providers": len(providers),
+		"providers":   len(visit.Peers),
 		"error":       visit.Error,
 	}).Debug("find providers operation done")
 
-	return visit, nil
+	return models.GeneralVisit{
+		GenericVisit: []*models.SampleGenericVisit{
+			&visit,
+		},
+		GenericValueVisit: nil,
+	}, nil
 }
 
 func sampleByFindPeers(
 	ctx context.Context,
 	h DHTHost,
-	segmnt models.AgnosticSegment,
+	item *models.SamplingItem,
+	visitRound int,
 	timeout time.Duration,
-) (models.AgnosticVisit, error) {
-	visit := models.AgnosticVisit{
-		VisitRound:    segmnt.VisitRound,
+) (models.GeneralVisit, error) {
+	visit := models.SampleGenericVisit{
+		VisitType:     config.SamplePeers.String(),
+		VisitRound:    uint64(visitRound),
+		Network:       item.Network.String(),
 		Timestamp:     time.Now(),
-		Key:           segmnt.Key,
-		BlobNumber:    segmnt.BlobNumber,
-		Row:           segmnt.Row,
-		Column:        segmnt.Column,
-		IsRetrievable: false,
-		Providers:     0,
-		Bytes:         0,
+		Key:           item.Key,
+		DurationMs:    int64(0),
+		ResponseItems: 0,
+		Peers:         make([]string, 0),
+		Error:         "",
 	}
 
 	// make the sampling
-	duration, peers, err := h.FindPeers(ctx, segmnt.Key, timeout)
+	duration, peers, err := h.FindPeers(ctx, item.Key, timeout)
 	if err != nil {
 		visit.Error = err.Error()
-	}
-	if len(peers) > 0 {
-		visit.IsRetrievable = true
 	}
 
 	// apply rest of values
 	visit.DurationMs = duration.Milliseconds()
-	visit.Bytes = 0
-	visit.Providers = uint32(len(peers))
+	visit.ResponseItems = int32(len(peers))
+	for _, pr := range peers {
+		visit.Peers = append(visit.Peers, pr.ID.String())
+	}
 
 	log.WithFields(log.Fields{
 		"timestamp":   time.Now(),
-		"key":         segmnt.Key,
+		"key":         item.Key,
 		"duration":    duration,
 		"n_providers": len(peers),
 		"peer_ids":    ListPeerIDsFromAddrsInfos(peers),
 		"error":       visit.Error,
 	}).Debug("find peers operation done")
 
-	return visit, nil
+	return models.GeneralVisit{
+		GenericVisit: []*models.SampleGenericVisit{
+			&visit,
+		},
+		GenericValueVisit: nil,
+	}, nil
 }
 
 func sampleByFindValue(
 	ctx context.Context,
 	h DHTHost,
-	segmnt models.AgnosticSegment,
+	item *models.SamplingItem,
+	visitRound int,
 	timeout time.Duration,
-) (models.AgnosticVisit, error) {
-	visit := models.AgnosticVisit{
-		VisitRound:    segmnt.VisitRound,
+) (models.GeneralVisit, error) {
+	visit := models.SampleValueVisit{
+		VisitRound:    uint64(visitRound),
+		VisitType:     item.ItemType.String(),
+		Network:       item.Network.String(),
 		Timestamp:     time.Now(),
-		Key:           segmnt.Key,
-		BlobNumber:    segmnt.BlobNumber,
-		Row:           segmnt.Row,
-		Column:        segmnt.Column,
+		Key:           item.Key,
+		BlockNumber:   item.BlockLink,
+		DASRow:        item.DASRow,
+		DASColumn:     item.DASColumn,
+		DurationMs:    int64(0),
 		IsRetrievable: false,
+		Bytes:         0,
+		Error:         "",
 	}
 
 	// make the sampling
-	duration, bytes, err := h.FindValue(ctx, segmnt.Key, timeout)
+	duration, bytes, err := h.FindValue(ctx, item.Key, timeout)
 	if err != nil {
 		visit.Error = err.Error()
 	}
 	if len(bytes) > 0 {
-		visit.Providers = 1
 		visit.IsRetrievable = true
-		visit.Bytes = uint32(len(bytes))
+		visit.Bytes = int32(len(bytes))
 		// there is an edgy case where the sampling reports a failure
 		// but the content was retrieved -> Err = ContextDeadlineExceeded
 		// rewrite the error to nil/Empty
 		if err == context.DeadlineExceeded {
 			log.WithFields(log.Fields{
-				"key":   segmnt.Key,
+				"key":   item.Key,
 				"bytes": len(bytes),
 			}).Warn("key retrieved, but context was exceeded")
 			visit.Error = ""
@@ -512,16 +517,21 @@ func sampleByFindValue(
 
 	log.WithFields(log.Fields{
 		"timestamp": time.Now(),
-		"key":       segmnt.Key,
+		"key":       item.Key,
 		"duration":  duration,
 		"bytes":     len(bytes),
 		"error":     visit.Error,
 	}).Debug("find value operation done")
 
-	return visit, nil
+	return models.GeneralVisit{
+		GenericVisit: nil,
+		GenericValueVisit: []*models.SampleValueVisit{
+			&visit,
+		},
+	}, nil
 }
 
-func GetSamplingFnFromType(sampleType config.SamplingType) (SamplerFunction, error) {
+func samplingFnFromType(sampleType config.SamplingType) (SamplerFunction, error) {
 	switch sampleType {
 	case config.SampleProviders:
 		return sampleByFindProviders, nil
@@ -536,10 +546,11 @@ func GetSamplingFnFromType(sampleType config.SamplingType) (SamplerFunction, err
 		return func(
 			_ context.Context,
 			_ DHTHost,
-			_ models.AgnosticSegment,
+			_ *models.SamplingItem,
+			_ int,
 			_ time.Duration,
-		) (models.AgnosticVisit, error) {
-			return models.AgnosticVisit{}, nil
+		) (models.GeneralVisit, error) {
+			return models.GeneralVisit{}, nil
 		}, nil
 	}
 }
