@@ -3,46 +3,52 @@ package config
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	record "github.com/libp2p/go-libp2p-record"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/probe-lab/akai/db/models"
 )
 
-var DefaultNetwork = models.Network{
+var DefaultNetwork = Network{
 	Protocol:    ProtocolAvail,
 	NetworkName: NetworkNameMainnet,
-	NetworkID:   0,
 }
+
+type ProtocolType string
+
+func (p ProtocolType) String() string { return string(p) }
+
+type NetworkName string
+
+func (n NetworkName) String() string { return string(n) }
 
 // Protocols
 const (
-	ProtocolUnknown  string = "UNKNOWN"
-	ProtocolLocal    string = "LOCAL"
-	ProtocolIPFS     string = "IPFS"
-	ProtocolAvail    string = "AVAIL"
-	ProtocolCelestia string = "CELESTIA"
+	ProtocolUnknown  ProtocolType = "UNKNOWN"
+	ProtocolLocal    ProtocolType = "LOCAL"
+	ProtocolIPFS     ProtocolType = "IPFS"
+	ProtocolAvail    ProtocolType = "AVAIL"
+	ProtocolCelestia ProtocolType = "CELESTIA"
 )
 
 // Networks
 const (
 	// GENERIC
-	NetworkNameMainnet string = "MAINNET"
+	NetworkNameMainnet NetworkName = "MAINNET"
 	// IPFS
-	NetworkNameAmino string = "AMINO"
+	NetworkNameAmino NetworkName = "AMINO"
 	// AVAIL
-	NetworkNameTuring string = "TURING"
-	NetworkNameHex    string = "HEX"
+	NetworkNameTuring NetworkName = "TURING"
+	NetworkNameHex    NetworkName = "HEX"
 	// CELESTIA
-	NetworkNameMocha4 string = "MOCHA-4"
-
+	NetworkNameMocha4 NetworkName = "MOCHA-4"
 	// LOCAL
-	NetworkNameCustom string = "CUSTOM"
+	NetworkNameCustom NetworkName = "CUSTOM"
 )
 
-var AvailableProtocols map[string][]string = map[string][]string{
+var AvailableProtocols map[ProtocolType][]NetworkName = map[ProtocolType][]NetworkName{
 	ProtocolIPFS: {
 		NetworkNameAmino,
 	},
@@ -60,6 +66,40 @@ var AvailableProtocols map[string][]string = map[string][]string{
 	},
 }
 
+func ProtocolTypeFromString(s string) ProtocolType {
+	switch s {
+	case ProtocolLocal.String():
+		return ProtocolLocal
+	case ProtocolIPFS.String():
+		return ProtocolIPFS
+	case ProtocolAvail.String():
+		return ProtocolAvail
+	case ProtocolCelestia.String():
+		return ProtocolCelestia
+	default:
+		return ProtocolUnknown
+	}
+}
+
+func NetworkNameFromString(s string) NetworkName {
+	switch s {
+	case NetworkNameMainnet.String():
+		return NetworkNameMainnet
+	case NetworkNameAmino.String():
+		return NetworkNameAmino
+	case NetworkNameTuring.String():
+		return NetworkNameTuring
+	case NetworkNameHex.String():
+		return NetworkNameHex
+	case NetworkNameMocha4.String():
+		return NetworkNameMocha4
+	case NetworkNameCustom.String():
+		return NetworkNameCustom
+	default:
+		return NetworkNameMainnet
+	}
+}
+
 func ListAllNetworkCombinations() string {
 	var networks string
 	for protocol := range AvailableProtocols {
@@ -72,10 +112,10 @@ func ListAllNetworkCombinations() string {
 	return networks
 }
 
-func ListNetworksForProtocol(protocol string) string {
+func ListNetworksForProtocol(protocol ProtocolType) string {
 	networks := make([]string, 0)
 	for _, networkName := range AvailableProtocols[protocol] {
-		net := models.Network{Protocol: protocol, NetworkName: networkName}
+		net := Network{Protocol: protocol, NetworkName: networkName}
 		networks = append(networks, net.String())
 	}
 	return "[" + NetworkListToText(networks) + "]"
@@ -93,12 +133,42 @@ func NetworkListToText(networks []string) string {
 	return text
 }
 
+type Network struct {
+	Protocol    ProtocolType `ch:"protocol" json:"protocol"`
+	NetworkName NetworkName  `ch:"network_name" json:"network_name"`
+}
+
+func (n Network) String() string {
+	return fmt.Sprintf("%s_%s", n.Protocol, n.NetworkName)
+}
+
+func (n Network) FromString(s string) Network {
+	parts := strings.Split(s, "_")
+	protocol := strings.ToUpper(parts[0]) // the protocol goes always first
+	network := "MAINNET"
+	if len(parts) >= 2 {
+		network = strings.ToUpper(parts[1])
+	}
+	return Network{
+		Protocol:    ProtocolTypeFromString(protocol),
+		NetworkName: NetworkNameFromString(network),
+	}
+}
+
+func (n Network) IsComplete() bool {
+	return n.Protocol != "" && n.NetworkName != ""
+}
+
+func NetworkFromStr(s string) Network {
+	return Network{}.FromString(s)
+}
+
 // NetworkConfiguration describes the entire entire list of parameters and configurations that akai needs
 // based on each network's specifics
 // TODO: extend this to be readable from a JSON / YAML / TOML
 type NetworkConfiguration struct {
 	// Network specifics
-	Network        models.Network
+	Network        Network
 	BootstrapPeers []peer.AddrInfo
 	AgentVersion   string
 
@@ -120,7 +190,7 @@ type NetworkConfiguration struct {
 	GenesisTime time.Time
 }
 
-func ConfigureNetwork(network models.Network) (*NetworkConfiguration, error) {
+func ConfigureNetwork(network Network) (*NetworkConfiguration, error) {
 	switch network.Protocol {
 	case ProtocolIPFS:
 		// currently we only support the AMINO DHT

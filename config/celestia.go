@@ -6,7 +6,6 @@ import (
 
 	record "github.com/libp2p/go-libp2p-record"
 	"github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/probe-lab/akai/db/models"
 )
 
 const (
@@ -25,7 +24,7 @@ var (
 
 // DefaulIPFSNetworkConfig defines the default configuration for the IPFS network for Akai
 var DefaultCelestiaNetworkConfig = &NetworkConfiguration{
-	Network: models.Network{
+	Network: Network{
 		Protocol:    ProtocolCelestia,
 		NetworkName: NetworkNameMainnet,
 	},
@@ -47,7 +46,7 @@ var DefaultCelestiaNetworkConfig = &NetworkConfiguration{
 	DelayMultiplier:      CelestiaDelayMultiplier,
 }
 
-func GetCelestiaDHTProtocolPrefix(networkName string) string {
+func GetCelestiaDHTProtocolPrefix(networkName NetworkName) string {
 	net := CelestiaMainnet
 	switch networkName {
 	case NetworkNameMainnet:
@@ -84,4 +83,12 @@ func (v *CelestiaKeyValidator) Select(key string, values [][]byte) (int, error) 
 		return 0, ErrorNoValueForKey
 	}
 	return 1, nil
+}
+
+// Celestia DHT Namespace configuration
+type CelestiaNetworkScrapperConfig struct {
+	Network              string
+	NotChannelBufferSize int
+	SamplerNotifyTimeout time.Duration
+	AkaiAPIServiceConfig *AkaiAPIServiceConfig
 }

@@ -8,6 +8,25 @@ import (
 
 type SamplingType int
 
+func (t SamplingType) String() string {
+	switch t {
+	case SampleClosest:
+		return "FIND_CLOSEST"
+	case SampleProviders:
+		return "FIND_PROVIDERS"
+	case SamplePeerInfo:
+		return "FIND_PEER_INFO"
+	case SamplePeers:
+		return "FIND_PEERS"
+	case SampleValue:
+		return "FIND_VALUE"
+	case SampleUnknown:
+		return "UNKNOWN_OPERATION"
+	default:
+		return "UNKNOWN_OPERATION"
+	}
+}
+
 const (
 	SampleUnknown SamplingType = iota
 	SampleClosest
@@ -40,23 +59,4 @@ func UpdateSamplingDetailFromNetworkConfig(samplCfg *AkaiSamplingDetails, netCfg
 	samplCfg.SegmentsSetCacheSize = netCfg.SegmentsSetCacheSize
 	samplCfg.DelayBase = netCfg.DelayBase
 	samplCfg.DelayMultiplier = netCfg.DelayMultiplier
-}
-
-func ParseSamplingType(t SamplingType) string {
-	switch t {
-	case SampleClosest:
-		return "FIND_CLOSEST"
-	case SampleProviders:
-		return "FIND_PROVIDERS"
-	case SamplePeerInfo:
-		return "FIND_PEER_INFO"
-	case SamplePeers:
-		return "FIND_PEERS"
-	case SampleValue:
-		return "FIND_VALUE"
-	case SampleUnknown:
-		return "UNKNOWN_OPERATION"
-	default:
-		return "UNKNOWN_OPERATION"
-	}
 }

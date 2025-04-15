@@ -4,10 +4,11 @@ import (
 	"time"
 
 	kaddht "github.com/libp2p/go-libp2p-kad-dht"
-	"github.com/probe-lab/akai/db/models"
 )
 
 var (
+	DefaultIPFSNetwork = Network{Protocol: ProtocolIPFS, NetworkName: NetworkNameAmino}
+
 	IPFSDelayBase       = 5 * time.Minute
 	IPFSDelayMultiplier = 1
 
@@ -18,7 +19,7 @@ var (
 
 // DefaulIPFSNetworkConfig defines the default configuration for the IPFS network for Akai
 var DefaultIPFSNetworkConfig = NetworkConfiguration{
-	Network: models.Network{
+	Network: Network{
 		Protocol:    ProtocolIPFS,
 		NetworkName: NetworkNameAmino,
 	},
@@ -38,4 +39,12 @@ var DefaultIPFSNetworkConfig = NetworkConfiguration{
 	SegmentsSetCacheSize: IPFSSegmentsSetCacheSize,
 	DelayBase:            IPFSDelayBase,
 	DelayMultiplier:      IPFSDelayMultiplier,
+}
+
+// IPFS DHT Namespace configuration
+type IPFSNetworkScrapperConfig struct {
+	Network              string
+	NotChannelBufferSize int
+	SamplerNotifyTimeout time.Duration
+	AkaiAPIServiceConfig *AkaiAPIServiceConfig
 }
