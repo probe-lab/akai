@@ -1,0 +1,7 @@
+DROP TABLE IF EXISTS networks;
+
+DROP TABLE IF EXISTS blobs;
+
+DROP TABLE IF EXISTS segments;
+
+DROP TABLE IF EXISTS visits;

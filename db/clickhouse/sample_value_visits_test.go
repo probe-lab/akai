@@ -10,39 +10,38 @@ import (
 )
 
 // assumes that the db is freshly started from scratch
-func Test_VisitsTable(t *testing.T) {
+func Test_SampleValueVisitsTable(t *testing.T) {
 	// variables
 	mainCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	maxSize := 1
 	visitsTable := make(map[string]struct{}, 0)
-	visitsTable[models.AgnosticVisit{}.TableName()] = struct{}{}
+	visitsTable[models.SampleValueVisit{}.TableName()] = struct{}{}
 
 	dbCli := generateClickhouseDatabase(t, mainCtx, visitsTable)
-	batcher, err := newQueryBatcher[models.AgnosticVisit](visistsTableDriver, MaxFlushInterval, maxSize)
+	batcher, err := newQueryBatcher[models.SampleValueVisit](sampleValueVisitTableDriver, MaxFlushInterval, maxSize)
 	require.NoError(t, err)
 	require.Equal(t, batcher.maxSize, maxSize)
 	require.Equal(t, batcher.currentLen(), 0)
-	require.Equal(t, batcher.BaseQuery(), visistsTableDriver.baseQuery)
+	require.Equal(t, batcher.BaseQuery(), sampleValueVisitTableDriver.baseQuery)
 	require.Equal(t, batcher.isFull(), false)
 
 	// drop anything existing in the testing DB
 	dbCli.highMu.Lock()
-	err = dropAllVisitsTable(mainCtx, dbCli.highLevelClient)
+	err = dropAllSampleValueVisitsTable(mainCtx, dbCli.highLevelClient)
 	require.NoError(t, err)
 	dbCli.highMu.Unlock()
 
 	// test data insert
-	visit1 := models.AgnosticVisit{
+	visit1 := &models.SampleValueVisit{
 		Timestamp:     time.Now(),
 		Key:           "0xKEY",
-		BlobNumber:    1,
-		Row:           1,
-		Column:        1,
+		BlockNumber:   1,
+		DASRow:        1,
+		DASColumn:     1,
 		DurationMs:    60 * 1000,
 		IsRetrievable: true,
-		Providers:     1,
 		Bytes:         128,
 		Error:         "",
 	}
@@ -65,7 +64,7 @@ func Test_VisitsTable(t *testing.T) {
 
 	// test data retrieval
 	dbCli.highMu.Lock()
-	visits, err := requestAllVisits(mainCtx, dbCli.highLevelClient)
+	visits, err := requestAllSampleValueVisits(mainCtx, dbCli.highLevelClient)
 	dbCli.highMu.Unlock()
 	require.NoError(t, err)
 	require.Equal(t, 1, len(visits))
@@ -73,15 +72,14 @@ func Test_VisitsTable(t *testing.T) {
 	require.Equal(t, visit1.Timestamp.Minute(), visits[0].Timestamp.Minute())
 	require.Equal(t, visit1.Timestamp.Second(), visits[0].Timestamp.Second())
 	require.Equal(t, visit1.Key, visits[0].Key)
-	require.Equal(t, visit1.BlobNumber, visits[0].BlobNumber)
+	require.Equal(t, visit1.BlockNumber, visits[0].BlockNumber)
 	require.Equal(t, visit1.IsRetrievable, visits[0].IsRetrievable)
-	require.Equal(t, visit1.Providers, visits[0].Providers)
 	require.Equal(t, visit1.Bytes, visits[0].Bytes)
 	require.Equal(t, visit1.Error, visits[0].Error)
 
 	// drop anything existing in the testing DB
 	dbCli.highMu.Lock()
-	err = dropAllVisitsTable(mainCtx, dbCli.highLevelClient)
+	err = dropAllSampleValueVisitsTable(mainCtx, dbCli.highLevelClient)
 	require.NoError(t, err)
 	dbCli.highMu.Unlock()
 }

@@ -23,7 +23,7 @@ type flusheableBatcher interface {
 // queryBatcher[T] is a generic ready to work synchronous batcher for akai's main modules
 type queryBatcher[T any] struct {
 	tableDriver[T]
-	items []T
+	items []*T
 
 	// control values
 	maxFlushT  time.Duration
@@ -47,7 +47,7 @@ func newQueryBatcher[T any](
 		lastFlushT:   time.Now(),
 		maxSize:      maxBatchSize,
 		currentItems: 0,
-		items:        make([]T, 0, maxBatchSize),
+		items:        make([]*T, 0, maxBatchSize),
 	}, nil
 }
 
@@ -56,7 +56,7 @@ func (b *queryBatcher[T]) currentLen() int {
 }
 
 // upper layers should take care of flushing
-func (b *queryBatcher[T]) addItem(item T) bool {
+func (b *queryBatcher[T]) addItem(item *T) bool {
 	// convert the item to "persitable"
 	b.items = append(b.items, item)
 	b.currentItems++
@@ -83,6 +83,6 @@ func (b *queryBatcher[T]) getPersistable() (proto.Input, int) {
 // resets the metrics and values within the batcher
 func (b *queryBatcher[T]) resetBatcher() {
 	b.lastFlushT = time.Now()
-	b.items = make([]T, 0, b.maxSize)
+	b.items = make([]*T, 0, b.maxSize)
 	b.currentItems = 0
 }

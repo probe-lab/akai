@@ -38,20 +38,20 @@ type ClickHouseDB struct {
 
 	// pointers for all the query batchers
 	qBatchers struct {
-		networks *queryBatcher[models.Network]
-		blobs    *queryBatcher[models.AgnosticBlob]
-		segments *queryBatcher[models.AgnosticSegment]
-		visits   *queryBatcher[models.AgnosticVisit]
+		blocks              *queryBatcher[models.Block]
+		samplingItems       *queryBatcher[models.SamplingItem]
+		sampleGenericVisits *queryBatcher[models.SampleGenericVisit]
+		sampleValueVisits   *queryBatcher[models.SampleValueVisit]
 	}
 
 	// caches to speedup querides
-	currentNetwork models.Network
+	currentNetwork config.Network
 
 	// reference to all relevant db telemetry
 	// telemetry *telemetry
 }
 
-func NewClickHouseDB(conDetails *config.DatabaseDetails, network models.Network) (*ClickHouseDB, error) {
+func NewClickHouseDB(conDetails *config.DatabaseDetails, network config.Network) (*ClickHouseDB, error) {
 	db := &ClickHouseDB{
 		conDetails:       conDetails,
 		currentNetwork:   network,
@@ -96,10 +96,10 @@ func (db *ClickHouseDB) Serve(ctx context.Context) error {
 
 func (db *ClickHouseDB) GetAllTables() map[string]struct{} {
 	return map[string]struct{}{
-		models.NetworkTableName: {},
-		models.BlobTableName:    {},
-		models.SegmentTableName: {},
-		models.VisitTableName:   {},
+		models.BlockTableName:              {},
+		models.SamplingItemTableName:       {},
+		models.SampleGenericVisitTableName: {},
+		models.SampleValueVisitTableName:   {},
 	}
 }
 
@@ -166,17 +166,17 @@ func (db *ClickHouseDB) getConnectableDrivers(tables map[string]struct{}) map[st
 	for table := range tables {
 		var driver connectableTable
 		switch table {
-		case models.NetworkTableName:
-			driver = networkTableDriver
+		case models.BlockTableName:
+			driver = blockTableDriver
 
-		case models.BlobTableName:
-			driver = blobTableDriver
+		case models.SamplingItemTableName:
+			driver = samplingItemTableDriver
 
-		case models.SegmentTableName:
-			driver = segmentTableDriver
+		case models.SampleGenericVisitTableName:
+			driver = sampleGenericVisistsTableDriver
 
-		case models.VisitTableName:
-			driver = visistsTableDriver
+		case models.SampleValueVisitTableName:
+			driver = sampleValueVisitTableDriver
 
 		default:
 			log.Warnf("no driver found for table %s", table)
@@ -191,37 +191,38 @@ func (db *ClickHouseDB) getConnectableDrivers(tables map[string]struct{}) map[st
 func (db *ClickHouseDB) composeBatchersForTables(tables map[string]struct{}) error {
 	for table := range tables {
 		switch table {
-		case models.NetworkTableName:
-			driver := networkTableDriver
-			batcher, err := newQueryBatcher[models.Network](driver, MaxFlushInterval, models.Network{}.BatchingSize())
-			if err != nil {
-				return err
-			}
-			db.qBatchers.networks = batcher
 
-		case models.BlobTableName:
-			driver := blobTableDriver
-			batcher, err := newQueryBatcher[models.AgnosticBlob](driver, MaxFlushInterval, models.AgnosticBlob{}.BatchingSize())
+		case models.BlockTableName:
+			driver := blockTableDriver
+			batcher, err := newQueryBatcher[models.Block](driver, MaxFlushInterval, models.Block{}.BatchingSize())
 			if err != nil {
 				return err
 			}
-			db.qBatchers.blobs = batcher
+			db.qBatchers.blocks = batcher
 
-		case models.SegmentTableName:
-			driver := segmentTableDriver
-			batcher, err := newQueryBatcher[models.AgnosticSegment](driver, MaxFlushInterval, models.AgnosticSegment{}.BatchingSize())
+		case models.SamplingItemTableName:
+			driver := samplingItemTableDriver
+			batcher, err := newQueryBatcher[models.SamplingItem](driver, MaxFlushInterval, models.SamplingItem{}.BatchingSize())
 			if err != nil {
 				return err
 			}
-			db.qBatchers.segments = batcher
+			db.qBatchers.samplingItems = batcher
 
-		case models.VisitTableName:
-			driver := visistsTableDriver
-			batcher, err := newQueryBatcher[models.AgnosticVisit](driver, MaxFlushInterval, models.AgnosticVisit{}.BatchingSize())
+		case models.SampleGenericVisitTableName:
+			driver := sampleGenericVisistsTableDriver
+			batcher, err := newQueryBatcher[models.SampleGenericVisit](driver, MaxFlushInterval, models.SampleGenericVisit{}.BatchingSize())
 			if err != nil {
 				return err
 			}
-			db.qBatchers.visits = batcher
+			db.qBatchers.sampleGenericVisits = batcher
+
+		case models.SampleValueVisitTableName:
+			driver := sampleValueVisitTableDriver
+			batcher, err := newQueryBatcher[models.SampleValueVisit](driver, MaxFlushInterval, models.SampleValueVisit{}.BatchingSize())
+			if err != nil {
+				return err
+			}
+			db.qBatchers.sampleValueVisits = batcher
 
 		default:
 			log.Warnf("no driver found for table %s", table)
@@ -250,22 +251,23 @@ func (db *ClickHouseDB) periodicBatchesFlusher(ctx context.Context, interval tim
 func (db *ClickHouseDB) flushAllBatchers(ctx context.Context) error {
 	log.Debug("flushing all tables")
 	// flush all the batchers
-	err := db.flushBatcher(ctx, db.qBatchers.networks)
+	err := db.flushBatcher(ctx, db.qBatchers.blocks)
 	if err != nil {
 		return err
 	}
-	err = db.flushBatcher(ctx, db.qBatchers.blobs)
+	err = db.flushBatcher(ctx, db.qBatchers.samplingItems)
 	if err != nil {
 		return err
 	}
-	err = db.flushBatcher(ctx, db.qBatchers.segments)
+	err = db.flushBatcher(ctx, db.qBatchers.sampleGenericVisits)
 	if err != nil {
 		return err
 	}
-	err = db.flushBatcher(ctx, db.qBatchers.visits)
+	err = db.flushBatcher(ctx, db.qBatchers.sampleValueVisits)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -360,10 +362,10 @@ func (db *ClickHouseDB) flushBatcherIfNeeded(ctx context.Context, batcher flushe
 	return nil
 }
 
-func (db *ClickHouseDB) PersistNewNetwork(ctx context.Context, network models.Network) error {
-	flushable := db.qBatchers.networks.addItem(network)
+func (db *ClickHouseDB) PersistNewBlock(ctx context.Context, block *models.Block) error {
+	flushable := db.qBatchers.blocks.addItem(block)
 	if flushable {
-		err := db.flushBatcherIfNeeded(ctx, db.qBatchers.networks)
+		err := db.flushBatcherIfNeeded(ctx, db.qBatchers.blocks)
 		if err != nil {
 			return err
 		}
@@ -371,47 +373,29 @@ func (db *ClickHouseDB) PersistNewNetwork(ctx context.Context, network models.Ne
 	return nil
 }
 
-func (db *ClickHouseDB) GetNetworks(ctx context.Context) ([]models.Network, error) {
-	db.highMu.Lock()
-	networks, err := requestNetworks(ctx, db.highLevelClient)
-	db.highMu.Unlock()
-	return networks, err
-}
-
-func (db *ClickHouseDB) PersistNewBlob(ctx context.Context, blob models.AgnosticBlob) error {
-	flushable := db.qBatchers.blobs.addItem(blob)
-	if flushable {
-		err := db.flushBatcherIfNeeded(ctx, db.qBatchers.blobs)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (db *ClickHouseDB) GetAllBlobs(ctx context.Context) ([]models.AgnosticBlob, error) {
+func (db *ClickHouseDB) GetAllBlocks(ctx context.Context) ([]*models.Block, error) {
 	db.highMu.Lock()
 	defer db.highMu.Unlock()
-	return requestAllBlobs(ctx, db.highLevelClient)
+	return requestAllBlocks(ctx, db.highLevelClient)
 }
 
-func (db *ClickHouseDB) GetSampleableBlobs(ctx context.Context) ([]models.AgnosticBlob, error) {
+func (db *ClickHouseDB) GetSampleableBlocks(ctx context.Context) ([]*models.Block, error) {
 	db.highMu.Lock()
 	defer db.highMu.Unlock()
-	return requestBlobsOnTTL(ctx, db.highLevelClient)
+	return requestBlocksOnTTL(ctx, db.highLevelClient)
 }
 
-func (db *ClickHouseDB) GetLatestBlob(ctx context.Context) (models.AgnosticBlob, error) {
+func (db *ClickHouseDB) GetLastBlock(ctx context.Context) (*models.Block, error) {
 	db.highMu.Lock()
 	defer db.highMu.Unlock()
-	return requestLatestBlob(ctx, db.highLevelClient)
+	return requestLastBlock(ctx, db.highLevelClient)
 }
 
-func (db *ClickHouseDB) PersistNewSegments(ctx context.Context, segments []models.AgnosticSegment) error {
-	for _, seg := range segments {
-		flushable := db.qBatchers.segments.addItem(seg)
+func (db *ClickHouseDB) PersistNewSamplingItems(ctx context.Context, items []*models.SamplingItem) error {
+	for _, item := range items {
+		flushable := db.qBatchers.samplingItems.addItem(item)
 		if flushable {
-			err := db.flushBatcherIfNeeded(ctx, db.qBatchers.segments)
+			err := db.flushBatcherIfNeeded(ctx, db.qBatchers.samplingItems)
 			if err != nil {
 				return err
 			}
@@ -420,10 +404,10 @@ func (db *ClickHouseDB) PersistNewSegments(ctx context.Context, segments []model
 	return nil
 }
 
-func (db *ClickHouseDB) PersistNewSegment(ctx context.Context, segment models.AgnosticSegment) error {
-	flushable := db.qBatchers.segments.addItem(segment)
+func (db *ClickHouseDB) PersistNewSamplingItem(ctx context.Context, item *models.SamplingItem) error {
+	flushable := db.qBatchers.samplingItems.addItem(item)
 	if flushable {
-		err := db.flushBatcherIfNeeded(ctx, db.qBatchers.segments)
+		err := db.flushBatcherIfNeeded(ctx, db.qBatchers.samplingItems)
 		if err != nil {
 			return err
 		}
@@ -431,16 +415,28 @@ func (db *ClickHouseDB) PersistNewSegment(ctx context.Context, segment models.Ag
 	return nil
 }
 
-func (db *ClickHouseDB) GetSampleableSegments(ctx context.Context) ([]models.AgnosticSegment, error) {
+func (db *ClickHouseDB) GetSampleableItems(ctx context.Context) ([]*models.SamplingItem, error) {
 	db.highMu.Lock()
 	defer db.highMu.Unlock()
-	return requestSegmentsOnTTL(ctx, db.highLevelClient)
+	return requestItemsOnTTL(ctx, db.highLevelClient, db.currentNetwork.String())
 }
 
-func (db *ClickHouseDB) PersistNewSegmentVisit(ctx context.Context, visit models.AgnosticVisit) error {
-	flushable := db.qBatchers.visits.addItem(visit)
+// TODO: fix this mess vvvvvvvvvvvvvv
+func (db *ClickHouseDB) PersistNewSampleGenericVisit(ctx context.Context, visit *models.SampleGenericVisit) error {
+	flushable := db.qBatchers.sampleGenericVisits.addItem(visit)
 	if flushable {
-		err := db.flushBatcherIfNeeded(ctx, db.qBatchers.visits)
+		err := db.flushBatcherIfNeeded(ctx, db.qBatchers.sampleGenericVisits)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (db *ClickHouseDB) PersistNewSampleValueVisit(ctx context.Context, visit *models.SampleValueVisit) error {
+	flushable := db.qBatchers.sampleValueVisits.addItem(visit)
+	if flushable {
+		err := db.flushBatcherIfNeeded(ctx, db.qBatchers.sampleValueVisits)
 		if err != nil {
 			return err
 		}
