@@ -9,7 +9,6 @@ import (
 	mc "github.com/multiformats/go-multicodec"
 	mh "github.com/multiformats/go-multihash"
 	"github.com/pkg/errors"
-	akai_api "github.com/probe-lab/akai/api"
 	"github.com/probe-lab/akai/avail/api"
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/db/models"
@@ -71,43 +70,55 @@ func (b *Block) Cid() cid.Cid {
 	return cid.NewCidV1(uint64(mc.Raw), b.Hash)
 }
 
-func (b *Block) ToAkaiAPIBlob(network models.Network, fillSegments bool) akai_api.Blob {
-	timestamp := time.Unix(int64(b.ReceivedAt), 0).UTC()
-	blob := akai_api.Blob{
-		Timestamp:   timestamp,
-		Network:     network,
+func (b *Block) UTCTimestamp() time.Time {
+	return time.Unix(int64(b.ReceivedAt), 0).UTC()
+}
+
+func (b *Block) SampleUntil() time.Time {
+	return b.UTCTimestamp().Add(config.BlockTTL + 3*time.Hour) // add 3 hours extra to ensure that we sample also after the 24 hour mark
+}
+
+func (b *Block) ToDBBlock(network config.Network) models.Block {
+	return models.Block{
+		Timestamp:   b.UTCTimestamp(),
+		Network:     network.String(),
 		Number:      b.Number,
 		Hash:        b.Hash.HexString(),
-		ParentHash:  b.ParentHash.HexString(),
-		Rows:        b.Extension.Rows,
-		Columns:     b.Extension.Columns,
-		Segments:    make([]akai_api.BlobSegment, 0),
-		Metadata:    make(map[string]any, 0),
-		SampleUntil: timestamp.Add(config.BlockTTL + 3*time.Hour), // add 3 hours extra to ensure that we sample also after the 24 hour mark
+		Key:         "",
+		Metadata:    "",
+		DASRows:     uint32(b.Extension.Rows),
+		DASColumns:  uint32(b.Extension.Columns),
+		SampleUntil: b.SampleUntil(),
 	}
-	// if needed, add all the inner segments into the blob struct for the API (make 1 single API call)
-	if fillSegments {
-		for row := 0; row < int(blob.Rows); row++ {
-			for col := 0; col < int(blob.Columns); col++ {
-				segmentKey := config.AvailKey{
-					Block:  blob.Number,
-					Row:    uint64(row),
-					Column: uint64(col),
-				}
-				segment := akai_api.BlobSegment{
-					Timestamp:   blob.Timestamp,
-					BlobNumber:  segmentKey.Block,
-					Row:         segmentKey.Row,
-					Column:      segmentKey.Column,
-					Key:         segmentKey.String(),
-					Bytes:       make([]byte, 0),
-					SampleUntil: blob.SampleUntil,
-				}
-				blob.Segments = append(blob.Segments, segment)
+}
+
+func (b *Block) GetDASSamplingItems(network config.Network) []*models.SamplingItem {
+	samplingItems := make([]*models.SamplingItem, 0, b.Extension.Columns*b.Extension.Rows)
+	for row := 0; row < int(b.Extension.Rows); row++ {
+		for col := 0; col < int(b.Extension.Columns); col++ {
+			segmentKey := config.AvailKey{
+				Block:  b.Number,
+				Row:    uint64(row),
+				Column: uint64(col),
 			}
+			item := &models.SamplingItem{
+				Timestamp:   b.UTCTimestamp(),
+				Network:     network,
+				ItemType:    config.AvailDASCellItemType,
+				SampleType:  config.SampleValue,
+				BlockLink:   segmentKey.Block,
+				Key:         segmentKey.String(),
+				Hash:        "",
+				DASRow:      uint32(segmentKey.Row),
+				DASColumn:   uint32(segmentKey.Column),
+				Metadata:    "",
+				Traceable:   true,
+				SampleUntil: b.SampleUntil(),
+			}
+			samplingItems = append(samplingItems, item)
 		}
 	}
-	return blob
+	return samplingItems
 }
 
 func FromAPIBlockHeader(blockHeader api.V2BlockHeader) BlockOption {
