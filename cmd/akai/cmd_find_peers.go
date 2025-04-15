@@ -12,7 +12,6 @@ import (
 
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/core"
-	"github.com/probe-lab/akai/db/models"
 )
 
 var cmdFindPeers = &cli.Command{
@@ -24,14 +23,14 @@ var cmdFindPeers = &cli.Command{
 
 func cmdFindPeersAction(ctx context.Context, cmd *cli.Command) error {
 	log.WithFields(log.Fields{
-		"operation": config.ParseSamplingType(config.SamplePeers),
+		"operation": config.SamplePeers.String(),
 		"key":       findOP.Key,
 		"network":   findOP.Network,
 		"timeout":   findOP.Timeout,
 		"retries":   findOP.Retries,
 	}).Info("requesting key from given DHT...")
 
-	network := models.NetworkFromStr(findOP.Network)
+	network := config.NetworkFromStr(findOP.Network)
 	networkConfig, err := config.ConfigureNetwork(network)
 	if err != nil {
 		return err
@@ -66,7 +65,7 @@ func cmdFindPeersAction(ctx context.Context, cmd *cli.Command) error {
 				}).Info(fmt.Sprintf("%d", idx))
 			}
 			log.WithFields(log.Fields{
-				"operation":   config.ParseSamplingType(config.SamplePeers),
+				"operation":   config.SamplePeers.String(),
 				"timestamp":   t,
 				"key":         findOP.Key,
 				"duration_ms": duration,
@@ -83,5 +82,5 @@ func cmdFindPeersAction(ctx context.Context, cmd *cli.Command) error {
 			continue
 		}
 	}
-	return nil
+	return fmt.Errorf("the %s operation couldn't report any successful result", config.SamplePeers.String())
 }

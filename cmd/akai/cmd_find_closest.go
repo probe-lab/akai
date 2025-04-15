@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/core"
-	"github.com/probe-lab/akai/db/models"
 )
 
 var cmdFindClosests = &cli.Command{
@@ -23,14 +23,14 @@ var cmdFindClosests = &cli.Command{
 
 func cmdFindClosestsAction(ctx context.Context, cmd *cli.Command) error {
 	log.WithFields(log.Fields{
-		"operation": config.ParseSamplingType(config.SampleClosest),
+		"operation": config.SampleClosest.String(),
 		"key":       findOP.Key,
 		"network":   findOP.Network,
 		"timeout":   findOP.Timeout,
 		"retries":   findOP.Retries,
 	}).Info("requesting closest peers from given DHT Key...")
 
-	network := models.NetworkFromStr(findOP.Network)
+	network := config.NetworkFromStr(findOP.Network)
 	networkConfig, err := config.ConfigureNetwork(network)
 	if err != nil {
 		return err
@@ -59,7 +59,7 @@ func cmdFindClosestsAction(ctx context.Context, cmd *cli.Command) error {
 			switch err {
 			case nil:
 				log.WithFields(log.Fields{
-					"operation":   config.ParseSamplingType(config.SampleClosest),
+					"operation":   config.SampleClosest.String(),
 					"timestamp":   t,
 					"key":         findOP.Key,
 					"duration_ms": duration,
@@ -78,5 +78,5 @@ func cmdFindClosestsAction(ctx context.Context, cmd *cli.Command) error {
 			}
 		}
 	}
-	return nil
+	return fmt.Errorf("the %s operation couldn't report any successful result", config.SampleClosest.String())
 }

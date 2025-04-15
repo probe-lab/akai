@@ -39,9 +39,8 @@ var app = &cli.Command{
 	Flags:                 rootFlags,
 	Before:                rootBefore,
 	Commands: []*cli.Command{
-		cmdService,
+		cmdDaemon,
 		cmdFindOP,
-		cmdAvailBlockTracker,
 	},
 	After: rootAfter,
 }

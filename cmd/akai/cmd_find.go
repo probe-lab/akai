@@ -6,11 +6,10 @@ import (
 	"github.com/urfave/cli/v3"
 
 	"github.com/probe-lab/akai/config"
-	"github.com/probe-lab/akai/db/models"
 )
 
 var findOP = &config.AkaiFindOP{
-	Network: models.Network{Protocol: config.ProtocolIPFS, NetworkName: config.NetworkNameAmino}.String(),
+	Network: config.Network{Protocol: config.ProtocolIPFS, NetworkName: config.NetworkNameAmino}.String(),
 	Key:     "",
 	Timeout: 60 * time.Second,
 	Retries: 3,

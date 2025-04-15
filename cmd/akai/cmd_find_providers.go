@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ipfs/go-cid"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
 	"go.opentelemetry.io/otel"
 
-	"github.com/probe-lab/akai/amino"
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/core"
-	"github.com/probe-lab/akai/db/models"
 )
 
 var cmdFindProviders = &cli.Command{
@@ -25,14 +24,14 @@ var cmdFindProviders = &cli.Command{
 
 func cmdFindProvidersAction(ctx context.Context, cmd *cli.Command) error {
 	log.WithFields(log.Fields{
-		"operation": config.ParseSamplingType(config.SampleProviders),
+		"operation": config.SampleProviders.String(),
 		"key":       findOP.Key,
 		"network":   findOP.Network,
 		"timeout":   findOP.Timeout,
 		"retries":   findOP.Retries,
 	}).Info("requesting key from given DHT...")
 
-	network := models.NetworkFromStr(findOP.Network)
+	network := config.NetworkFromStr(findOP.Network)
 	networkConfig, err := config.ConfigureNetwork(network)
 	if err != nil {
 		return err
@@ -53,21 +52,21 @@ func cmdFindProvidersAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	// ensure that the format is correct
-	contentID, err := amino.CidFromString(findOP.Key)
+	contentID, err := cid.Decode(findOP.Key)
 	if err != nil {
 		return err
 	}
 
 	for retry := int64(1); retry <= findOP.Retries; retry++ {
 		t := time.Now()
-		duration, providers, err := dhtHost.FindProviders(ctx, contentID.Cid(), findOP.Timeout)
+		duration, providers, err := dhtHost.FindProviders(ctx, contentID, findOP.Timeout)
 		if err != nil {
 			return err
 		} else {
 			switch err {
 			case nil:
 				log.WithFields(log.Fields{
-					"operation":     config.ParseSamplingType(config.SampleProviders),
+					"operation":     config.SampleProviders.String(),
 					"timestamp":     t,
 					"key":           findOP.Key,
 					"duration_ms":   duration,
@@ -91,5 +90,5 @@ func cmdFindProvidersAction(ctx context.Context, cmd *cli.Command) error {
 			}
 		}
 	}
-	return nil
+	return fmt.Errorf("the %s operation couldn't report any successful result", config.SampleProviders.String())
 }

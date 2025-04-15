@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/core"
-	"github.com/probe-lab/akai/db/models"
 )
 
 var cmdFindValue = &cli.Command{
@@ -24,14 +24,14 @@ var cmdFindValue = &cli.Command{
 
 func cmdFindValueAction(ctx context.Context, cmd *cli.Command) error {
 	log.WithFields(log.Fields{
-		"operation": config.ParseSamplingType(config.SampleProviders),
+		"operation": config.SampleValue.String(),
 		"key":       findOP.Key,
 		"network":   findOP.Network,
 		"timeout":   findOP.Timeout,
 		"retries":   findOP.Retries,
 	}).Info("requesting key from given DHT...")
 
-	network := models.NetworkFromStr(findOP.Network)
+	network := config.NetworkFromStr(findOP.Network)
 	networkConfig, err := config.ConfigureNetwork(network)
 	if err != nil {
 		return err
@@ -51,12 +51,6 @@ func cmdFindValueAction(ctx context.Context, cmd *cli.Command) error {
 		return errors.Wrap(err, "creating DHT host")
 	}
 
-	// ensure that the format is correct
-	_, err = core.ParseDHTKeyType(models.Network(network), findOP.Key)
-	if err != nil {
-		return err
-	}
-
 	for retry := int64(1); retry <= findOP.Retries; retry++ {
 		t := time.Now()
 		duration, value, err := dhtHost.FindValue(ctx, findOP.Key, findOP.Timeout)
@@ -67,7 +61,7 @@ func cmdFindValueAction(ctx context.Context, cmd *cli.Command) error {
 			switch err {
 			case nil:
 				log.WithFields(log.Fields{
-					"operation":   config.ParseSamplingType(config.SampleValue),
+					"operation":   config.SampleValue.String(),
 					"timestamp":   t,
 					"key":         findOP.Key,
 					"duration_ms": duration,
@@ -86,5 +80,5 @@ func cmdFindValueAction(ctx context.Context, cmd *cli.Command) error {
 			}
 		}
 	}
-	return nil
+	return fmt.Errorf("the %s operation couldn't report any successful result", config.SampleValue.String())
 }

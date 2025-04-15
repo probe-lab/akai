@@ -13,7 +13,6 @@ import (
 
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/core"
-	"github.com/probe-lab/akai/db/models"
 )
 
 var cmdFindPeerInfo = &cli.Command{
@@ -25,14 +24,14 @@ var cmdFindPeerInfo = &cli.Command{
 
 func cmdFindPeerInfoAction(ctx context.Context, cmd *cli.Command) error {
 	log.WithFields(log.Fields{
-		"operation": config.ParseSamplingType(config.SamplePeerInfo),
+		"operation": config.SamplePeerInfo.String(),
 		"peer_id":   findOP.Key,
 		"network":   findOP.Network,
 		"timeout":   findOP.Timeout,
 		"retries":   findOP.Retries,
 	}).Info("requesting info from given peer...")
 
-	network := models.NetworkFromStr(findOP.Network)
+	network := config.NetworkFromStr(findOP.Network)
 	networkConfig, err := config.ConfigureNetwork(network)
 	if err != nil {
 		return err
@@ -70,7 +69,7 @@ func cmdFindPeerInfoAction(ctx context.Context, cmd *cli.Command) error {
 				errStr = err.Error()
 			}
 			log.WithFields(log.Fields{
-				"operation":   config.ParseSamplingType(config.SamplePeerInfo),
+				"operation":   config.SamplePeerInfo.String(),
 				"timestamp":   t,
 				"peer_id":     peerID.String(),
 				"maddres":     peerInfo.Addrs,
@@ -88,5 +87,5 @@ func cmdFindPeerInfoAction(ctx context.Context, cmd *cli.Command) error {
 			continue
 		}
 	}
-	return fmt.Errorf("the %s operation couldn't report any successful result", config.ParseSamplingType(config.SamplePeerInfo))
+	return fmt.Errorf("the %s operation couldn't report any successful result", config.SamplePeerInfo.String())
 }
