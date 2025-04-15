@@ -86,11 +86,12 @@ func (s *NetworkScrapper) Serve(ctx context.Context) error {
 
 	// TODO: this should be updated to the suture.Stop() call, but we need to update?
 	go func() {
+		defer cancel()
 		select {
 		case <-ctx.Done():
-			cancel()
+			log.Warn("network scrapper context died")
 		case <-mainCtx.Done():
-			log.Warn("")
+			log.Warn("network scrapper context died")
 		case <-s.closeC:
 			err = blockTracker.Close(mainCtx)
 			log.Error(err)

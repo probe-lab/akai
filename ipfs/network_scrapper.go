@@ -13,6 +13,7 @@ import (
 	"github.com/probe-lab/akai/db"
 	"github.com/probe-lab/akai/db/models"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 )
 
 var ErrorNotCID = fmt.Errorf("the given key is not a CID")
@@ -61,10 +62,30 @@ func NewNetworkScrapper(
 }
 
 func (s *NetworkScrapper) Serve(ctx context.Context) error {
-	return nil
+	mainCtx, cancel := context.WithCancel(ctx)
+	// TODO: this should be updated to the suture.Stop() call, but we need to update?
+	go func() {
+		defer cancel()
+		select {
+		case <-ctx.Done():
+			log.Warn("network scrapper context died")
+		case <-mainCtx.Done():
+			log.Warn("network scrapper context died")
+		case <-s.closeC:
+		}
+		return
+	}()
+
+	var errWg errgroup.Group
+	errWg.Go(func() error { return s.apiSer.Serve(mainCtx) })
+	return errWg.Wait()
 }
 
 func (s *NetworkScrapper) Close(ctx context.Context) error {
+	select {
+	case s.closeC <- struct{}{}:
+	case <-ctx.Done():
+	}
 	return nil
 }
 
@@ -123,24 +144,16 @@ func (s *NetworkScrapper) newItemHandler(ctx context.Context, apiItem api.DASIte
 	log.WithFields(log.Fields{
 		"key": apiItem.Key,
 	}).Info("new ipfs-cid arrived to the api")
-
-	// translate the Avail Block to General Block info
 	item := s.getSamplingItemFromAPIitem(apiItem)
-
-	// first thing, check if we saw that block-already in the internalBlockCache
-	// if so, ignore the blockNot
 	if s.internalItemCache.Contains(apiItem.Key) {
 		return nil
 	}
 	// check if the given key is a CID
-	_1, err := cid.Decode(apiItem.Key)
+	_, err := cid.Decode(apiItem.Key)
 	if err != nil {
 		return ErrorNotCID
 	}
-	// if not, add it to the cache (so far we don't care about the eviction)
 	s.internalItemCache.Add(apiItem.Key, struct{}{})
-
-	// add the segment info to the DB
 	return s.db.PersistNewSamplingItem(ctx, item)
 }
 
@@ -148,27 +161,18 @@ func (s *NetworkScrapper) newItemsHandler(ctx context.Context, apiItems []api.DA
 	log.WithFields(log.Fields{
 		"items": len(apiItems),
 	}).Info("new ipfs namespace items arrived to the daemon")
-
-	// add the segment info to the DB
 	items := s.getSamplingItemFromAPIitems(apiItems)
-
-	// add the segments to the segmentsSet
-	for _, item := range items {
-		// check if we already saw the namespace
+	for i, item := range items {
 		if s.internalItemCache.Contains(item.Key) {
-			return nil
+			items = append(items[:i], items[i+1:]...) // remove the item from the list
 		}
-		// if not, add it to the cache (so far we don't care about the eviction)
 		s.internalItemCache.Add(item.Key, struct{}{})
-
-		// add the namespace as a sampling item in the DB
-		err := s.db.PersistNewSamplingItem(ctx, item)
-		if err != nil {
-			return err
-		}
 	}
-
-	return nil
+	err := s.db.PersistNewSamplingItems(ctx, items)
+	if err != nil {
+		return err
+	}
+	return s.notifySampler(ctx, items)
 }
 
 func (s *NetworkScrapper) getSamplingItemFromAPIitem(apiItem api.DASItem) *models.SamplingItem {
