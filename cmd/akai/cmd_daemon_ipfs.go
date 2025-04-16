@@ -55,7 +55,7 @@ func cmdDaemonIPFSAction(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("the given network doesn't belong to the celestia protocol %s", daemonConfig.Network)
 	}
 	daemonConfig.DataSamplerConfig.Network = daemonConfig.Network
-	cmdDaemonAvailDAStrackerConf.BlockTrackerCfg.Network = daemonConfig.Network
+	cmdDaemonIPFSConf.AkaiAPIServiceConfig.Network = daemonConfig.Network
 
 	networkConfig, err := config.ConfigureNetwork(network)
 	if err != nil {
