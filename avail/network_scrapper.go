@@ -52,9 +52,14 @@ func NewNetworkScrapper(
 	if cfg == nil {
 		return nil, fmt.Errorf("an empty avail network scrapper config was given")
 	}
+	cache, err := lru.New[uint64, struct{}](config.AvailBlobsSetCacheSize)
+	if err != nil {
+		return nil, err
+	}
 	networkScrapper := &NetworkScrapper{
 		closeC:             make(chan struct{}),
 		samplerNotCh:       make(chan []*models.SamplingItem, cfg.NotChannelBufferSize),
+		internalBlockCache: cache,
 		trackSamplingItems: true, // enabled by default
 		db:                 db,
 		network:            config.NetworkFromStr(cfg.Network),
@@ -200,8 +205,8 @@ func (s *NetworkScrapper) notifySampler(ctx context.Context, samplingItems []*mo
 	}
 }
 
-func (s *NetworkScrapper) GetSamplingItemStream(ctx context.Context) (chan []*models.SamplingItem, error) {
-	return s.samplerNotCh, nil
+func (s *NetworkScrapper) GetSamplingItemStream() chan []*models.SamplingItem {
+	return s.samplerNotCh
 }
 
 // syncs up with the database any prior existing sampleable item that we should keep tracking
@@ -223,7 +228,7 @@ func (ds *NetworkScrapper) SyncWithDatabase(ctx context.Context) ([]*models.Samp
 		return []*models.SamplingItem{}, nil
 	}
 
-	sampleItems := make([]*models.SamplingItem, len(items), 0)
+	sampleItems := make([]*models.SamplingItem, len(items))
 	for i, item := range items {
 		if !ds.internalBlockCache.Contains(item.BlockLink) {
 			ds.internalBlockCache.Add(item.BlockLink, struct{}{})

@@ -12,6 +12,7 @@ import (
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/db/models"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
 )
 
 type ClickhouseInstance string
@@ -27,6 +28,7 @@ var DefaultClickhouseConnectionDetails = &config.DatabaseDetails{
 	User:     "username",
 	Password: "password",
 	Database: "akai_test",
+	Meter:    otel.GetMeterProvider().Meter("clickhouse_db"),
 }
 
 var MaxFlushInterval = 1 * time.Second

@@ -45,13 +45,18 @@ func NewNetworkScrapper(
 	if err != nil {
 		return nil, err
 	}
+	cache, err := lru.New[string, struct{}](100) // todo hardcoded
+	if err != nil {
+		return nil, err
+	}
 	networkScrapper := &NetworkScrapper{
-		cfg:       cfg,
-		network:   config.NetworkFromStr(cfg.Network),
-		closeC:    make(chan struct{}),
-		itemNotCh: make(chan []*models.SamplingItem, cfg.NotChannelBufferSize),
-		db:        db,
-		apiSer:    apiSer,
+		cfg:               cfg,
+		network:           config.NetworkFromStr(cfg.Network),
+		closeC:            make(chan struct{}),
+		internalItemCache: cache,
+		itemNotCh:         make(chan []*models.SamplingItem, cfg.NotChannelBufferSize),
+		db:                db,
+		apiSer:            apiSer,
 	}
 
 	apiSer.UpdateNewBlockHandler(networkScrapper.newBlockHandler)
@@ -103,7 +108,7 @@ func (s *NetworkScrapper) notifySampler(ctx context.Context, samplingItems []*mo
 }
 
 // syncs up with the database any prior existing sampleable item that we should keep tracking
-func (s *NetworkScrapper) SyncWithDatabase(ctx context.Context) ([]models.SamplingItem, error) {
+func (s *NetworkScrapper) SyncWithDatabase(ctx context.Context) ([]*models.SamplingItem, error) {
 	syncCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -113,15 +118,15 @@ func (s *NetworkScrapper) SyncWithDatabase(ctx context.Context) ([]models.Sampli
 	}
 	if len(items) < 0 {
 		log.Warn("no sampleable blobs were found at DB")
-		return []models.SamplingItem{}, nil
+		return []*models.SamplingItem{}, nil
 	}
 
-	sampleItems := make([]models.SamplingItem, len(items), 0)
+	sampleItems := make([]*models.SamplingItem, len(items))
 	for i, item := range items {
 		if !s.internalItemCache.Contains(item.Key) {
 			s.internalItemCache.Add(item.Key, struct{}{})
 		}
-		sampleItems[i] = item
+		sampleItems[i] = &item
 	}
 	return sampleItems, nil
 }
@@ -154,7 +159,11 @@ func (s *NetworkScrapper) newItemHandler(ctx context.Context, apiItem api.DASIte
 		return ErrorNotCID
 	}
 	s.internalItemCache.Add(apiItem.Key, struct{}{})
-	return s.db.PersistNewSamplingItem(ctx, item)
+	err = s.db.PersistNewSamplingItem(ctx, item)
+	if err != nil {
+		return err
+	}
+	return s.notifySampler(ctx, []*models.SamplingItem{item})
 }
 
 func (s *NetworkScrapper) newItemsHandler(ctx context.Context, apiItems []api.DASItem) error {
@@ -175,6 +184,10 @@ func (s *NetworkScrapper) newItemsHandler(ctx context.Context, apiItems []api.DA
 	return s.notifySampler(ctx, items)
 }
 
+func (s *NetworkScrapper) GetSamplingItemStream() chan []*models.SamplingItem {
+	return s.itemNotCh
+}
+
 func (s *NetworkScrapper) getSamplingItemFromAPIitem(apiItem api.DASItem) *models.SamplingItem {
 	metadataStr := ""
 	if len(apiItem.Metadata) >= 0 {
@@ -187,9 +200,9 @@ func (s *NetworkScrapper) getSamplingItemFromAPIitem(apiItem api.DASItem) *model
 
 	return &models.SamplingItem{
 		Timestamp:   apiItem.Timestamp,
-		Network:     s.network,
-		ItemType:    config.IPFSCidItemType, // TODO: do we want to select this on the API itself
-		SampleType:  config.SampleProviders, // TODO: do we want to select this on the API itself
+		Network:     s.network.String(),
+		ItemType:    config.IPFSCidItemType.String(), // TODO: do we want to select this on the API itself
+		SampleType:  config.SampleProviders.String(), // TODO: do we want to select this on the API itself
 		BlockLink:   0,
 		Key:         apiItem.Key,
 		Hash:        "",

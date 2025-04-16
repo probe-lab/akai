@@ -46,7 +46,7 @@ func cmdDaemonCelestiaNamespaceAction(ctx context.Context, cmd *cli.Command) err
 	log.WithFields(log.Fields{
 		"akai-http-host": cmdDaemonCelestiaNamespaceConf.AkaiAPIServiceConfig.Host,
 		"akai-http-port": cmdDaemonCelestiaNamespaceConf.AkaiAPIServiceConfig.Port,
-	}).Info("starting avail-block-tracker...")
+	}).Info("starting celestia namespace tracker...")
 	defer log.Infof("stopped celestia-namespace-tracker for %s", cmdDaemonCelestiaNamespaceConf.Network)
 
 	// set all network to be on the same one as the given one
@@ -55,7 +55,7 @@ func cmdDaemonCelestiaNamespaceAction(ctx context.Context, cmd *cli.Command) err
 		return fmt.Errorf("the given network doesn't belong to the celestia protocol %s", daemonConfig.Network)
 	}
 	daemonConfig.DataSamplerConfig.Network = daemonConfig.Network
-	cmdDaemonAvailDAStrackerConf.BlockTrackerCfg.Network = daemonConfig.Network
+	cmdDaemonCelestiaNamespaceConf.AkaiAPIServiceConfig.Network = daemonConfig.Network
 
 	networkConfig, err := config.ConfigureNetwork(network)
 	if err != nil {

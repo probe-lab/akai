@@ -2,7 +2,6 @@ package clickhouse
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -71,7 +70,6 @@ func Test_SamplingItemTable(t *testing.T) {
 	// test data retrieval
 	dbCli.highMu.Lock()
 	items, err := requestAllSAmplingItems(mainCtx, dbCli.highLevelClient, dbCli.currentNetwork.String())
-	fmt.Println(items)
 	dbCli.highMu.Unlock()
 	require.NoError(t, err)
 	require.Equal(t, 1, len(items))

@@ -16,8 +16,8 @@ import (
 )
 
 var DefaultNetworkScrapperConfig = &config.CelestiaNetworkScrapperConfig{
-	Network:              config.DefaultAvailNetwork.String(),
-	NotChannelBufferSize: 1_000,
+	Network:              config.DefaultCelestiaNetwork.String(),
+	NotChannelBufferSize: 0,
 	SamplerNotifyTimeout: 20 * time.Second,
 	AkaiAPIServiceConfig: api.DefaulServiceConfig,
 }
@@ -42,13 +42,18 @@ func NewNetworkScrapper(
 	if err != nil {
 		return nil, err
 	}
+	cache, err := lru.New[string, struct{}](config.CelestiaSetCacheSize)
+	if err != nil {
+		return nil, err
+	}
 	networkScrapper := &NetworkScrapper{
-		cfg:       cfg,
-		network:   config.NetworkFromStr(cfg.Network),
-		closeC:    make(chan struct{}),
-		itemNotCh: make(chan []*models.SamplingItem, cfg.NotChannelBufferSize),
-		db:        db,
-		apiSer:    apiSer,
+		cfg:               cfg,
+		network:           config.NetworkFromStr(cfg.Network),
+		internalItemCache: cache,
+		closeC:            make(chan struct{}),
+		itemNotCh:         make(chan []*models.SamplingItem, cfg.NotChannelBufferSize),
+		db:                db,
+		apiSer:            apiSer,
 	}
 
 	apiSer.UpdateNewBlockHandler(networkScrapper.newBlockHandler)
@@ -90,6 +95,7 @@ func (s *NetworkScrapper) notifySampler(ctx context.Context, samplingItems []*mo
 	notCtx, cancel := context.WithTimeout(ctx, s.cfg.SamplerNotifyTimeout)
 	defer cancel()
 
+	fmt.Println("notify of new items", len(samplingItems))
 	select {
 	case s.itemNotCh <- samplingItems:
 		log.WithField("items", len(samplingItems)).Debug("notified from the Avail NetworkScrapper of new DAS items available")
@@ -99,8 +105,8 @@ func (s *NetworkScrapper) notifySampler(ctx context.Context, samplingItems []*mo
 	}
 }
 
-func (s *NetworkScrapper) GetSamplingItemStream(ctx context.Context) (chan []*models.SamplingItem, error) {
-	return s.itemNotCh, nil
+func (s *NetworkScrapper) GetSamplingItemStream() chan []*models.SamplingItem {
+	return s.itemNotCh
 }
 
 // syncs up with the database any prior existing sampleable item that we should keep tracking
@@ -112,12 +118,12 @@ func (s *NetworkScrapper) SyncWithDatabase(ctx context.Context) ([]*models.Sampl
 	if err != nil {
 		return nil, err
 	}
-	if len(items) < 0 {
-		log.Warn("no sampleable blobs were found at DB")
+	if len(items) <= 0 {
+		log.Warn("no sampleable items were found at DB")
 		return []*models.SamplingItem{}, nil
 	}
 
-	sampleItems := make([]*models.SamplingItem, len(items), 0)
+	sampleItems := make([]*models.SamplingItem, len(items))
 	for i, item := range items {
 		if !s.internalItemCache.Contains(item.Key) {
 			s.internalItemCache.Add(item.Key, struct{}{})
@@ -125,10 +131,6 @@ func (s *NetworkScrapper) SyncWithDatabase(ctx context.Context) ([]*models.Sampl
 		sampleItems[i] = &item
 	}
 	return sampleItems, nil
-}
-
-func (s *NetworkScrapper) Init(ctx context.Context) error {
-	return nil
 }
 
 func (s *NetworkScrapper) newBlockHandler(ctx context.Context, Block api.Block) error {
@@ -150,7 +152,11 @@ func (s *NetworkScrapper) newItemHandler(ctx context.Context, apiItem api.DASIte
 		return nil
 	}
 	s.internalItemCache.Add(apiItem.Key, struct{}{})
-	return s.db.PersistNewSamplingItem(ctx, item)
+	err := s.db.PersistNewSamplingItem(ctx, item)
+	if err != nil {
+		return err
+	}
+	return s.notifySampler(ctx, []*models.SamplingItem{item})
 }
 
 func (s *NetworkScrapper) newItemsHandler(ctx context.Context, apiItems []api.DASItem) error {

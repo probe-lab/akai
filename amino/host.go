@@ -498,7 +498,7 @@ func (h *DHTHost) ConnectAndIdentifyPeer(
 }
 
 func (h *DHTHost) getLibp2pHostInfo(pID peer.ID) map[string]any {
-	time.Sleep(2 * time.Second)
+	time.Sleep(30 * time.Millisecond)
 	attrs := make(map[string]any)
 	// read from the local peerstore
 	// agent version

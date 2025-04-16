@@ -14,20 +14,20 @@ const (
 )
 
 var (
-	CelestiaDelayBase       = 3 * time.Minute
+	DefaultCelestiaNetwork = Network{
+		Protocol:    ProtocolCelestia,
+		NetworkName: NetworkNameMainnet,
+	}
+	CelestiaDelayBase       = 15 * time.Minute
 	CelestiaDelayMultiplier = 1
 
 	// TODO: random values
-	CelestiaBlobsSetCacheSize    int = 1024
-	CelestiaSegmentsSetCacheSize int = 1024
+	CelestiaSetCacheSize int = 1024
 )
 
 // DefaulIPFSNetworkConfig defines the default configuration for the IPFS network for Akai
 var DefaultCelestiaNetworkConfig = &NetworkConfiguration{
-	Network: Network{
-		Protocol:    ProtocolCelestia,
-		NetworkName: NetworkNameMainnet,
-	},
+	Network: DefaultCelestiaNetwork,
 	// network parameters
 	BootstrapPeers: BootstrappersToMaddr(BootstrapNodesCelestiaMainnet),
 	AgentVersion:   ComposeAkaiAgentVersion(),
@@ -40,8 +40,8 @@ var DefaultCelestiaNetworkConfig = &NetworkConfiguration{
 
 	// sampling specifics
 	SamplingType:         SamplePeers,
-	BlobsSetCache:        CelestiaBlobsSetCacheSize,
-	SegmentsSetCacheSize: CelestiaSegmentsSetCacheSize,
+	BlobsSetCache:        CelestiaSetCacheSize,
+	SegmentsSetCacheSize: CelestiaSetCacheSize,
 	DelayBase:            CelestiaDelayBase,
 	DelayMultiplier:      CelestiaDelayMultiplier,
 }
@@ -57,7 +57,6 @@ func GetCelestiaDHTProtocolPrefix(networkName NetworkName) string {
 
 	default:
 	}
-
 	return fmt.Sprintf("/celestia/%s", net)
 }
 

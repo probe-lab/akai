@@ -19,10 +19,7 @@ var (
 
 // DefaulIPFSNetworkConfig defines the default configuration for the IPFS network for Akai
 var DefaultIPFSNetworkConfig = NetworkConfiguration{
-	Network: Network{
-		Protocol:    ProtocolIPFS,
-		NetworkName: NetworkNameAmino,
-	},
+	Network: DefaultIPFSNetwork,
 	// network parameters
 	BootstrapPeers: kaddht.GetDefaultBootstrapPeerAddrInfos(),
 	AgentVersion:   ComposeAkaiAgentVersion(),

@@ -89,7 +89,7 @@ func convertItemsToInput(items []*models.SamplingItem) proto.Input {
 		{Name: "sample_type", Data: sampleTypes},
 		{Name: "block_link", Data: blockLinks},
 		{Name: "key", Data: keys},
-		{Name: "hash", Data: keys},
+		{Name: "hash", Data: hashes},
 		{Name: "das_row", Data: rows},
 		{Name: "das_column", Data: columns},
 		{Name: "metadata", Data: metadatas},

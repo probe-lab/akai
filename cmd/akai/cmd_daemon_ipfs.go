@@ -46,7 +46,7 @@ func cmdDaemonIPFSAction(ctx context.Context, cmd *cli.Command) error {
 	log.WithFields(log.Fields{
 		"akai-http-host": cmdDaemonIPFSConf.AkaiAPIServiceConfig.Host,
 		"akai-http-port": cmdDaemonIPFSConf.AkaiAPIServiceConfig.Port,
-	}).Info("starting avail-block-tracker...")
+	}).Info("starting IPFS CID tracker...")
 	defer log.Infof("stopped celestia-namespace-tracker for %s", cmdDaemonIPFSConf.Network)
 
 	// set all network to be on the same one as the given one

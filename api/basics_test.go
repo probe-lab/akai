@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/probe-lab/akai/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,7 +33,7 @@ func Test_SupportedNetworks(t *testing.T) {
 	require.Equal(t, serverNet, network.Network.String())
 }
 
-func Test_PostNewBlob(t *testing.T) {
+func Test_PostNewBlock(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		cancel()
@@ -45,7 +44,7 @@ func Test_PostNewBlob(t *testing.T) {
 
 	// send a valid item
 	block := Block{
-		Network:    config.NetworkFromStr(DefaulServiceConfig.Network),
+		Network:    DefaulServiceConfig.Network,
 		Number:     1,
 		Hash:       "0xHASH",
 		ParentHash: "OxPARENTHASH",
@@ -69,7 +68,7 @@ func Test_PostNewitem(t *testing.T) {
 
 	item := DASItem{
 		Timestamp: time.Now(),
-		Network:   config.NetworkFromStr(DefaulServiceConfig.Network),
+		Network:   DefaulServiceConfig.Network,
 		BlockLink: 1,
 		Key:       "0xitem",
 		Hash:      "0xhash",

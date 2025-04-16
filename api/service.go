@@ -126,8 +126,8 @@ func (s *Service) serve(ctx context.Context) error {
 	return err
 }
 
-func (s *Service) isNetworkSupported(remNet config.Network) bool {
-	return s.config.Network == remNet.String() // we don't care about the NetworkID (its for the DB)
+func (s *Service) isValidNetwork(remNet string) bool {
+	return s.config.Network == remNet // we don't care about the NetworkID (its for the DB)
 }
 
 func (s *Service) pingHandler(c *gin.Context) {
@@ -165,7 +165,7 @@ func (s *Service) postNewBlockHandler(c *gin.Context) {
 	}
 
 	// ensure the block belongs to a supported network
-	if !s.isNetworkSupported(block.Network) {
+	if !s.isValidNetwork(block.Network) {
 		err := ErrNetworkNotSupported
 		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
 		hlog.Error(err)
@@ -194,8 +194,14 @@ func (s *Service) postNewItemHandler(c *gin.Context) {
 		return
 	}
 
-	// assume that the item is correct
+	// ensure the item belongs to a supported network
+	if !s.isValidNetwork(item.Network) {
+		err := ErrNetworkNotSupported
+		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
+		hlog.Error(err)
+	}
 
+	// assume that the item is correct
 	// make app specific
 	if err := s.appNewItemHandler(c.Request.Context(), item); err != nil {
 		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})

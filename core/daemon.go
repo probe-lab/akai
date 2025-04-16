@@ -34,13 +34,6 @@ func NewDaemon(
 	dataSampler *DataSampler,
 	netScrapper NetworkScrapper,
 ) (*Daemon, error) {
-
-	// TODO: as per the refactor:
-	// 1. read the network specifics from the config
-	// 2. create the sample with the specifics of the network
-	// 3. create the daemon with the sampler
-	// dasItemsCache := dataSampler.SamplingItemsCache(cfg.SamplingType)
-
 	daemon := &Daemon{
 		config:      cfg,
 		netScrapper: netScrapper,
@@ -50,15 +43,6 @@ func NewDaemon(
 		network:     config.NetworkFromStr(cfg.Network),
 		dataSampler: dataSampler,
 	}
-
-	/*
-		// TODO for network-scrappers that need the API
-		// once everything is in place, we MUST override the appHandlers at the ApiServer
-		apiServ.UpdateNewBlockHandler(daemon.newBlockHandler)
-		apiServ.UpdateNewItemHandler(daemon.newItemHandler)
-		apiServ.UpdateNewItemsHandler(daemon.newItemsHandler)
-	*/
-
 	return daemon, nil
 }
 
@@ -73,12 +57,8 @@ func (d *Daemon) Start(ctx context.Context) error {
 		return err
 	}
 
-	// TODO: add here the init and serve of the Network networkScrapper
-	// - init it
-	// - read from the channel
-	// - update the it
-
 	// add services to
+	d.sup.Add(d.netScrapper)
 	d.sup.Add(d.db)
 	d.sup.Add(d.dataSampler)
 
@@ -92,19 +72,23 @@ func (d *Daemon) syncNetworkScrapper(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	for _, item := range firstItems {
-		_, validNextVisit := d.dataSampler.updateNextVisitTime(item)
-		if !validNextVisit {
-			continue
+	if len(firstItems) > 0 {
+		for _, item := range firstItems {
+			_, validNextVisit := d.dataSampler.updateNextVisitTime(item)
+			if !validNextVisit {
+				continue
+			}
+			d.dataSampler.itemSet.addItem(item)
 		}
-		d.dataSampler.itemSet.addItem(item)
-	}
 
-	log.WithFields(log.Fields{
-		"from key":    firstItems[0].Key,
-		"to key":      firstItems[len(firstItems)-1].Key,
-		"total items": len(firstItems),
-		"import-time": time.Since(t),
-	}).Info("synced data-sampler's sampleable items with the DB")
+		log.WithFields(log.Fields{
+			"from key":    firstItems[0].Key,
+			"to key":      firstItems[len(firstItems)-1].Key,
+			"total items": len(firstItems),
+			"import-time": time.Since(t),
+		}).Info("synced data-sampler's sampleable items with the DB")
+	} else {
+		log.Info("no items found in db...")
+	}
 	return nil
 }

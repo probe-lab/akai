@@ -38,6 +38,7 @@ type DataSampler struct {
 
 	h               DHTHost
 	networkScrapper NetworkScrapper
+	newItemC        chan []*models.SamplingItem
 	db              db.Database
 	itemSet         *dasItemSet
 
@@ -53,17 +54,24 @@ type DataSampler struct {
 func NewDataSampler(
 	cfg *config.AkaiDataSamplerConfig,
 	database db.Database,
-	networkScrapper NetworkScrapper,
+	netScrapper NetworkScrapper,
 	h DHTHost,
 ) (*DataSampler, error) {
 
+	newItemC := netScrapper.GetSamplingItemStream()
+	if newItemC == nil {
+		return nil, fmt.Errorf("unable to get new-sampling-items chan from network-scrapper")
+	}
+
 	ds := &DataSampler{
-		cfg:           cfg,
-		network:       config.NetworkFromStr(cfg.Network),
-		db:            database,
-		h:             h,
-		itemSet:       newDASItemSet(),
-		samplingTaskC: make(chan SamplingTask, cfg.Workers),
+		cfg:             cfg,
+		network:         config.NetworkFromStr(cfg.Network),
+		db:              database,
+		networkScrapper: netScrapper,
+		newItemC:        newItemC,
+		h:               h,
+		itemSet:         newDASItemSet(),
+		samplingTaskC:   make(chan SamplingTask, cfg.Workers),
 	}
 
 	return ds, nil
@@ -75,10 +83,7 @@ func (ds *DataSampler) Serve(ctx context.Context) error {
 		return err
 	}
 
-	// TODO: add here the init and serve of the Network networkScrapper
-	// - init it
-	// - read from the channel
-	// - update the it
+	go ds.consumeNewSamplingItems(ctx)
 
 	// start the orchester
 	go ds.runSampleOrchester(ctx)
@@ -91,8 +96,30 @@ func (ds *DataSampler) Serve(ctx context.Context) error {
 	}
 
 	<-ctx.Done()
-
 	return nil
+}
+
+func (ds *DataSampler) consumeNewSamplingItems(ctx context.Context) {
+	wlog := log.WithField("data-sampler", "newItemConsumer")
+	wlog.Debug("spawning...")
+	defer func() {
+		wlog.Debug("closed")
+	}()
+
+	for {
+		select {
+		case newItem := <-ds.newItemC:
+			wlog.Debugf("new %d items tracked", len(newItem))
+			for _, item := range newItem {
+				wlog.Debugf("new item %s", item.Key)
+				_ = ds.itemSet.addItem(item)
+				_, _ = ds.updateNextVisitTime(item)
+			}
+
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func (ds *DataSampler) runSampleOrchester(ctx context.Context) {
@@ -264,11 +291,11 @@ func (ds *DataSampler) sampleItem(
 }
 
 func (ds *DataSampler) updateNextVisitTime(item *models.SamplingItem) (visitRound int, validNextVisit bool) {
-	// TODO: COnsider having all these network parameters in as single struct per network
+	// TODO: Consider having all these network parameters in as single struct per network
 	switch ds.network.Protocol {
 	case config.ProtocolIPFS, config.ProtocolCelestia:
 		// constant increment of 15/30 mins
-		visitRound, nextVisitTime := computeNextvisitTime(
+		visitRound, nextVisitTime := computeNextVisitTime(
 			item.Timestamp,
 			item.NextVisit,
 			ds.cfg.DelayBase,
@@ -281,7 +308,7 @@ func (ds *DataSampler) updateNextVisitTime(item *models.SamplingItem) (visitRoun
 
 	case config.ProtocolAvail, config.ProtocolLocal:
 		// exponentially increasing delay until end date
-		visitRound, nextVisitTime := computeNextvisitTime(
+		visitRound, nextVisitTime := computeNextVisitTime(
 			item.Timestamp,
 			item.NextVisit,
 			ds.cfg.DelayBase,
@@ -297,7 +324,7 @@ func (ds *DataSampler) updateNextVisitTime(item *models.SamplingItem) (visitRoun
 	}
 }
 
-func computeNextvisitTime(
+func computeNextVisitTime(
 	itemT, itemNextV time.Time,
 	delayBase time.Duration,
 	delayMultiplier int,
@@ -313,6 +340,15 @@ func computeNextvisitTime(
 		nextVisit = itemT.Add(delay)
 		multCnt = multCnt + 1
 	}
+	/*
+		fmt.Println("next visit time:")
+		fmt.Println("timestamp:", itemT)
+		fmt.Println("next_visit:", itemNextV)
+		fmt.Println("delay_base:", delayBase)
+		fmt.Println("delayMultiplier:", delayMultiplier)
+		fmt.Println("visit_round:", multCnt)
+		fmt.Println("next_visit:", nextVisit)
+	*/
 	return multCnt, nextVisit
 }
 

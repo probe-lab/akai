@@ -21,7 +21,7 @@ type SupportedNetworks struct {
 
 type Block struct {
 	Timestamp   time.Time      `json:"timestamp"`
-	Network     config.Network `json:"network"`
+	Network     string         `json:"network"`
 	Number      uint64         `json:"number"`
 	Hash        string         `json:"hash"`
 	Key         string         `json:"key"`
@@ -35,7 +35,7 @@ type Block struct {
 
 type DASItem struct {
 	Timestamp   time.Time      `json:"timestamp"`
-	Network     config.Network `json:"network"`
+	Network     string         `json:"network"`
 	BlockLink   uint64         `json:"block_link"`
 	Key         string         `json:"key"`
 	Hash        string         `json:"hash"`
