@@ -3,7 +3,7 @@ package models
 import "time"
 
 var (
-	SampleValueVisitTableName   = "sample_value_visits"
+	SampleValueVisitTableName   = "value_visits"
 	SampleValueVisitBatcherSize = SamplingitemBatcherSize * 4
 )
 
@@ -14,7 +14,7 @@ type SampleValueVisit struct {
 	Timestamp     time.Time `ch:"timestamp" json:"timestamp"`
 	Key           string    `ch:"key" json:"key"`
 	BlockNumber   uint64    `ch:"block_number" json:"block_number"`
-	DASRow        uint32    `ch:"das_row" json:"rdas_ow"`
+	DASRow        uint32    `ch:"das_row" json:"rdas_row"`
 	DASColumn     uint32    `ch:"das_column" json:"das_column"`
 	DurationMs    int64     `ch:"duration_ms" json:"duration_ms"`
 	IsRetrievable bool      `ch:"is_retrievable" json:"is_retrievable"`

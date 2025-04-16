@@ -44,11 +44,18 @@ func (s *ClickHouseDB) getLowLevelConnection(
 	conDetails *config.DatabaseDetails,
 	tag string,
 ) (*lowLevelConn, error) {
-	opts := ch.Options{
-		Address:  conDetails.Address,
-		Database: conDetails.Database,
-		User:     conDetails.User,
-		Password: conDetails.Password,
+
+	var opts ch.Options
+	switch s.instanceType {
+	case ClickhouseLocalInstance, ClickhouseReplicatedInstance:
+		opts = ch.Options{
+			Address:  conDetails.Address,
+			Database: conDetails.Database,
+			User:     conDetails.User,
+			Password: conDetails.Password,
+		}
+	default:
+		return nil, fmt.Errorf("%s clickhouse doesn't support low-level connections", s.instanceType)
 	}
 
 	if conDetails.TLSrequired {

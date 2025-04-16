@@ -3,7 +3,7 @@ package models
 import "time"
 
 var (
-	BlockTableName   = "block"
+	BlockTableName   = "blocks"
 	blockBatcherSize = 2
 )
 

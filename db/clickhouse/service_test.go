@@ -23,7 +23,7 @@ func generateClickhouseDatabase(t *testing.T, ctx context.Context, tables map[st
 		NetworkName: config.NetworkNameCustom,
 	}
 	// generate new connection
-	clickhouseDB, err := NewClickHouseDB(conDetails, network)
+	clickhouseDB, err := NewClickHouseDB(conDetails, ClickhouseLocalInstance, network)
 	require.NoError(t, err)
 
 	err = clickhouseDB.Init(ctx, tables)

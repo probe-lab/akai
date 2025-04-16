@@ -36,6 +36,20 @@ func (s *ClickHouseDB) makeMigrations() error {
 	}()
 	log.WithField("dir", tmpDir).Debugln("Created temporary directory")
 
+	// point to the rigth migrations folder
+	migrationsPath := ""
+	conDetails := ""
+	switch s.instanceType {
+	case ClickhouseLocalInstance:
+		migrationsPath = "migrations/chlocal"
+		conDetails = s.conDetails.LocalMigrationDSN()
+	case ClickhouseReplicatedInstance:
+		migrationsPath = "migrations/chcluster"
+		conDetails = s.conDetails.ReplicatedMigrationDSN()
+	default:
+		return fmt.Errorf("clickhouse doesn't support %s migrations", s.instanceType)
+	}
+
 	// copy migrations to tempDir
 	err = fs.WalkDir(migrations, ".", func(path string, d fs.DirEntry, err error) error {
 		join := filepath.Join(tmpDir, path)
@@ -54,8 +68,7 @@ func (s *ClickHouseDB) makeMigrations() error {
 		return fmt.Errorf("create migration files: %w", err)
 	}
 
-	// point to the migrations folder
-	m, err := migrate.New("file://"+filepath.Join(tmpDir, "migrations"), s.conDetails.MigrationDSN())
+	m, err := migrate.New("file://"+filepath.Join(tmpDir, migrationsPath), conDetails)
 	if err != nil {
 		return fmt.Errorf("applying migrations: %w", err)
 	}

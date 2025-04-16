@@ -42,7 +42,7 @@ func convertSampleGenericVisitToInput(visits []*models.SampleGenericVisit) proto
 		keys          proto.ColStr
 		durations     proto.ColInt64
 		responseItems proto.ColInt32
-		peerIDs       proto.ColArr[proto.ColStr]
+		peerIDs       = new(proto.ColStr).Array()
 		errors        proto.ColStr
 	)
 
@@ -54,11 +54,7 @@ func convertSampleGenericVisitToInput(visits []*models.SampleGenericVisit) proto
 		keys.Append(visit.Key)
 		durations.Append(visit.DurationMs)
 		responseItems.Append(int32(visit.ResponseItems))
-		peers := make([]proto.ColStr, len(visit.Peers))
-		for i, p := range visit.Peers {
-			peers[i].Append(p)
-		}
-		peerIDs.Append(peers)
+		peerIDs.Append(visit.Peers)
 		errors.Append(visit.Error)
 	}
 
@@ -75,7 +71,7 @@ func convertSampleGenericVisitToInput(visits []*models.SampleGenericVisit) proto
 	}
 }
 
-func requestSampleGenericVisitWithCondition(ctx context.Context, highLevelConn driver.Conn, condition string) ([]*models.SampleGenericVisit, error) {
+func requestSampleGenericVisitWithCondition(ctx context.Context, highLevelConn driver.Conn, condition string) ([]models.SampleGenericVisit, error) {
 	query := fmt.Sprintf(`
 		SELECT
 			visit_type,
@@ -89,32 +85,36 @@ func requestSampleGenericVisitWithCondition(ctx context.Context, highLevelConn d
 			error
 		FROM %s
 		%s
-		ORDER BY number, row, column;
+		ORDER BY visit_round, key;
 		`,
 		sampleGenericVisistsTableDriver.tableName,
 		condition,
 	)
 
 	// lock the connection
-	var response []*models.SampleGenericVisit
+	var response []models.SampleGenericVisit
 	err := highLevelConn.Select(ctx, &response, query)
 	return response, err
 }
 
-func requestAllSampleGenericVisit(ctx context.Context, highLevelConn driver.Conn) ([]*models.SampleGenericVisit, error) {
+func requestAllSampleGenericVisit(ctx context.Context, highLevelConn driver.Conn, network string) ([]models.SampleGenericVisit, error) {
 	log.WithFields(log.Fields{
 		"table":      sampleGenericVisistsTableDriver.tableName,
 		"query_type": "selecting all content",
 	}).Debugf("requesting from the clickhouse db")
-	return requestSampleGenericVisitWithCondition(ctx, highLevelConn, "")
+	return requestSampleGenericVisitWithCondition(
+		ctx,
+		highLevelConn,
+		fmt.Sprintf("WHERE network = '%s'", network),
+	)
 }
 
-func dropAllSampleGenericVisitTable(ctx context.Context, highLevelConn driver.Conn) error {
+func dropAllSampleGenericVisitTable(ctx context.Context, highLevelConn driver.Conn, network string) error {
 	log.WithFields(log.Fields{
 		"table":      sampleGenericVisistsTableDriver.tableName,
 		"query_type": "deleting all content",
 	}).Debugf("deleting visits from the clickhouse db")
 
-	query := fmt.Sprintf(`DELETE * FROM %s;`, sampleGenericVisistsTableDriver.tableName)
+	query := fmt.Sprintf(`DELETE FROM %s WHERE network = '%s';`, sampleGenericVisistsTableDriver.tableName, network)
 	return highLevelConn.Exec(ctx, query)
 }

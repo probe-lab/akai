@@ -40,11 +40,12 @@ func convertSampleValueVisitToInput(visits []*models.SampleValueVisit) proto.Inp
 	var (
 		visitTypes   proto.ColStr
 		visitRounds  proto.ColUInt64
+		networks     proto.ColStr
 		timestamps   proto.ColDateTime
 		keys         proto.ColStr
 		blockNumbers proto.ColUInt64
-		rows         proto.ColUInt32
-		columns      proto.ColUInt32
+		rows         = new(proto.ColUInt32).Nullable()
+		columns      = new(proto.ColUInt32).Nullable()
 		durations    proto.ColInt64
 		retrievables proto.ColBool
 		bytes        proto.ColInt32
@@ -54,11 +55,22 @@ func convertSampleValueVisitToInput(visits []*models.SampleValueVisit) proto.Inp
 	for _, visit := range visits {
 		visitTypes.Append(visit.VisitType)
 		visitRounds.Append(visit.VisitRound)
+		networks.Append(visit.Network)
 		timestamps.Append(visit.Timestamp)
 		keys.Append(visit.Key)
 		blockNumbers.Append(visit.BlockNumber)
-		rows.Append(visit.DASRow)
-		columns.Append(visit.DASColumn)
+
+		dr := proto.Null[uint32]()
+		if visit.DASRow > 0 {
+			dr = proto.NewNullable[uint32](visit.DASRow)
+		}
+		rows.Append(dr)
+
+		dc := proto.Null[uint32]()
+		if visit.DASColumn > 0 {
+			dc = proto.NewNullable[uint32](visit.DASColumn)
+		}
+		columns.Append(dc)
 		durations.Append(visit.DurationMs)
 		retrievables.Append(visit.IsRetrievable)
 		bytes.Append(visit.Bytes)
@@ -69,10 +81,11 @@ func convertSampleValueVisitToInput(visits []*models.SampleValueVisit) proto.Inp
 		{Name: "visit_type", Data: visitTypes},
 		{Name: "visit_round", Data: visitRounds},
 		{Name: "timestamp", Data: timestamps},
+		{Name: "network", Data: networks},
 		{Name: "key", Data: keys},
 		{Name: "block_number", Data: blockNumbers},
-		{Name: "row", Data: rows},
-		{Name: "column", Data: columns},
+		{Name: "das_row", Data: rows},
+		{Name: "das_column", Data: columns},
 		{Name: "duration_ms", Data: durations},
 		{Name: "is_retrievable", Data: retrievables},
 		{Name: "bytes", Data: bytes},
@@ -80,48 +93,53 @@ func convertSampleValueVisitToInput(visits []*models.SampleValueVisit) proto.Inp
 	}
 }
 
-func requestSampleValueVisitWithCondition(ctx context.Context, highLevelConn driver.Conn, condition string) ([]*models.SampleValueVisit, error) {
+func requestSampleValueVisitWithCondition(ctx context.Context, highLevelConn driver.Conn, condition string) ([]models.SampleValueVisit, error) {
 	query := fmt.Sprintf(`
 		SELECT
+			visit_type,
 			visit_round,
+			network,
 			timestamp,
 			key,
-			blob_number,
-			row,
-			column,
+			block_number,
+			das_row,
+			das_column,
 			duration_ms,
 			is_retrievable,
-			providers,
 			bytes,
 			error
 		FROM %s
 		%s
-		ORDER BY blob_number, row, column;
+		ORDER BY block_number, das_row, das_column;
 		`,
 		sampleValueVisitTableDriver.tableName,
 		condition,
 	)
 
 	// lock the connection
-	var response []*models.SampleValueVisit
+	var response []models.SampleValueVisit
 	err := highLevelConn.Select(ctx, &response, query)
 	return response, err
 }
 
-func requestAllSampleValueVisits(ctx context.Context, highLevelConn driver.Conn) ([]*models.SampleValueVisit, error) {
+func requestAllSampleValueVisits(ctx context.Context, highLevelConn driver.Conn, network string) ([]models.SampleValueVisit, error) {
 	log.WithFields(log.Fields{
 		"table":      sampleValueVisitTableDriver.tableName,
 		"query_type": "selecting all content",
 	}).Debugf("requesting from the clickhouse db")
-	return requestSampleValueVisitWithCondition(ctx, highLevelConn, "")
+	return requestSampleValueVisitWithCondition(
+		ctx,
+		highLevelConn,
+		fmt.Sprintf("WHERE network = '%s'", network),
+	)
 }
 
-func dropAllSampleValueVisitsTable(ctx context.Context, highLevelConn driver.Conn) error {
+func dropAllSampleValueVisitsTable(ctx context.Context, highLevelConn driver.Conn, network string) error {
 	log.WithFields(log.Fields{
 		"table":      sampleValueVisitTableDriver.tableName,
 		"query_type": "deleting all content",
 	}).Debugf("deleting visits from the clickhouse db")
 
-	query := fmt.Sprintf(`DELETE FROM %s WHERE block_number >= 0;`, sampleValueVisitTableDriver.tableName)
+	query := fmt.Sprintf(`DELETE FROM %s WHERE network = '%s';`, sampleValueVisitTableDriver.tableName, network)
 	return highLevelConn.Exec(ctx, query)
 }

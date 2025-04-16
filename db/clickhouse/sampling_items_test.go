@@ -2,6 +2,7 @@ package clickhouse
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -37,9 +38,9 @@ func Test_SamplingItemTable(t *testing.T) {
 	// test data insert
 	item1 := &models.SamplingItem{
 		Timestamp:   time.Now(),
-		Network:     config.DefaultNetwork,
-		ItemType:    config.AvailDASCellItemType,
-		SampleType:  config.SampleValue,
+		Network:     dbCli.currentNetwork.String(),
+		ItemType:    config.AvailDASCellItemType.String(),
+		SampleType:  config.SampleValue.String(),
 		Key:         "0xKEY",
 		Hash:        "0xHASH",
 		BlockLink:   1,
@@ -69,25 +70,26 @@ func Test_SamplingItemTable(t *testing.T) {
 
 	// test data retrieval
 	dbCli.highMu.Lock()
-	segments, err := requestAllSAmplingItems(mainCtx, dbCli.highLevelClient, dbCli.currentNetwork.String())
+	items, err := requestAllSAmplingItems(mainCtx, dbCli.highLevelClient, dbCli.currentNetwork.String())
+	fmt.Println(items)
 	dbCli.highMu.Unlock()
 	require.NoError(t, err)
-	require.Equal(t, 1, len(segments))
-	require.Equal(t, item1.Timestamp.Day(), segments[0].Timestamp.Day())
-	require.Equal(t, item1.Timestamp.Minute(), segments[0].Timestamp.Minute())
-	require.Equal(t, item1.Timestamp.Second(), segments[0].Timestamp.Second())
-	require.Equal(t, item1.Key, segments[0].Key)
-	require.Equal(t, item1.BlockLink, segments[0].BlockLink)
-	require.Equal(t, item1.SampleUntil.Day(), segments[0].SampleUntil.Day())
-	require.Equal(t, item1.SampleUntil.Minute(), segments[0].SampleUntil.Minute())
-	require.Equal(t, item1.SampleUntil.Second(), segments[0].SampleUntil.Second())
+	require.Equal(t, 1, len(items))
+	require.Equal(t, item1.Timestamp.Day(), items[0].Timestamp.Day())
+	require.Equal(t, item1.Timestamp.Minute(), items[0].Timestamp.Minute())
+	require.Equal(t, item1.Timestamp.Second(), items[0].Timestamp.Second())
+	require.Equal(t, item1.Key, items[0].Key)
+	require.Equal(t, item1.BlockLink, items[0].BlockLink)
+	require.Equal(t, item1.SampleUntil.Day(), items[0].SampleUntil.Day())
+	require.Equal(t, item1.SampleUntil.Minute(), items[0].SampleUntil.Minute())
+	require.Equal(t, item1.SampleUntil.Second(), items[0].SampleUntil.Second())
 
 	// try adding a second blob{
 	item2 := &models.SamplingItem{
 		Timestamp:   time.Now(),
-		Network:     config.DefaultNetwork,
-		ItemType:    config.AvailDASCellItemType,
-		SampleType:  config.SampleValue,
+		Network:     dbCli.currentNetwork.String(),
+		ItemType:    config.AvailDASCellItemType.String(),
+		SampleType:  config.SampleValue.String(),
 		Key:         "0xKEY2",
 		Hash:        "0xHASH2",
 		BlockLink:   2,
@@ -113,7 +115,7 @@ func Test_SamplingItemTable(t *testing.T) {
 	require.NoError(t, err)
 
 	dbCli.highMu.Lock()
-	items, err := requestItemsOnTTL(mainCtx, dbCli.highLevelClient, dbCli.currentNetwork.String())
+	items, err = requestItemsOnTTL(mainCtx, dbCli.highLevelClient, dbCli.currentNetwork.String())
 	dbCli.highMu.Unlock()
 	require.NoError(t, err)
 	require.Equal(t, 1, len(items))

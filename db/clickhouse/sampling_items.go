@@ -45,24 +45,39 @@ func convertItemsToInput(items []*models.SamplingItem) proto.Input {
 		blockLinks  proto.ColUInt64
 		keys        proto.ColStr
 		hashes      proto.ColStr
-		rows        proto.ColUInt32
-		columns     proto.ColUInt32
-		metadatas   proto.ColStr
+		rows        = new(proto.ColUInt32).Nullable()
+		columns     = new(proto.ColUInt32).Nullable()
+		metadatas   = new(proto.ColStr).Nullable()
 		traceables  proto.ColBool
 		sampleUntil proto.ColDateTime
 	)
 
 	for _, item := range items {
-		networks.Append(item.Network.String())
+		networks.Append(item.Network)
 		timestamps.Append(item.Timestamp)
-		itemTypes.Append(item.ItemType.String())
-		sampleTypes.Append(item.SampleType.String())
+		itemTypes.Append(item.ItemType)
+		sampleTypes.Append(item.SampleType)
 		blockLinks.Append(item.BlockLink)
 		keys.Append(item.Key)
 		hashes.Append(item.Hash)
-		rows.Append(item.DASRow)
-		columns.Append(item.DASColumn)
-		metadatas.Append(item.Metadata)
+
+		dr := proto.Null[uint32]()
+		if item.DASRow > 0 {
+			dr = proto.NewNullable[uint32](item.DASRow)
+		}
+		rows.Append(dr)
+
+		dc := proto.Null[uint32]()
+		if item.DASColumn > 0 {
+			dc = proto.NewNullable[uint32](item.DASColumn)
+		}
+		columns.Append(dc)
+
+		mtdt := proto.Null[string]()
+		if item.Metadata != "" {
+			mtdt = proto.NewNullable[string](item.Metadata)
+		}
+		metadatas.Append(mtdt)
 		traceables.Append(item.Traceable)
 		sampleUntil.Append(item.SampleUntil)
 	}
@@ -83,11 +98,20 @@ func convertItemsToInput(items []*models.SamplingItem) proto.Input {
 	}
 }
 
-func requestItemsWithCondition(ctx context.Context, highLevelConn driver.Conn, conditions string) ([]*models.SamplingItem, error) {
+func requestItemsWithCondition(ctx context.Context, highLevelConn driver.Conn, conditions string) ([]models.SamplingItem, error) {
 	query := fmt.Sprintf(`
 		SELECT
 			timestamp,
+			network,
+			item_type,
+			sample_type,
+			block_link,
 			key,
+			hash,
+			das_row,
+			das_column,
+			metadata,
+			traceable,
 			sample_until,
 		FROM %s
 		%s;`,
@@ -96,12 +120,12 @@ func requestItemsWithCondition(ctx context.Context, highLevelConn driver.Conn, c
 	)
 
 	// lock the connection
-	var response []*models.SamplingItem
+	var response []models.SamplingItem
 	err := highLevelConn.Select(ctx, &response, query)
 	return response, err
 }
 
-func requestAllSAmplingItems(ctx context.Context, highLevelConn driver.Conn, network string) ([]*models.SamplingItem, error) {
+func requestAllSAmplingItems(ctx context.Context, highLevelConn driver.Conn, network string) ([]models.SamplingItem, error) {
 	log.WithFields(log.Fields{
 		"table":      samplingItemTableDriver.tableName,
 		"query_type": "selecting all content",
@@ -109,11 +133,11 @@ func requestAllSAmplingItems(ctx context.Context, highLevelConn driver.Conn, net
 	return requestItemsWithCondition(
 		ctx,
 		highLevelConn,
-		fmt.Sprintf("WHERE network == %s", network),
+		fmt.Sprintf("WHERE network = '%s'", network),
 	)
 }
 
-func requestItemsOnTTL(ctx context.Context, highLevelConn driver.Conn, network string) ([]*models.SamplingItem, error) {
+func requestItemsOnTTL(ctx context.Context, highLevelConn driver.Conn, network string) ([]models.SamplingItem, error) {
 	log.WithFields(log.Fields{
 		"table":      samplingItemTableDriver.tableName,
 		"query_type": "selecting items on TTL",
@@ -121,7 +145,7 @@ func requestItemsOnTTL(ctx context.Context, highLevelConn driver.Conn, network s
 	return requestItemsWithCondition(
 		ctx,
 		highLevelConn,
-		fmt.Sprintf("WHERE sample_until > now() and network == %s", network),
+		fmt.Sprintf("WHERE sample_until > now() and network = '%s'", network),
 	)
 }
 
@@ -131,6 +155,6 @@ func dropAllItemsTable(ctx context.Context, highLevelConn driver.Conn, network s
 		"query_type": "deleting all content",
 	}).Debugf("deleting items from the clickhouse db")
 
-	query := fmt.Sprintf(`DELETE FROM %s WHERE blob_number >= 0;`, samplingItemTableDriver.tableName)
+	query := fmt.Sprintf(`DELETE FROM %s WHERE network = '%s';`, samplingItemTableDriver.tableName, network)
 	return highLevelConn.Exec(ctx, query)
 }

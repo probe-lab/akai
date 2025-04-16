@@ -25,18 +25,20 @@ func Test_GenericVisitsTable(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, batcher.maxSize, maxSize)
 	require.Equal(t, batcher.currentLen(), 0)
-	require.Equal(t, batcher.BaseQuery(), sampleValueVisitTableDriver.baseQuery)
+	require.Equal(t, batcher.BaseQuery(), sampleGenericVisistsTableDriver.baseQuery)
 	require.Equal(t, batcher.isFull(), false)
 
 	// drop anything existing in the testing DB
 	dbCli.highMu.Lock()
-	err = dropAllSampleGenericVisitTable(mainCtx, dbCli.highLevelClient)
+	err = dropAllSampleGenericVisitTable(mainCtx, dbCli.highLevelClient, dbCli.currentNetwork.String())
 	require.NoError(t, err)
 	dbCli.highMu.Unlock()
 
 	// test data insert
 	visit1 := &models.SampleGenericVisit{
-		Network:       config.DefaultNetwork.String(),
+		VisitType:     config.SampleProviders.String(),
+		VisitRound:    uint64(0),
+		Network:       dbCli.currentNetwork.String(),
 		Timestamp:     time.Now(),
 		Key:           "0xKEY",
 		DurationMs:    60 * 1000,
@@ -63,10 +65,12 @@ func Test_GenericVisitsTable(t *testing.T) {
 
 	// test data retrieval
 	dbCli.highMu.Lock()
-	visits, err := requestAllSampleGenericVisit(mainCtx, dbCli.highLevelClient)
+	visits, err := requestAllSampleGenericVisit(mainCtx, dbCli.highLevelClient, dbCli.currentNetwork.String())
 	dbCli.highMu.Unlock()
 	require.NoError(t, err)
 	require.Equal(t, 1, len(visits))
+	require.Equal(t, visit1.VisitRound, visits[0].VisitRound)
+	require.Equal(t, visit1.VisitType, visits[0].VisitType)
 	require.Equal(t, visit1.Timestamp.Day(), visits[0].Timestamp.Day())
 	require.Equal(t, visit1.Timestamp.Minute(), visits[0].Timestamp.Minute())
 	require.Equal(t, visit1.Timestamp.Second(), visits[0].Timestamp.Second())
@@ -78,7 +82,7 @@ func Test_GenericVisitsTable(t *testing.T) {
 
 	// drop anything existing in the testing DB
 	dbCli.highMu.Lock()
-	err = dropAllSampleGenericVisitTable(mainCtx, dbCli.highLevelClient)
+	err = dropAllSampleGenericVisitTable(mainCtx, dbCli.highLevelClient, dbCli.currentNetwork.String())
 	require.NoError(t, err)
 	dbCli.highMu.Unlock()
 }

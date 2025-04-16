@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/db/models"
 	"github.com/stretchr/testify/require"
 )
@@ -30,13 +29,13 @@ func Test_BlocksTable(t *testing.T) {
 
 	// drop anything existing in the testing DB
 	dbCli.highMu.Lock()
-	err = dropAllBlocksTable(mainCtx, dbCli.highLevelClient)
+	err = dropAllBlocksTable(mainCtx, dbCli.highLevelClient, dbCli.currentNetwork.String())
 	require.NoError(t, err)
 	dbCli.highMu.Unlock()
 
 	// test data insert
 	block := &models.Block{
-		Network:     config.DefaultNetwork.String(),
+		Network:     dbCli.currentNetwork.String(),
 		Timestamp:   time.Now(),
 		Hash:        "0xHASH",
 		Key:         "0xKEY",
@@ -65,7 +64,7 @@ func Test_BlocksTable(t *testing.T) {
 
 	// test data retrieval
 	dbCli.highMu.Lock()
-	blocks, err := requestAllBlocks(mainCtx, dbCli.highLevelClient)
+	blocks, err := requestAllBlocks(mainCtx, dbCli.highLevelClient, dbCli.currentNetwork.String())
 	dbCli.highMu.Unlock()
 	require.NoError(t, err)
 	require.Equal(t, 1, len(blocks))
@@ -83,7 +82,7 @@ func Test_BlocksTable(t *testing.T) {
 
 	// try adding a second block
 	block2 := &models.Block{
-		Network:     config.DefaultNetwork.String(),
+		Network:     dbCli.currentNetwork.String(),
 		Timestamp:   time.Now(),
 		Hash:        "0xHASH2",
 		Key:         "0xKEY2",
@@ -108,7 +107,7 @@ func Test_BlocksTable(t *testing.T) {
 	require.NoError(t, err)
 
 	dbCli.highMu.Lock()
-	blocks, err = requestBlocksOnTTL(mainCtx, dbCli.highLevelClient)
+	blocks, err = requestBlocksOnTTL(mainCtx, dbCli.highLevelClient, dbCli.currentNetwork.String())
 	dbCli.highMu.Unlock()
 	require.NoError(t, err)
 	require.Equal(t, 1, len(blocks))
@@ -133,7 +132,7 @@ func Test_BlocksTable(t *testing.T) {
 
 	// drop anything existing in the testing DB
 	dbCli.highMu.Lock()
-	err = dropAllBlocksTable(mainCtx, dbCli.highLevelClient)
+	err = dropAllBlocksTable(mainCtx, dbCli.highLevelClient, dbCli.currentNetwork.String())
 	require.NoError(t, err)
 	dbCli.highMu.Unlock()
 }

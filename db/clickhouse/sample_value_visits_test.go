@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/db/models"
 	"github.com/stretchr/testify/require"
 )
@@ -29,13 +30,16 @@ func Test_SampleValueVisitsTable(t *testing.T) {
 
 	// drop anything existing in the testing DB
 	dbCli.highMu.Lock()
-	err = dropAllSampleValueVisitsTable(mainCtx, dbCli.highLevelClient)
+	err = dropAllSampleValueVisitsTable(mainCtx, dbCli.highLevelClient, dbCli.currentNetwork.String())
 	require.NoError(t, err)
 	dbCli.highMu.Unlock()
 
 	// test data insert
 	visit1 := &models.SampleValueVisit{
+		VisitRound:    uint64(0),
+		VisitType:     config.SampleValue.String(),
 		Timestamp:     time.Now(),
+		Network:       dbCli.currentNetwork.String(),
 		Key:           "0xKEY",
 		BlockNumber:   1,
 		DASRow:        1,
@@ -64,10 +68,12 @@ func Test_SampleValueVisitsTable(t *testing.T) {
 
 	// test data retrieval
 	dbCli.highMu.Lock()
-	visits, err := requestAllSampleValueVisits(mainCtx, dbCli.highLevelClient)
+	visits, err := requestAllSampleValueVisits(mainCtx, dbCli.highLevelClient, dbCli.currentNetwork.String())
 	dbCli.highMu.Unlock()
 	require.NoError(t, err)
 	require.Equal(t, 1, len(visits))
+	require.Equal(t, visit1.VisitRound, visits[0].VisitRound)
+	require.Equal(t, visit1.VisitType, visits[0].VisitType)
 	require.Equal(t, visit1.Timestamp.Day(), visits[0].Timestamp.Day())
 	require.Equal(t, visit1.Timestamp.Minute(), visits[0].Timestamp.Minute())
 	require.Equal(t, visit1.Timestamp.Second(), visits[0].Timestamp.Second())
@@ -79,7 +85,7 @@ func Test_SampleValueVisitsTable(t *testing.T) {
 
 	// drop anything existing in the testing DB
 	dbCli.highMu.Lock()
-	err = dropAllSampleValueVisitsTable(mainCtx, dbCli.highLevelClient)
+	err = dropAllSampleValueVisitsTable(mainCtx, dbCli.highLevelClient, dbCli.currentNetwork.String())
 	require.NoError(t, err)
 	dbCli.highMu.Unlock()
 }

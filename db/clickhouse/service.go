@@ -14,8 +14,15 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type ClickhouseInstance string
+
+const (
+	ClickhouseLocalInstance      ClickhouseInstance = "clickhouse-local"
+	ClickhouseReplicatedInstance ClickhouseInstance = "clickhouse-replicated"
+)
+
 var DefaultClickhouseConnectionDetails = &config.DatabaseDetails{
-	Driver:   "clickhouse",
+	Driver:   "clickhouse-local",
 	Address:  "127.0.0.1:9000",
 	User:     "username",
 	Password: "password",
@@ -26,7 +33,8 @@ var MaxFlushInterval = 1 * time.Second
 
 type ClickHouseDB struct {
 	// Reference to the configuration
-	conDetails *config.DatabaseDetails
+	conDetails   *config.DatabaseDetails
+	instanceType ClickhouseInstance
 
 	// Database handler
 	// pool of connections per table for bulk inserts
@@ -51,9 +59,13 @@ type ClickHouseDB struct {
 	// telemetry *telemetry
 }
 
-func NewClickHouseDB(conDetails *config.DatabaseDetails, network config.Network) (*ClickHouseDB, error) {
+func NewClickHouseDB(
+	conDetails *config.DatabaseDetails,
+	instance ClickhouseInstance,
+	network config.Network) (*ClickHouseDB, error) {
 	db := &ClickHouseDB{
 		conDetails:       conDetails,
+		instanceType:     instance,
 		currentNetwork:   network,
 		lowLevelConnPool: make(map[string]*lowLevelConn),
 	}
@@ -373,19 +385,19 @@ func (db *ClickHouseDB) PersistNewBlock(ctx context.Context, block *models.Block
 	return nil
 }
 
-func (db *ClickHouseDB) GetAllBlocks(ctx context.Context) ([]*models.Block, error) {
+func (db *ClickHouseDB) GetAllBlocks(ctx context.Context) ([]models.Block, error) {
 	db.highMu.Lock()
 	defer db.highMu.Unlock()
-	return requestAllBlocks(ctx, db.highLevelClient)
+	return requestAllBlocks(ctx, db.highLevelClient, db.currentNetwork.String())
 }
 
-func (db *ClickHouseDB) GetSampleableBlocks(ctx context.Context) ([]*models.Block, error) {
+func (db *ClickHouseDB) GetSampleableBlocks(ctx context.Context) ([]models.Block, error) {
 	db.highMu.Lock()
 	defer db.highMu.Unlock()
-	return requestBlocksOnTTL(ctx, db.highLevelClient)
+	return requestBlocksOnTTL(ctx, db.highLevelClient, db.currentNetwork.String())
 }
 
-func (db *ClickHouseDB) GetLastBlock(ctx context.Context) (*models.Block, error) {
+func (db *ClickHouseDB) GetLastBlock(ctx context.Context) (models.Block, error) {
 	db.highMu.Lock()
 	defer db.highMu.Unlock()
 	return requestLastBlock(ctx, db.highLevelClient)
@@ -415,13 +427,12 @@ func (db *ClickHouseDB) PersistNewSamplingItem(ctx context.Context, item *models
 	return nil
 }
 
-func (db *ClickHouseDB) GetSampleableItems(ctx context.Context) ([]*models.SamplingItem, error) {
+func (db *ClickHouseDB) GetSampleableItems(ctx context.Context) ([]models.SamplingItem, error) {
 	db.highMu.Lock()
 	defer db.highMu.Unlock()
 	return requestItemsOnTTL(ctx, db.highLevelClient, db.currentNetwork.String())
 }
 
-// TODO: fix this mess vvvvvvvvvvvvvv
 func (db *ClickHouseDB) PersistNewSampleGenericVisit(ctx context.Context, visit *models.SampleGenericVisit) error {
 	flushable := db.qBatchers.sampleGenericVisits.addItem(visit)
 	if flushable {
