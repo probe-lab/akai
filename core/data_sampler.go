@@ -232,7 +232,7 @@ func (ds *DataSampler) sampleItem(
 		"sampleable_until": item.SampleUntil,
 	}).Debug("sampling Item of blob")
 
-	samplerFn, err := samplingFnFromType(item.SampleType)
+	samplerFn, err := samplingFnFromType(config.SamplingTypeFromStr(item.SampleType))
 	if err != nil {
 		return err
 	}
@@ -379,7 +379,7 @@ func sampleByFindProviders(
 	visit := models.SampleGenericVisit{
 		VisitType:     config.SampleProviders.String(),
 		VisitRound:    uint64(visitRound),
-		Network:       item.Network.String(),
+		Network:       item.Network,
 		Timestamp:     time.Now(),
 		Key:           item.Key,
 		DurationMs:    int64(0),
@@ -432,7 +432,7 @@ func sampleByFindPeers(
 	visit := models.SampleGenericVisit{
 		VisitType:     config.SamplePeers.String(),
 		VisitRound:    uint64(visitRound),
-		Network:       item.Network.String(),
+		Network:       item.Network,
 		Timestamp:     time.Now(),
 		Key:           item.Key,
 		DurationMs:    int64(0),
@@ -480,8 +480,8 @@ func sampleByFindValue(
 ) (models.GeneralVisit, error) {
 	visit := models.SampleValueVisit{
 		VisitRound:    uint64(visitRound),
-		VisitType:     item.ItemType.String(),
-		Network:       item.Network.String(),
+		VisitType:     item.ItemType,
+		Network:       item.Network,
 		Timestamp:     time.Now(),
 		Key:           item.Key,
 		BlockNumber:   item.BlockLink,

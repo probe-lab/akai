@@ -103,7 +103,7 @@ func (s *NetworkScrapper) notifySampler(ctx context.Context, samplingItems []*mo
 }
 
 // syncs up with the database any prior existing sampleable item that we should keep tracking
-func (s *NetworkScrapper) SyncWithDatabase(ctx context.Context) ([]*models.SamplingItem, error) {
+func (s *NetworkScrapper) SyncWithDatabase(ctx context.Context) ([]models.SamplingItem, error) {
 	syncCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -113,10 +113,10 @@ func (s *NetworkScrapper) SyncWithDatabase(ctx context.Context) ([]*models.Sampl
 	}
 	if len(items) < 0 {
 		log.Warn("no sampleable blobs were found at DB")
-		return []*models.SamplingItem{}, nil
+		return []models.SamplingItem{}, nil
 	}
 
-	sampleItems := make([]*models.SamplingItem, len(items), 0)
+	sampleItems := make([]models.SamplingItem, len(items), 0)
 	for i, item := range items {
 		if !s.internalItemCache.Contains(item.Key) {
 			s.internalItemCache.Add(item.Key, struct{}{})

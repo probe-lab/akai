@@ -103,9 +103,9 @@ func (b *Block) GetDASSamplingItems(network config.Network) []*models.SamplingIt
 			}
 			item := &models.SamplingItem{
 				Timestamp:   b.UTCTimestamp(),
-				Network:     network,
-				ItemType:    config.AvailDASCellItemType,
-				SampleType:  config.SampleValue,
+				Network:     network.String(),
+				ItemType:    config.AvailDASCellItemType.String(),
+				SampleType:  config.SampleValue.String(),
 				BlockLink:   segmentKey.Block,
 				Key:         segmentKey.String(),
 				Hash:        "",

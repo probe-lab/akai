@@ -122,7 +122,7 @@ func (s *NetworkScrapper) SyncWithDatabase(ctx context.Context) ([]*models.Sampl
 		if !s.internalItemCache.Contains(item.Key) {
 			s.internalItemCache.Add(item.Key, struct{}{})
 		}
-		sampleItems[i] = item
+		sampleItems[i] = &item
 	}
 	return sampleItems, nil
 }
@@ -183,9 +183,9 @@ func (s *NetworkScrapper) getSamplingItemFromAPIitem(apiItem api.DASItem) *model
 	}
 	return &models.SamplingItem{
 		Timestamp:   apiItem.Timestamp,
-		Network:     s.network,
-		ItemType:    config.CelestiaDHTNamesSpaceItemType, // TODO: do we want to select this on the API itself
-		SampleType:  config.SamplePeers,                   // TODO: do we want to select this on the API itself
+		Network:     s.network.String(),
+		ItemType:    config.CelestiaDHTNamesSpaceItemType.String(), // TODO: do we want to select this on the API itself
+		SampleType:  config.SamplePeers.String(),                   // TODO: do we want to select this on the API itself
 		BlockLink:   apiItem.BlockLink,
 		Key:         apiItem.Key,
 		Hash:        "",

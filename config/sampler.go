@@ -27,6 +27,25 @@ func (t SamplingType) String() string {
 	}
 }
 
+func SamplingTypeFromStr(s string) SamplingType {
+	switch s {
+	case "FIND_CLOSEST":
+		return SampleClosest
+	case "FIND_PROVIDERS":
+		return SampleProviders
+	case "FIND_PEER_INFO":
+		return SamplePeerInfo
+	case "FIND_PEERS":
+		return SamplePeers
+	case "FIND_VALUE":
+		return SampleValue
+	case "UNKNOWN_OPERATION":
+		return SampleUnknown
+	default:
+		return SampleUnknown
+	}
+}
+
 const (
 	SampleUnknown SamplingType = iota
 	SampleClosest

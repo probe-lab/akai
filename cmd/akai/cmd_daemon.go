@@ -27,6 +27,8 @@ var cmdDaemon = &cli.Command{
 	Before: daemonRunBefore,
 	Commands: []*cli.Command{
 		cmdDaemonAvailDAStracker,
+		cmdDaemonCelestiaNamespace,
+		cmdDaemonIPFS,
 	},
 }
 
@@ -48,13 +50,12 @@ var cmdDaemonFlags = []cli.Flag{
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_DAEMON_DB_DRIVER")},
 		},
-		Usage:       "Driver of the Database that will keep all the raw data",
+		Usage:       "Driver of the Database that will keep all the raw data (clickhouse-local, clickhouse-replicated)",
 		Value:       daemonConfig.DBconfig.Driver,
 		Destination: &daemonConfig.DBconfig.Driver,
 	},
 	&cli.StringFlag{
-		Name:    "db-address",
-		Aliases: []string{"dba"},
+		Name: "db-address",
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_DAEMON_DB_ADDRESS")},
 		},
@@ -63,8 +64,7 @@ var cmdDaemonFlags = []cli.Flag{
 		Destination: &daemonConfig.DBconfig.Address,
 	},
 	&cli.StringFlag{
-		Name:    "db-user",
-		Aliases: []string{"dbu"},
+		Name: "db-user",
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_DAEMON_DB_USER")},
 		},
@@ -73,8 +73,7 @@ var cmdDaemonFlags = []cli.Flag{
 		Destination: &daemonConfig.DBconfig.User,
 	},
 	&cli.StringFlag{
-		Name:    "db-password",
-		Aliases: []string{"dbp"},
+		Name: "db-password",
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_DAEMON_DB_PASSWORD")},
 		},
@@ -83,8 +82,7 @@ var cmdDaemonFlags = []cli.Flag{
 		Destination: &daemonConfig.DBconfig.Password,
 	},
 	&cli.StringFlag{
-		Name:    "db-database",
-		Aliases: []string{"dbd"},
+		Name: "db-database",
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_DAEMON_DB_DATABASE")},
 		},

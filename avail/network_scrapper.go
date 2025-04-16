@@ -228,7 +228,7 @@ func (ds *NetworkScrapper) SyncWithDatabase(ctx context.Context) ([]*models.Samp
 		if !ds.internalBlockCache.Contains(item.BlockLink) {
 			ds.internalBlockCache.Add(item.BlockLink, struct{}{})
 		}
-		sampleItems[i] = item
+		sampleItems[i] = &item
 	}
 	return sampleItems, nil
 }

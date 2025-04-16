@@ -12,24 +12,24 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var cmdDaemonCelestiaNamespaceConf = celestia.DefaultNetworkScrapperConfig
+var cmdDaemonIPFSConf = celestia.DefaultNetworkScrapperConfig
 
-var cmdDaemonCelestiaNamespace = &cli.Command{
-	Name:   "celestia",
-	Usage:  "Tracks Celestia's Namespaces and checks the number of nodes supporting them at the DHT",
-	Flags:  cmdDaemonCelestiaNamespaceFlags,
-	Action: cmdDaemonCelestiaNamespaceAction,
+var cmdDaemonIPFS = &cli.Command{
+	Name:   "ipfs",
+	Usage:  "Tracks IPFS CIDs over the API and checks their availability in the DHT",
+	Flags:  cmdDaemonIPFSFlags,
+	Action: cmdDaemonIPFSAction,
 }
 
-var cmdDaemonCelestiaNamespaceFlags = []cli.Flag{
+var cmdDaemonIPFSFlags = []cli.Flag{
 	&cli.StringFlag{
 		Name: "api-http-host",
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_DAEMON_API_HTTP_HOST")},
 		},
 		Usage:       "Port for the Akai's HTTP API server",
-		Value:       cmdDaemonCelestiaNamespaceConf.AkaiAPIServiceConfig.Host,
-		Destination: &cmdDaemonCelestiaNamespaceConf.AkaiAPIServiceConfig.Host,
+		Value:       cmdDaemonIPFSConf.AkaiAPIServiceConfig.Host,
+		Destination: &cmdDaemonIPFSConf.AkaiAPIServiceConfig.Host,
 	},
 	&cli.IntFlag{
 		Name: "api-http-port",
@@ -37,21 +37,21 @@ var cmdDaemonCelestiaNamespaceFlags = []cli.Flag{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_DAEMON_API_HTTP_PORT")},
 		},
 		Usage:       "Port of Akai Daemon's HTTP API",
-		Value:       cmdDaemonCelestiaNamespaceConf.AkaiAPIServiceConfig.Port,
-		Destination: &cmdDaemonCelestiaNamespaceConf.AkaiAPIServiceConfig.Port,
+		Value:       cmdDaemonIPFSConf.AkaiAPIServiceConfig.Port,
+		Destination: &cmdDaemonIPFSConf.AkaiAPIServiceConfig.Port,
 	},
 }
 
-func cmdDaemonCelestiaNamespaceAction(ctx context.Context, cmd *cli.Command) error {
+func cmdDaemonIPFSAction(ctx context.Context, cmd *cli.Command) error {
 	log.WithFields(log.Fields{
-		"akai-http-host": cmdDaemonCelestiaNamespaceConf.AkaiAPIServiceConfig.Host,
-		"akai-http-port": cmdDaemonCelestiaNamespaceConf.AkaiAPIServiceConfig.Port,
+		"akai-http-host": cmdDaemonIPFSConf.AkaiAPIServiceConfig.Host,
+		"akai-http-port": cmdDaemonIPFSConf.AkaiAPIServiceConfig.Port,
 	}).Info("starting avail-block-tracker...")
-	defer log.Infof("stopped celestia-namespace-tracker for %s", cmdDaemonCelestiaNamespaceConf.Network)
+	defer log.Infof("stopped celestia-namespace-tracker for %s", cmdDaemonIPFSConf.Network)
 
 	// set all network to be on the same one as the given one
 	network := config.NetworkFromStr(daemonConfig.Network)
-	if network.Protocol != config.ProtocolCelestia {
+	if network.Protocol != config.ProtocolIPFS {
 		return fmt.Errorf("the given network doesn't belong to the celestia protocol %s", daemonConfig.Network)
 	}
 	daemonConfig.DataSamplerConfig.Network = daemonConfig.Network
@@ -79,7 +79,7 @@ func cmdDaemonCelestiaNamespaceAction(ctx context.Context, cmd *cli.Command) err
 		return err
 	}
 
-	netScrapper, err := celestia.NewNetworkScrapper(cmdDaemonCelestiaNamespaceConf, dbSer)
+	netScrapper, err := celestia.NewNetworkScrapper(cmdDaemonIPFSConf, dbSer)
 	if err != nil {
 		return err
 	}

@@ -15,8 +15,8 @@ import (
 var cmdDaemonAvailDAStrackerConf = avail.DefaultNetorkScrapperConfig
 
 var cmdDaemonAvailDAStracker = &cli.Command{
-	Name:   "avail-block-tracker",
-	Usage:  "Pings any Key from the given network's DHT",
+	Name:   "avail",
+	Usage:  "Tracks DAS cells from the Avail network and checks their availability in the DHT",
 	Flags:  cmdDaemonAvailDAStrackerFlags,
 	Action: cmdDaemonAvailDAStrackerAction,
 }
