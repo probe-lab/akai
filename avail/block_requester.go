@@ -20,24 +20,18 @@ type BlockRequester struct {
 	totalRequestedBlocks uint64
 	lastBlockTracked     uint64
 
-	trackDuration time.Duration
-	trackInterval time.Duration
-
 	consumers []BlockConsumer
 }
 
 func NewBlockRequester(
 	apiCli *api.HTTPClient,
 	networkConfig *config.NetworkConfiguration,
-	consumers []BlockConsumer,
-	trackDuration, trackInterval time.Duration) (*BlockRequester, error) {
+	consumers []BlockConsumer) (*BlockRequester, error) {
 	return &BlockRequester{
 		httpAPICli:       apiCli,
 		networkConfig:    networkConfig,
 		lastBlockTracked: uint64(0),
 		consumers:        consumers,
-		trackDuration:    trackDuration,
-		trackInterval:    trackInterval,
 	}, nil
 }
 
@@ -92,28 +86,12 @@ func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 		return
 	}
 	ticker.Stop()
-
-	// logic to track or not to track blocks at specific intervals
-	var trackSegmentsFlag bool = true
-	trackDurationT := time.NewTicker(r.trackDuration)
-	trackIntervalT := time.NewTicker(r.trackInterval)
-	invertSegmentTrack := func() {
-		trackSegmentsFlag = !trackSegmentsFlag
-	}
-
 	// once we are "on-time", keep requesting the block periodically
 	extraDelay := 1 * time.Second
 	proposalTicker := time.NewTicker(config.BlockIntervalTarget + extraDelay) // give 1 extra time to request next block
 	lastReqT := time.Now()
 	for {
 		select {
-		case <-trackDurationT.C:
-			invertSegmentTrack()
-			trackDurationT.Stop()
-
-		case <-trackIntervalT.C:
-			invertSegmentTrack()
-			trackDurationT.Reset(r.trackDuration)
 
 		case <-proposalTicker.C:
 			headBlock, lastBlock, err := r.requestLastState(ctx)
@@ -142,7 +120,7 @@ func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 						).Debug(errors.Wrap(err, "avail-light couldn't give block header"))
 						continue
 					}
-					err = r.processNewBlock(ctx, blockHeader, lastReqT, trackSegmentsFlag)
+					err = r.processNewBlock(ctx, blockHeader, lastReqT)
 					if err != nil {
 						log.Error(err)
 						return
@@ -164,14 +142,13 @@ func (r *BlockRequester) periodicBlockRequester(ctx context.Context) {
 func (r *BlockRequester) processNewBlock(
 	ctx context.Context,
 	blockHeader api.V2BlockHeader,
-	lastReqT time.Time,
-	trackSegment bool) error {
+	lastReqT time.Time) error {
 	newBlockNot := &BlockNotification{
 		RequestTime: time.Now(),
 		BlockInfo:   blockHeader,
 	}
 	for _, consumer := range r.consumers {
-		err := consumer.ProccessNewBlock(ctx, newBlockNot, lastReqT, trackSegment)
+		err := consumer.ProccessNewBlock(ctx, newBlockNot, lastReqT)
 		if err != nil {
 			return err
 		}

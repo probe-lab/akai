@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/probe-lab/akai/config"
-	"github.com/probe-lab/akai/db/models"
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 )
@@ -32,19 +31,19 @@ var DefaulServiceConfig = &config.AkaiAPIServiceConfig{
 type Service struct {
 	config *config.AkaiAPIServiceConfig
 
-	appNewBlobHandler     func(context.Context, Blob) error
-	appNewSegmentHandler  func(context.Context, BlobSegment) error
-	appNewSegmentsHandler func(context.Context, []BlobSegment) error
+	appNewBlockHandler func(context.Context, Block) error
+	appNewItemHandler  func(context.Context, DASItem) error
+	appNewItemsHandler func(context.Context, []DASItem) error
 
 	engine *gin.Engine
 }
 
 func NewService(cfg *config.AkaiAPIServiceConfig, opts ...ServiceOption) (*Service, error) {
 	apiService := &Service{
-		config:                cfg,
-		appNewBlobHandler:     func(context.Context, Blob) error { return nil },
-		appNewSegmentHandler:  func(context.Context, BlobSegment) error { return nil },
-		appNewSegmentsHandler: func(context.Context, []BlobSegment) error { return nil },
+		config:             cfg,
+		appNewBlockHandler: func(context.Context, Block) error { return nil },
+		appNewItemHandler:  func(context.Context, DASItem) error { return nil },
+		appNewItemsHandler: func(context.Context, []DASItem) error { return nil },
 	}
 
 	apiPathBase := fmt.Sprintf("https://%s:%d/%s", cfg.Host, cfg.Port, cfg.PrefixPath)
@@ -59,23 +58,23 @@ func NewService(cfg *config.AkaiAPIServiceConfig, opts ...ServiceOption) (*Servi
 	return apiService, nil
 }
 
-func WithAppBlobHandler(blobHandler func(context.Context, Blob) error) ServiceOption {
+func WithAppBlockHandler(blockHandler func(context.Context, Block) error) ServiceOption {
 	return func(s *Service) error {
-		s.appNewBlobHandler = blobHandler
+		s.appNewBlockHandler = blockHandler
 		return nil
 	}
 }
 
-func WithAppSegmentHandler(segmentHandler func(context.Context, BlobSegment) error) ServiceOption {
+func WithAppItemHandler(itemHandler func(context.Context, DASItem) error) ServiceOption {
 	return func(s *Service) error {
-		s.appNewSegmentHandler = segmentHandler
+		s.appNewItemHandler = itemHandler
 		return nil
 	}
 }
 
-func WithAppSegmentsHandler(segmentsHandler func(context.Context, []BlobSegment) error) ServiceOption {
+func WithAppItemsHandler(itemsHandler func(context.Context, []DASItem) error) ServiceOption {
 	return func(s *Service) error {
-		s.appNewSegmentsHandler = segmentsHandler
+		s.appNewItemsHandler = itemsHandler
 		return nil
 	}
 }
@@ -97,9 +96,9 @@ func (s *Service) serve(ctx context.Context) error {
 
 	// Define app specific POST endpoints
 	// Define a POST endpoint
-	s.engine.POST(s.config.PrefixPath+"/new-blob", s.postNewBlobHandler)
-	s.engine.POST(s.config.PrefixPath+"/new-segment", s.postNewSegmentHandler)
-	s.engine.POST(s.config.PrefixPath+"/new-segments", s.postNewSegmentsHandler)
+	s.engine.POST(s.config.PrefixPath+"/new-block", s.postNewBlockHandler)
+	s.engine.POST(s.config.PrefixPath+"/new-item", s.postNewItemHandler)
+	s.engine.POST(s.config.PrefixPath+"/new-items", s.postNewItemsHandler)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", s.config.Host, s.config.Port),
@@ -127,8 +126,8 @@ func (s *Service) serve(ctx context.Context) error {
 	return err
 }
 
-func (s *Service) isNetworkSupported(remNet models.Network) bool {
-	return s.config.Network == remNet.String() // we don't care about the NetworkID (its for the DB)
+func (s *Service) isValidNetwork(remNet string) bool {
+	return s.config.Network == remNet // we don't care about the NetworkID (its for the DB)
 }
 
 func (s *Service) pingHandler(c *gin.Context) {
@@ -136,44 +135,77 @@ func (s *Service) pingHandler(c *gin.Context) {
 }
 
 func (s *Service) getSupportedNetworkHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, SupportedNetworks{Network: models.NetworkFromStr(s.config.Network)})
+	c.JSON(http.StatusOK, SupportedNetworks{Network: config.NetworkFromStr(s.config.Network)})
 }
 
-func (s *Service) UpdateNewBlobHandler(fn func(context.Context, Blob) error) {
-	s.appNewBlobHandler = fn
+func (s *Service) UpdateNewBlockHandler(fn func(context.Context, Block) error) {
+	s.appNewBlockHandler = fn
 }
 
-func (s *Service) UpdateNewSegmentHandler(fn func(context.Context, BlobSegment) error) {
-	s.appNewSegmentHandler = fn
+func (s *Service) UpdateNewItemHandler(fn func(context.Context, DASItem) error) {
+	s.appNewItemHandler = fn
 }
 
-func (s *Service) UpdateNewSegmentsHandler(fn func(context.Context, []BlobSegment) error) {
-	s.appNewSegmentsHandler = fn
+func (s *Service) UpdateNewItemsHandler(fn func(context.Context, []DASItem) error) {
+	s.appNewItemsHandler = fn
 }
 
-func (s *Service) postNewBlobHandler(c *gin.Context) {
+func (s *Service) postNewBlockHandler(c *gin.Context) {
 	hlog := log.WithFields(log.Fields{
 		"service": "api-service",
-		"op":      "POST new blob",
+		"op":      "POST new block",
 	})
 	hlog.Debug("new api-request")
 
-	var blob Blob
-	if err := c.BindJSON(&blob); err != nil {
+	var block Block
+	if err := c.BindJSON(&block); err != nil {
 		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
 		hlog.Error(err)
 		return
 	}
 
 	// ensure the block belongs to a supported network
-	if !s.isNetworkSupported(blob.Network) {
+	if !s.isValidNetwork(block.Network) {
 		err := ErrNetworkNotSupported
 		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
 		hlog.Error(err)
 	}
 
 	// make app specific
-	if err := s.appNewBlobHandler(c.Request.Context(), blob); err != nil {
+	if err := s.appNewBlockHandler(c.Request.Context(), block); err != nil {
+		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
+		hlog.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, ACK{Status: "ok", Error: ""})
+}
+
+func (s *Service) postNewItemHandler(c *gin.Context) {
+	hlog := log.WithFields(log.Fields{
+		"service": "api-service",
+		"op":      "POST new item",
+	})
+	hlog.Debug("new api-request")
+
+	var item DASItem
+	if err := c.BindJSON(&item); err != nil {
+		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
+		hlog.Error(err)
+		return
+	}
+
+	// ensure the item belongs to a supported network
+	if !s.isValidNetwork(item.Network) {
+		err := ErrNetworkNotSupported
+		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
+		hlog.Error(err)
+		return
+	}
+
+	// assume that the item is correct
+	// make app specific
+	if err := s.appNewItemHandler(c.Request.Context(), item); err != nil {
 		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
 		hlog.Error(err)
 	}
@@ -181,50 +213,26 @@ func (s *Service) postNewBlobHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, ACK{Status: "ok", Error: ""})
 }
 
-func (s *Service) postNewSegmentHandler(c *gin.Context) {
+func (s *Service) postNewItemsHandler(c *gin.Context) {
 	hlog := log.WithFields(log.Fields{
 		"service": "api-service",
-		"op":      "POST new segment",
+		"op":      "POST multiple new items",
 	})
 	hlog.Debug("new api-request")
 
-	var segment BlobSegment
-	if err := c.BindJSON(&segment); err != nil {
+	items := make([]DASItem, 0)
+	if err := c.BindJSON(&items); err != nil {
 		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
 		hlog.Error(err)
 		return
 	}
 
-	// assume that the segment is correct
-
+	// assume that the item is correct
 	// make app specific
-	if err := s.appNewSegmentHandler(c.Request.Context(), segment); err != nil {
-		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
-		hlog.Error(err)
-	}
-
-	c.JSON(http.StatusOK, ACK{Status: "ok", Error: ""})
-}
-
-func (s *Service) postNewSegmentsHandler(c *gin.Context) {
-	hlog := log.WithFields(log.Fields{
-		"service": "api-service",
-		"op":      "POST multiple new segments",
-	})
-	hlog.Debug("new api-request")
-
-	segments := make([]BlobSegment, 0)
-	if err := c.BindJSON(&segments); err != nil {
+	if err := s.appNewItemsHandler(c.Request.Context(), items); err != nil {
 		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
 		hlog.Error(err)
 		return
-	}
-
-	// assume that the segment is correct
-	// make app specific
-	if err := s.appNewSegmentsHandler(c.Request.Context(), segments); err != nil {
-		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
-		hlog.Error(err)
 	}
 
 	c.JSON(http.StatusOK, ACK{Status: "ok", Error: ""})

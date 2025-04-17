@@ -24,28 +24,28 @@ type Database interface {
 	Close(context.Context) error
 	// tables's perspective
 	GetAllTables() map[string]struct{}
-	// networks
-	PersistNewNetwork(context.Context, models.Network) error
-	GetNetworks(context.Context) ([]models.Network, error)
 	// blocks
-	PersistNewBlob(context.Context, models.AgnosticBlob) error
-	GetSampleableBlobs(context.Context) ([]models.AgnosticBlob, error)
-	GetAllBlobs(context.Context) ([]models.AgnosticBlob, error)
-	GetLatestBlob(context.Context) (models.AgnosticBlob, error)
-	// samples
-	PersistNewSegment(context.Context, models.AgnosticSegment) error
-	PersistNewSegments(context.Context, []models.AgnosticSegment) error
-	GetSampleableSegments(context.Context) ([]models.AgnosticSegment, error)
+	PersistNewBlock(context.Context, *models.Block) error
+	GetSampleableBlocks(context.Context) ([]models.Block, error)
+	GetAllBlocks(context.Context) ([]models.Block, error)
+	GetLastBlock(context.Context) (models.Block, error)
+	// sample items
+	PersistNewSamplingItem(context.Context, *models.SamplingItem) error
+	PersistNewSamplingItems(context.Context, []*models.SamplingItem) error
+	GetSampleableItems(context.Context) ([]models.SamplingItem, error)
 	// cell visists
-	PersistNewSegmentVisit(context.Context, models.AgnosticVisit) error
+	PersistNewSampleGenericVisit(context.Context, *models.SampleGenericVisit) error
+	PersistNewSampleValueVisit(context.Context, *models.SampleValueVisit) error
 }
 
 var _ Database = (*clickhouse.ClickHouseDB)(nil)
 
 func NewDatabase(details *config.DatabaseDetails, networkConfig *config.NetworkConfiguration) (Database, error) {
 	switch details.Driver {
-	case "clickhouse":
-		return clickhouse.NewClickHouseDB(details, networkConfig.Network)
+	case "clickhouse-local":
+		return clickhouse.NewClickHouseDB(details, clickhouse.ClickhouseLocalInstance, networkConfig.Network)
+	case "clickhouse-replicated":
+		return clickhouse.NewClickHouseDB(details, clickhouse.ClickhouseReplicatedInstance, networkConfig.Network)
 	default:
 		return nil, fmt.Errorf("not recognized database diver (%s)", details.Driver)
 	}

@@ -39,9 +39,8 @@ var app = &cli.Command{
 	Flags:                 rootFlags,
 	Before:                rootBefore,
 	Commands: []*cli.Command{
-		cmdService,
-		cmdPing,
-		cmdAvailBlockTracker,
+		cmdDaemon,
+		cmdFindOP,
 	},
 	After: rootAfter,
 }
@@ -59,7 +58,7 @@ var rootFlags = []cli.Flag{
 		Category:    flagCategoryLogging,
 	},
 	&cli.StringFlag{
-		Name: "log.level",
+		Name: "log-level",
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_LOG_LEVEL")},
 		},
@@ -69,7 +68,7 @@ var rootFlags = []cli.Flag{
 		Category:    flagCategoryLogging,
 	},
 	&cli.StringFlag{
-		Name: "log.format",
+		Name: "log-format",
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_LOG_FORMAT")},
 		},
@@ -79,7 +78,7 @@ var rootFlags = []cli.Flag{
 		Category:    flagCategoryLogging,
 	},
 	&cli.BoolFlag{
-		Name: "log.source",
+		Name: "log-source",
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_LOG_SOURCE")},
 		},
@@ -89,7 +88,7 @@ var rootFlags = []cli.Flag{
 		Category:    flagCategoryLogging,
 	},
 	&cli.BoolFlag{
-		Name: "log.nocolor",
+		Name: "log-nocolor",
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_LOG_NO_COLOR")},
 		},
@@ -99,7 +98,7 @@ var rootFlags = []cli.Flag{
 		Category:    flagCategoryLogging,
 	},
 	&cli.StringFlag{
-		Name: "metrics.addr",
+		Name: "metrics-addr",
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_METRICS_ADDR")},
 		},
@@ -109,7 +108,7 @@ var rootFlags = []cli.Flag{
 		Category:    flagCategoryTelemetry,
 	},
 	&cli.IntFlag{
-		Name: "metrics.port",
+		Name: "metrics-port",
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_METRICS_PORT")},
 		},
@@ -182,7 +181,7 @@ func rootAfter(c context.Context, cmd *cli.Command) error {
 func configureLogger(_ context.Context, cmd *cli.Command) error {
 	// log level
 	logLevel := log.InfoLevel
-	if cmd.IsSet("log.level") {
+	if cmd.IsSet("log-level") {
 		switch strings.ToLower(rootConfig.LogLevel) {
 		case "debug":
 			logLevel = log.DebugLevel

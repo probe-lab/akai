@@ -2,26 +2,24 @@ package avail
 
 import (
 	"context"
-	"fmt"
 	"time"
 
-	akai_api "github.com/probe-lab/akai/api"
 	"github.com/probe-lab/akai/avail/api"
-	"github.com/probe-lab/akai/config"
 	log "github.com/sirupsen/logrus"
 )
 
 type ConsumerType string
 
 var (
-	TextConsumerType    ConsumerType = "text"
-	AkaiAPIConsumerType ConsumerType = "akai_api"
+	TextConsumerType     ConsumerType = "text"
+	AkaiAPIConsumerType  ConsumerType = "akai_api"
+	CallBackConsumerType ConsumerType = "callback"
 )
 
 type BlockConsumer interface {
 	Type() ConsumerType
 	Serve(context.Context) error
-	ProccessNewBlock(context.Context, *BlockNotification, time.Time, bool) error
+	ProccessNewBlock(context.Context, *BlockNotification, time.Time) error
 }
 
 type BlockNotification struct {
@@ -58,15 +56,14 @@ func (tc *TextConsumer) Serve(ctx context.Context) error {
 func (tc *TextConsumer) ProccessNewBlock(
 	ctx context.Context,
 	blockNot *BlockNotification,
-	lastReqT time.Time,
-	trackSegments bool) error {
+	lastReqT time.Time) error {
 	block, err := NewBlock(FromAPIBlockHeader(blockNot.BlockInfo))
 	if err != nil {
 		return err
 	}
 
 	log.WithFields(log.Fields{
-		"req_time":              blockNot.RequestTime,
+		"rec_time":              blockNot.BlockInfo.ReceivedAt,
 		"hash":                  blockNot.BlockInfo.Hash,
 		"number":                blockNot.BlockInfo.Number,
 		"rows":                  blockNot.BlockInfo.Extension.Rows,
@@ -74,69 +71,38 @@ func (tc *TextConsumer) ProccessNewBlock(
 		"data_root":             blockNot.BlockInfo.Extension.DataRoot,
 		"cid":                   block.Cid().Hash().B58String(),
 		"time-since-last-block": time.Since(lastReqT),
-		"track-segments":        trackSegments,
 	}).Info("new avail block...")
 
 	return nil
 }
 
-type AkaiAPIconsumer struct {
-	config         *config.AkaiAPIClientConfig
-	networkConfing *config.NetworkConfiguration
-	cli            *akai_api.Client
+type CallBackConsumer struct {
+	blockProccessFn func(context.Context, *BlockNotification, time.Time) error
 }
 
-var _ BlockConsumer = (*AkaiAPIconsumer)(nil)
+var _ BlockConsumer = (*CallBackConsumer)(nil)
 
-func NewAkaiAPIconsumer(ctx context.Context, networkConfig *config.NetworkConfiguration, cfg *config.AkaiAPIClientConfig) (*AkaiAPIconsumer, error) {
-	apiCli, err := akai_api.NewClient(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	// ensure that the network is the same one
-	opCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	apiNet, err := apiCli.GetSupportedNetworks(opCtx)
-	if err != nil {
-		return nil, err
-	}
-	if networkConfig.Network.String() != apiNet.Network.String() {
-		return nil, fmt.Errorf("block consumer and Akai API running in different networks %s - %s", networkConfig.Network.String(), apiNet.Network.String())
-	}
-
-	return &AkaiAPIconsumer{
-		config:         cfg,
-		networkConfing: networkConfig,
-		cli:            apiCli,
+func NewCallBackConsumer(
+	ctx context.Context,
+	blockProcessFn func(context.Context, *BlockNotification, time.Time) error,
+) (*CallBackConsumer, error) {
+	return &CallBackConsumer{
+		blockProccessFn: blockProcessFn,
 	}, nil
 }
 
-func (ac *AkaiAPIconsumer) Type() ConsumerType {
-	return AkaiAPIConsumerType
+func (cb *CallBackConsumer) Type() ConsumerType {
+	return CallBackConsumerType
 }
 
-func (ac *AkaiAPIconsumer) Serve(ctx context.Context) error {
-	return ac.cli.Serve(ctx)
+func (cb *CallBackConsumer) Serve(ctx context.Context) error {
+	<-ctx.Done()
+	return nil
 }
 
-func (ac *AkaiAPIconsumer) ProccessNewBlock(
+func (cb *CallBackConsumer) ProccessNewBlock(
 	ctx context.Context,
 	blockNot *BlockNotification,
-	lastReqT time.Time,
-	trackSegments bool) error {
-	block, err := NewBlock(FromAPIBlockHeader(blockNot.BlockInfo))
-	if err != nil {
-		return err
-	}
-
-	apiBlob := block.ToAkaiAPIBlob(ac.networkConfing.Network, trackSegments)
-	ctx, cancel := context.WithTimeout(ctx, ac.config.Timeout)
-	defer cancel()
-	err = ac.cli.PostNewBlob(ctx, apiBlob)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	lastReqT time.Time) error {
+	return cb.blockProccessFn(ctx, blockNot, lastReqT)
 }

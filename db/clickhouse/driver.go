@@ -20,7 +20,7 @@ type tableDriver[T any] struct {
 	tableName      string
 	tag            string
 	baseQuery      string
-	inputConverter func([]T) proto.Input
+	inputConverter func([]*T) proto.Input
 }
 
 func (d tableDriver[T]) TableName() string {
@@ -35,6 +35,6 @@ func (d tableDriver[T]) BaseQuery() string {
 	return d.baseQuery
 }
 
-func (d tableDriver[T]) InputConverter() func([]T) proto.Input {
+func (d tableDriver[T]) InputConverter() func([]*T) proto.Input {
 	return d.inputConverter
 }

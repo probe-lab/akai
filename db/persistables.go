@@ -7,4 +7,5 @@ type Persistable interface {
 	QueryValues() map[string]any
 }
 
-var _ Persistable = (*models.Network)(nil)
+var _ Persistable = (*models.Block)(nil)
+var _ Persistable = (*models.SamplingItem)(nil)

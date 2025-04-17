@@ -6,14 +6,20 @@ import (
 
 	"github.com/probe-lab/akai/avail/api"
 	"github.com/probe-lab/akai/config"
-	"github.com/probe-lab/akai/db/models"
 	log "github.com/sirupsen/logrus"
 	"github.com/thejerf/suture/v4"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 )
 
+var DefaultBlockTracker = &config.AvailBlockTrackerConfig{
+	Network:        config.DefaultAvailNetwork.String(),
+	AvailAPIconfig: api.DefaultClientConfig,
+	Meter:          otel.GetMeterProvider().Meter("avail_block_tracker"),
+}
+
 type BlockTracker struct {
-	cfg    *config.AvailBlockTracker
+	cfg    *config.AvailBlockTrackerConfig
 	netCfg *config.NetworkConfiguration
 	sup    *suture.Supervisor
 
@@ -26,38 +32,24 @@ type BlockTracker struct {
 	lastBlockGau     metric.Int64ObservableGauge
 }
 
-func NewBlockTracker(ctx context.Context, cfg *config.AvailBlockTracker) (*BlockTracker, error) {
+func NewBlockTracker(
+	ctx context.Context,
+	cfg *config.AvailBlockTrackerConfig,
+	blockConsumers ...BlockConsumer) (*BlockTracker, error) {
 	// api
 	httpAPICli, err := api.NewHTTPCli(cfg.AvailAPIconfig)
 	if err != nil {
 		return nil, err
 	}
 
-	network := models.NetworkFromStr(cfg.Network)
+	network := config.NetworkFromStr(cfg.Network)
 	networkConfig, err := config.ConfigureNetwork(network)
 	if err != nil {
 		return nil, err
 	}
 
-	// compose block consumers (Text, Akai_Api)
-	blockConsumers := make([]BlockConsumer, 0)
-	if cfg.TextConsumer {
-		textConsumer, err := NewTextConsumer()
-		if err != nil {
-			return nil, err
-		}
-		blockConsumers = append(blockConsumers, textConsumer)
-	}
-	if cfg.AkaiAPIconsumer {
-		akaiAPIconsumer, err := NewAkaiAPIconsumer(ctx, networkConfig, cfg.AkaiAPIconfig)
-		if err != nil {
-			return nil, err
-		}
-		blockConsumers = append(blockConsumers, akaiAPIconsumer)
-	}
-
 	// block requester
-	blockReq, err := NewBlockRequester(httpAPICli, networkConfig, blockConsumers, cfg.TrackDuration, cfg.TrackInterval)
+	blockReq, err := NewBlockRequester(httpAPICli, networkConfig, blockConsumers)
 	if err != nil {
 		return nil, err
 	}
@@ -72,8 +64,6 @@ func NewBlockTracker(ctx context.Context, cfg *config.AvailBlockTracker) (*Block
 	}
 
 	log.WithFields(log.Fields{
-		"track-duration":           cfg.TrackDuration,
-		"track-interval":           cfg.TrackInterval,
 		"new_block_check_interval": config.BlockIntervalTarget,
 		"consumers":                getTypesFromBlockConsumers(bTracker.blockConsumers),
 	}).Info("avail block tracker successfully created...")
@@ -96,6 +86,10 @@ func (t *BlockTracker) Start(ctx context.Context) error {
 		t.sup.Add(consumer)
 	}
 	return t.sup.Serve(ctx)
+}
+
+func (t *BlockTracker) Close(ctx context.Context) error {
+	return nil // TODO: update with sutue.Supervisor.Stop()
 }
 
 // initMetrics initializes various prometheus metrics and stores the meters

@@ -6,7 +6,6 @@ import (
 
 	record "github.com/libp2p/go-libp2p-record"
 	"github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/probe-lab/akai/db/models"
 )
 
 const (
@@ -15,20 +14,20 @@ const (
 )
 
 var (
-	CelestiaDelayBase       = 3 * time.Minute
+	DefaultCelestiaNetwork = Network{
+		Protocol:    ProtocolCelestia,
+		NetworkName: NetworkNameMainnet,
+	}
+	CelestiaDelayBase       = 15 * time.Minute
 	CelestiaDelayMultiplier = 1
 
 	// TODO: random values
-	CelestiaBlobsSetCacheSize    int = 1024
-	CelestiaSegmentsSetCacheSize int = 1024
+	CelestiaSetCacheSize int = 1024
 )
 
 // DefaulIPFSNetworkConfig defines the default configuration for the IPFS network for Akai
 var DefaultCelestiaNetworkConfig = &NetworkConfiguration{
-	Network: models.Network{
-		Protocol:    ProtocolCelestia,
-		NetworkName: NetworkNameMainnet,
-	},
+	Network: DefaultCelestiaNetwork,
 	// network parameters
 	BootstrapPeers: BootstrappersToMaddr(BootstrapNodesCelestiaMainnet),
 	AgentVersion:   ComposeAkaiAgentVersion(),
@@ -41,13 +40,13 @@ var DefaultCelestiaNetworkConfig = &NetworkConfiguration{
 
 	// sampling specifics
 	SamplingType:         SamplePeers,
-	BlobsSetCache:        CelestiaBlobsSetCacheSize,
-	SegmentsSetCacheSize: CelestiaSegmentsSetCacheSize,
+	BlobsSetCache:        CelestiaSetCacheSize,
+	SegmentsSetCacheSize: CelestiaSetCacheSize,
 	DelayBase:            CelestiaDelayBase,
 	DelayMultiplier:      CelestiaDelayMultiplier,
 }
 
-func GetCelestiaDHTProtocolPrefix(networkName string) string {
+func GetCelestiaDHTProtocolPrefix(networkName NetworkName) string {
 	net := CelestiaMainnet
 	switch networkName {
 	case NetworkNameMainnet:
@@ -58,7 +57,6 @@ func GetCelestiaDHTProtocolPrefix(networkName string) string {
 
 	default:
 	}
-
 	return fmt.Sprintf("/celestia/%s", net)
 }
 
@@ -84,4 +82,12 @@ func (v *CelestiaKeyValidator) Select(key string, values [][]byte) (int, error) 
 		return 0, ErrorNoValueForKey
 	}
 	return 1, nil
+}
+
+// Celestia DHT Namespace configuration
+type CelestiaNetworkScrapperConfig struct {
+	Network              string
+	NotChannelBufferSize int
+	SamplerNotifyTimeout time.Duration
+	AkaiAPIServiceConfig *AkaiAPIServiceConfig
 }

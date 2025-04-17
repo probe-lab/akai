@@ -21,6 +21,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/libp2p/go-libp2p/core/routing"
 	routingdisc "github.com/libp2p/go-libp2p/p2p/discovery/routing"
+	"github.com/libp2p/go-libp2p/p2p/protocol/identify"
 
 	kaddht "github.com/libp2p/go-libp2p-kad-dht"
 	record "github.com/libp2p/go-libp2p-record"
@@ -128,7 +129,7 @@ func NewDHTHost(ctx context.Context, opts *DHTHostConfig, netCfg *config.Network
 		return nil, err
 	}
 
-	err = bootstrapDHT(ctx, opts.HostID, dhtCli, opts.Bootstrapers)
+	succBootnodes, err := bootstrapDHT(ctx, opts.HostID, dhtCli, opts.Bootstrapers)
 	if err != nil {
 		return nil, err
 	}
@@ -145,26 +146,23 @@ func NewDHTHost(ctx context.Context, opts *DHTHostConfig, netCfg *config.Network
 		dhtDisc: disc,
 	}
 
-	// debug bootnodes
-	for _, bootnode := range opts.Bootstrapers {
-		attrs, err := dhtHost.getLibp2pHostInfo(bootnode.ID)
-		if err != nil {
-			log.Warnf("loading host (%s) info: %s", bootnode.ID.String(), err.Error())
-		} else {
-			log.WithFields(log.Fields{
-				"agent_version":     attrs["agent_version"],
-				"protocols":         attrs["protocols"],
-				"protocol_versions": attrs["protocol_versions"],
-			}).Info("bootnode info")
-		}
-	}
-
 	err = dhtHost.initMetrics()
 	if err != nil {
 		return nil, err
 	}
 
 	go dhtHost.internalsDebugger(ctx)
+
+	// debug bootnodes
+	for _, bootnode := range succBootnodes {
+		attrs := dhtHost.getLibp2pHostInfo(bootnode)
+		log.WithFields(log.Fields{
+			"peer_id":           bootnode.String(),
+			"agent_version":     attrs["agent_version"],
+			"protocols":         attrs["protocols"],
+			"protocol_versions": attrs["protocol_versions"],
+		}).Debug("bootnode info")
+	}
 
 	log.WithFields(log.Fields{
 		"id":            opts.HostID,
@@ -178,13 +176,15 @@ func NewDHTHost(ctx context.Context, opts *DHTHostConfig, netCfg *config.Network
 	return dhtHost, nil
 }
 
-func bootstrapDHT(ctx context.Context, id int, dhtCli *kaddht.IpfsDHT, bootstrappers []peer.AddrInfo) error {
+func bootstrapDHT(ctx context.Context, id int, dhtCli *kaddht.IpfsDHT, bootstrappers []peer.AddrInfo) ([]peer.ID, error) {
 	hlog := log.WithField("host-id", id)
+
+	var m sync.Mutex
+	var succBootnodes []peer.ID
 
 	// connect to the bootnodes
 	var wg sync.WaitGroup
 
-	succBootnodes := 0
 	for _, bnode := range bootstrappers {
 		wg.Add(1)
 		go func(bn peer.AddrInfo) {
@@ -193,7 +193,9 @@ func bootstrapDHT(ctx context.Context, id int, dhtCli *kaddht.IpfsDHT, bootstrap
 			if err != nil {
 				hlog.Warnf("unable to connect bootstrap node: %s - %s", bn.String(), err.Error())
 			} else {
-				succBootnodes++
+				m.Lock()
+				succBootnodes = append(succBootnodes, bn.ID)
+				m.Unlock()
 				hlog.Debug("successful connection to bootstrap node:", bn.String())
 			}
 		}(bnode)
@@ -218,10 +220,10 @@ func bootstrapDHT(ctx context.Context, id int, dhtCli *kaddht.IpfsDHT, bootstrap
 		hlog.Warn("no error, but empty routing table after bootstraping")
 	}
 	log.WithFields(log.Fields{
-		"successful-bootnodes": succBootnodes,
+		"successful-bootnodes": fmt.Sprintf("%d/%d", len(succBootnodes), len(bootstrappers)),
 		"peers_in_routing":     routingSize,
 	}).Info("dht cli bootstrapped")
-	return nil
+	return succBootnodes, nil
 }
 
 func (h *DHTHost) IntenalID() int {
@@ -240,40 +242,48 @@ func (h *DHTHost) GetMAddrsOfPeer(p peer.ID) []ma.Multiaddr {
 	return h.host.Peerstore().Addrs(p)
 }
 
-func (h *DHTHost) FindClosestPeers(ctx context.Context, key string) (time.Duration, []peer.ID, error) {
+func (h *DHTHost) FindClosestPeers(ctx context.Context, key string, timeout time.Duration) (time.Duration, []peer.ID, error) {
+	opCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	log.WithFields(log.Fields{
 		"host-id": h.id,
 		"cid":     key,
 	}).Debug("looking for peers close to key")
 	startT := time.Now()
-	closePeers, err := h.dhtCli.GetClosestPeers(ctx, key)
+	closePeers, err := h.dhtCli.GetClosestPeers(opCtx, key)
 	if err != nil {
 		return time.Since(startT), []peer.ID{}, err
 	}
 	return time.Since(startT), closePeers, err
 }
 
-func (h *DHTHost) FindProviders(ctx context.Context, key cid.Cid) (time.Duration, []peer.AddrInfo, error) {
+func (h *DHTHost) FindProviders(ctx context.Context, key cid.Cid, timeout time.Duration) (time.Duration, []peer.AddrInfo, error) {
+	opCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	log.WithFields(log.Fields{
 		"host-id": h.id,
 		"cid":     key.Hash().B58String(),
 	}).Debug("looking for providers")
 	startT := time.Now()
-	providers, err := h.dhtCli.FindProviders(ctx, key)
+	providers, err := h.dhtCli.FindProviders(opCtx, key)
 	return time.Since(startT), providers, err
 }
 
 func (h *DHTHost) FindValue(
 	ctx context.Context,
 	key string,
+	timeout time.Duration,
 ) (t time.Duration, value []byte, err error) {
+	opCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	log.WithFields(log.Fields{
 		"host-id": h.id,
 		"key":     key,
 	}).Debug("looking for providers")
 
-	opCtx, opCancel := context.WithCancel(ctx)
-	defer opCancel()
 	startT := time.Now()
 	outC, err := h.dhtCli.SearchValue(
 		opCtx,
@@ -298,18 +308,31 @@ func (h *DHTHost) FindValue(
 	return time.Since(startT), value, err
 }
 
-func (h *DHTHost) PutValue(ctx context.Context, key string, value []byte) (time.Duration, error) {
+func (h *DHTHost) PutValue(
+	ctx context.Context,
+	key string,
+	value []byte,
+	timeout time.Duration,
+) (time.Duration, error) {
+	opCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	log.WithFields(log.Fields{
 		"host-id": h.id,
 		"key":     key,
 	}).Debug("looking for providers")
 	startT := time.Now()
-	err := h.dhtCli.PutValue(ctx, key, value)
+	err := h.dhtCli.PutValue(opCtx, key, value)
 
 	return time.Since(startT), err
 }
 
-func (h *DHTHost) FindPeers(ctx context.Context, key string, opDuration time.Duration) (time.Duration, []peer.AddrInfo, error) {
+func (h *DHTHost) FindPeers(
+	ctx context.Context,
+	key string,
+	timeout time.Duration,
+) (time.Duration, []peer.AddrInfo, error) {
+
 	log.WithFields(log.Fields{
 		"host-id": h.id,
 		"key":     key,
@@ -317,7 +340,7 @@ func (h *DHTHost) FindPeers(ctx context.Context, key string, opDuration time.Dur
 
 	providers := make(map[peer.ID]peer.AddrInfo)
 	res := make([]peer.AddrInfo, 0)
-	timeoutT := time.NewTicker(opDuration)
+	timeoutT := time.NewTicker(timeout)
 
 	startT := time.Now()
 	peersC, err := h.dhtDisc.FindPeers(ctx, key, discovery.Limit(0))
@@ -347,6 +370,23 @@ waitLoop:
 	}
 
 	return time.Since(startT), res, err
+}
+
+func (h *DHTHost) FindPeer(
+	ctx context.Context,
+	peerID peer.ID,
+	timeout time.Duration,
+) (time.Duration, peer.AddrInfo, error) {
+	opCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	log.WithFields(log.Fields{
+		"host-id": h.id,
+		"peer_id": peerID.String(),
+	}).Debug("looking for info of a peer")
+	startT := time.Now()
+	pInfo, err := h.dhtCli.FindPeer(opCtx, peerID)
+	return time.Since(startT), pInfo, err
 }
 
 // initMetrics initializes various prometheus metrics and stores the meters
@@ -394,10 +434,7 @@ func (h *DHTHost) internalsDebugger(ctx context.Context) {
 				"routing-nodes":    h.dhtCli.RoutingTable().Size(),
 			}).Info("connectivity summary:")
 			for idx, peer := range peers {
-				attrs, err := h.getLibp2pHostInfo(peer)
-				if err != nil {
-					continue
-				}
+				attrs := h.getLibp2pHostInfo(peer)
 				log.WithFields(log.Fields{
 					"agent_version":     attrs["agent_version"],
 					"protocols":         attrs["protocols"],
@@ -413,31 +450,70 @@ func (h *DHTHost) getCurrentConnections() []peer.ID {
 	return h.host.Network().Peers()
 }
 
-func (h *DHTHost) getLibp2pHostInfo(pID peer.ID) (map[string]any, error) {
+type HostWithIDService interface {
+	IDService() identify.IDService
+}
+
+func (h *DHTHost) ConnectAndIdentifyPeer(
+	ctx context.Context,
+	pi peer.AddrInfo,
+	retries int,
+	timeout time.Duration,
+) (result map[string]any, err error) {
+	log.WithFields(log.Fields{
+		"peer_id":    pi.ID.String(),
+		"maddresses": pi.Addrs,
+	}).Info("trying to connect...")
+
+	for retry := 0; retry < retries; retry++ {
+		opCtx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+
+		// h.host.Connect() is adding some delay between the Identify finishing and storing the result
+		// which ends up returning nil values even though the connection was successful
+		// adding a manual
+		h.host.Peerstore().AddAddrs(pi.ID, pi.Addrs, 30*time.Minute)
+		conn, err := h.host.Network().DialPeer(opCtx, pi.ID)
+		switch err {
+		case nil:
+			// force the indentify
+			withIdentify := h.host.(HostWithIDService)
+			idService := withIdentify.IDService()
+			select {
+			case <-idService.IdentifyWait(conn):
+				return h.getLibp2pHostInfo(pi.ID), nil
+			case <-opCtx.Done():
+				continue
+			}
+
+		default:
+			log.WithFields(log.Fields{
+				"retry": retry,
+				"error": err,
+			}).Warnf("connection attempt failed...")
+			continue
+		}
+	}
+	return result, err
+}
+
+func (h *DHTHost) getLibp2pHostInfo(pID peer.ID) map[string]any {
+	time.Sleep(30 * time.Millisecond)
 	attrs := make(map[string]any)
 	// read from the local peerstore
 	// agent version
 	var av any = "unknown"
-	av, err := h.host.Peerstore().Get(pID, "AgentVersion")
-	if err != nil {
-		return attrs, err
-	}
+	av, _ = h.host.Peerstore().Get(pID, "AgentVersion")
 	attrs["agent_version"] = av
 
 	// protocols
-	prots, err := h.host.Network().Peerstore().GetProtocols(pID)
-	if err != nil {
-		return attrs, err
-	}
+	prots, _ := h.host.Network().Peerstore().GetProtocols(pID)
 	attrs["protocols"] = prots
 
 	// protocol version
 	var pv any = "unknown"
-	pv, err = h.host.Peerstore().Get(pID, "ProtocolVersion")
-	if err != nil {
-		return attrs, err
-	}
+	pv, _ = h.host.Peerstore().Get(pID, "ProtocolVersion")
 	attrs["protocol_version"] = pv
 
-	return attrs, nil
+	return attrs
 }

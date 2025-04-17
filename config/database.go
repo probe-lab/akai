@@ -18,7 +18,19 @@ type DatabaseDetails struct {
 	Meter metric.Meter
 }
 
-func (d DatabaseDetails) MigrationDSN() string {
+func (d DatabaseDetails) LocalMigrationDSN() string {
+	return fmt.Sprintf(
+		"%s://%s:%s@%s/%s?secure=%t&x-multi-statement=true",
+		d.getDriver(),
+		d.User,
+		d.Password,
+		d.Address,
+		d.Database,
+		d.TLSrequired,
+	)
+}
+
+func (d DatabaseDetails) ReplicatedMigrationDSN() string {
 	return fmt.Sprintf(
 		"%s://%s:%s@%s/%s?secure=%t&x-multi-statement=true&x-migrations-table-engine=ReplicatedMergeTree",
 		d.Driver,
@@ -28,4 +40,13 @@ func (d DatabaseDetails) MigrationDSN() string {
 		d.Database,
 		d.TLSrequired,
 	)
+}
+
+func (d DatabaseDetails) getDriver() string {
+	switch d.Driver {
+	case "clickhouse-local", "clickhouse-replicated":
+		return "clickhouse"
+	default:
+		return "clickhouse"
+	}
 }

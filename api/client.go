@@ -222,11 +222,11 @@ func (c *Client) GetSupportedNetworks(ctx context.Context) (SupportedNetworks, e
 	return supNetwork, nil
 }
 
-func (c *Client) PostNewBlob(ctx context.Context, blob Blob) error {
+func (c *Client) PostNewBlock(ctx context.Context, block Block) error {
 	// make Http request
-	resp, err := c.post(ctx, "/new-blob", blob)
+	resp, err := c.post(ctx, "/new-block", block)
 	if err != nil {
-		return errors.Wrap(err, "sending new blob to API server")
+		return errors.Wrap(err, "sending new block to API server")
 	}
 
 	// parse response into V2Version
@@ -241,11 +241,11 @@ func (c *Client) PostNewBlob(ctx context.Context, blob Blob) error {
 	return nil
 }
 
-func (c *Client) PostNewSegment(ctx context.Context, segment BlobSegment) error {
+func (c *Client) PostNewItem(ctx context.Context, item DASItem) error {
 	// make Http request
-	resp, err := c.post(ctx, "/new-segment", segment)
+	resp, err := c.post(ctx, "/new-item", item)
 	if err != nil {
-		return errors.Wrap(err, "sending new segment to API server")
+		return errors.Wrap(err, "sending new item to API server")
 	}
 
 	// parse response into V2Version
@@ -260,11 +260,11 @@ func (c *Client) PostNewSegment(ctx context.Context, segment BlobSegment) error 
 	return nil
 }
 
-func (c *Client) PostNewSegments(ctx context.Context, segments []BlobSegment) error {
+func (c *Client) PostNewItems(ctx context.Context, items []DASItem) error {
 	// make Http request
-	resp, err := c.post(ctx, "/new-segments", segments)
+	resp, err := c.post(ctx, "/new-items", items)
 	if err != nil {
-		return errors.Wrap(err, "sending new segments to API server")
+		return errors.Wrap(err, "sending new items to API server")
 	}
 
 	// parse response into V2Version

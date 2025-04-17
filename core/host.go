@@ -29,11 +29,13 @@ var DefaultDHTHostOpts = &config.CommonDHTHostOpts{
 type DHTHost interface {
 	IntenalID() int
 	Host() host.Host
-	FindClosestPeers(context.Context, string) (time.Duration, []peer.ID, error)
-	FindProviders(context.Context, cid.Cid) (time.Duration, []peer.AddrInfo, error)
-	FindValue(context.Context, string) (time.Duration, []byte, error)
+	FindClosestPeers(context.Context, string, time.Duration) (time.Duration, []peer.ID, error)
+	FindProviders(context.Context, cid.Cid, time.Duration) (time.Duration, []peer.AddrInfo, error)
 	FindPeers(context.Context, string, time.Duration) (time.Duration, []peer.AddrInfo, error)
-	PutValue(context.Context, string, []byte) (time.Duration, error)
+	FindPeer(context.Context, peer.ID, time.Duration) (time.Duration, peer.AddrInfo, error)
+	FindValue(context.Context, string, time.Duration) (time.Duration, []byte, error)
+	PutValue(context.Context, string, []byte, time.Duration) (time.Duration, error)
+	ConnectAndIdentifyPeer(context.Context, peer.AddrInfo, int, time.Duration) (map[string]any, error)
 }
 
 var _ DHTHost = (*amino.DHTHost)(nil)
