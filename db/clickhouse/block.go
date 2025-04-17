@@ -57,7 +57,7 @@ func convertBlockToInput(blocks []*models.Block) proto.Input {
 		keys.Append(key)
 
 		rs := proto.Null[uint32]()
-		if b.DASRows > 0 {
+		if b.DASRows > 0 { // TODO: fix this, this generates null blocks, cols, and rows for indexes 0
 			rs = proto.NewNullable[uint32](b.DASRows)
 		}
 		rows.Append(rs)
