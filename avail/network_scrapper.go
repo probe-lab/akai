@@ -30,7 +30,7 @@ var DefaultNetorkScrapperConfig = &config.AvailNetworkScrapperConfig{
 // - perform some catching to not spam the DataSampler
 // - notify to the DataSampler whenever there is an new item to track
 type NetworkScrapper struct {
-	cfg    config.AvailNetworkScrapperConfig
+	cfg    *config.AvailNetworkScrapperConfig
 	closeC chan struct{}
 
 	network      config.Network
@@ -57,12 +57,13 @@ func NewNetworkScrapper(
 		return nil, err
 	}
 	networkScrapper := &NetworkScrapper{
+		cfg:                cfg,
+		network:            config.NetworkFromStr(cfg.Network),
 		closeC:             make(chan struct{}),
 		samplerNotCh:       make(chan []*models.SamplingItem, cfg.NotChannelBufferSize),
 		internalBlockCache: cache,
 		trackSamplingItems: true, // enabled by default
 		db:                 db,
-		network:            config.NetworkFromStr(cfg.Network),
 	}
 	return networkScrapper, nil
 }
@@ -78,10 +79,16 @@ func (s *NetworkScrapper) Serve(ctx context.Context) error {
 		cancel()
 		return err
 	}
+	txtConsumer, err := NewTextConsumer()
+	if err != nil {
+		cancel()
+		return err
+	}
 	blockTracker, err := NewBlockTracker(
 		mainCtx,
 		s.cfg.BlockTrackerCfg,
 		callBackConsumer,
+		txtConsumer,
 	)
 
 	// check if we want to have some alternating tracking of samples
@@ -184,12 +191,12 @@ func (s *NetworkScrapper) blockTrackerCallBackFn(
 	// 1. extract all the Avail DAS cells into DASSamplingItems (enable their ToTrack flag if it's time)
 	// 2. store them in the DB
 	// 3. notify directly the DataSampler of new items to blockTracker
-	if s.isTrackDASItemsEnabled() {
-		samplingItems := block.GetDASSamplingItems(s.network)
-		err = s.db.PersistNewSamplingItems(ctx, samplingItems)
-		return s.notifySampler(ctx, samplingItems)
+	samplingItems := block.GetDASSamplingItems(s.network, s.isTrackDASItemsEnabled())
+	if err := s.db.PersistNewSamplingItems(ctx, samplingItems); err != nil {
+		return err
 	}
-	return nil
+	return s.notifySampler(ctx, samplingItems)
+
 }
 
 func (s *NetworkScrapper) notifySampler(ctx context.Context, samplingItems []*models.SamplingItem) error {

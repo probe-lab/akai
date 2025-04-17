@@ -4,15 +4,33 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/probe-lab/akai/api"
 	"github.com/probe-lab/akai/avail"
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/core"
 	"github.com/probe-lab/akai/db"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
+	"go.opentelemetry.io/otel"
 )
 
-var cmdDaemonAvailDAStrackerConf = avail.DefaultNetorkScrapperConfig
+var cmdDaemonAvailDAStrackerConf = &config.AvailNetworkScrapperConfig{
+	Network:              config.DefaultAvailNetwork.String(),
+	TrackBlocksOnDB:      avail.DefaultNetorkScrapperConfig.TrackBlocksOnDB,
+	NotChannelBufferSize: avail.DefaultNetorkScrapperConfig.NotChannelBufferSize,
+	SamplerNotifyTimeout: avail.DefaultNetorkScrapperConfig.SamplerNotifyTimeout,
+	TrackDuration:        avail.DefaultNetorkScrapperConfig.TrackDuration,
+	TrackInterval:        avail.DefaultNetorkScrapperConfig.TrackInterval,
+	BlockTrackerCfg: &config.AvailBlockTrackerConfig{
+		Network: config.DefaultAvailNetwork.String(),
+		Meter:   otel.GetMeterProvider().Meter("akai_api_server"),
+		AvailAPIconfig: &config.AvailAPIConfig{
+			Host:    api.DefaultClientConfig.Host,
+			Port:    api.DefaultClientConfig.Port,
+			Timeout: api.DefaultClientConfig.Timeout,
+		},
+	},
+}
 
 var cmdDaemonAvailDAStracker = &cli.Command{
 	Name:   "avail",
@@ -23,8 +41,7 @@ var cmdDaemonAvailDAStracker = &cli.Command{
 
 var cmdDaemonAvailDAStrackerFlags = []cli.Flag{
 	&cli.BoolFlag{
-		Name:    "track-blocks",
-		Aliases: []string{"t"},
+		Name: "track-blocks",
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_TRACK_BLOCKS")},
 		},
@@ -33,8 +50,7 @@ var cmdDaemonAvailDAStrackerFlags = []cli.Flag{
 		Destination: &cmdDaemonAvailDAStrackerConf.TrackBlocksOnDB,
 	},
 	&cli.DurationFlag{
-		Name:    "track-duration",
-		Aliases: []string{"avh"},
+		Name: "track-duration",
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_TRACK_DURATION")},
 		},
@@ -43,8 +59,7 @@ var cmdDaemonAvailDAStrackerFlags = []cli.Flag{
 		Destination: &cmdDaemonAvailDAStrackerConf.TrackDuration,
 	},
 	&cli.DurationFlag{
-		Name:    "track-interval",
-		Aliases: []string{"avh"},
+		Name: "track-interval",
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_TRACK_INTERVAL")},
 		},
@@ -53,8 +68,7 @@ var cmdDaemonAvailDAStrackerFlags = []cli.Flag{
 		Destination: &cmdDaemonAvailDAStrackerConf.TrackInterval,
 	},
 	&cli.StringFlag{
-		Name:    "http-host",
-		Aliases: []string{"avh"},
+		Name: "http-host",
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_HTTP_HOST")},
 		},
@@ -63,8 +77,7 @@ var cmdDaemonAvailDAStrackerFlags = []cli.Flag{
 		Destination: &cmdDaemonAvailDAStrackerConf.BlockTrackerCfg.AvailAPIconfig.Host,
 	},
 	&cli.IntFlag{
-		Name:    "http-port",
-		Aliases: []string{"avp"},
+		Name: "http-port",
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_HTTP_PORT")},
 		},
@@ -73,8 +86,7 @@ var cmdDaemonAvailDAStrackerFlags = []cli.Flag{
 		Destination: &cmdDaemonAvailDAStrackerConf.BlockTrackerCfg.AvailAPIconfig.Port,
 	},
 	&cli.DurationFlag{
-		Name:    "http-timeout",
-		Aliases: []string{"t"},
+		Name: "http-timeout",
 		Sources: cli.ValueSourceChain{
 			Chain: []cli.ValueSource{cli.EnvVar("AKAI_AVAIL_HTTP_TIMEOUT")},
 		},

@@ -55,7 +55,6 @@ func NewBlock(opts ...BlockOption) (*Block, error) {
 			},
 		},
 	}
-
 	for _, opt := range opts {
 		err := opt(block)
 		if err != nil {
@@ -71,7 +70,7 @@ func (b *Block) Cid() cid.Cid {
 }
 
 func (b *Block) UTCTimestamp() time.Time {
-	return time.Unix(int64(b.ReceivedAt), 0).UTC()
+	return time.Unix(b.ReceivedAt, 0).UTC()
 }
 
 func (b *Block) SampleUntil() time.Time {
@@ -92,7 +91,7 @@ func (b *Block) ToDBBlock(network config.Network) models.Block {
 	}
 }
 
-func (b *Block) GetDASSamplingItems(network config.Network) []*models.SamplingItem {
+func (b *Block) GetDASSamplingItems(network config.Network, traceItem bool) []*models.SamplingItem {
 	samplingItems := make([]*models.SamplingItem, 0, b.Extension.Columns*b.Extension.Rows)
 	for row := 0; row < int(b.Extension.Rows); row++ {
 		for col := 0; col < int(b.Extension.Columns); col++ {
@@ -112,7 +111,7 @@ func (b *Block) GetDASSamplingItems(network config.Network) []*models.SamplingIt
 				DASRow:      uint32(segmentKey.Row),
 				DASColumn:   uint32(segmentKey.Column),
 				Metadata:    "",
-				Traceable:   true,
+				Traceable:   traceItem,
 				SampleUntil: b.SampleUntil(),
 			}
 			samplingItems = append(samplingItems, item)
@@ -125,6 +124,9 @@ func FromAPIBlockHeader(blockHeader api.V2BlockHeader) BlockOption {
 	return func(block *Block) (err error) {
 		// parse block-number
 		block.Number = blockHeader.Number
+
+		// times
+		block.ReceivedAt = int64(blockHeader.ReceivedAt)
 
 		// parse hashes
 		block.Hash, err = MultihashFromHexString(blockHeader.Hash)

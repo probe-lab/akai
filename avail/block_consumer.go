@@ -63,7 +63,7 @@ func (tc *TextConsumer) ProccessNewBlock(
 	}
 
 	log.WithFields(log.Fields{
-		"req_time":              blockNot.RequestTime,
+		"rec_time":              blockNot.BlockInfo.ReceivedAt,
 		"hash":                  blockNot.BlockInfo.Hash,
 		"number":                blockNot.BlockInfo.Number,
 		"rows":                  blockNot.BlockInfo.Extension.Rows,
