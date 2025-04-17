@@ -39,14 +39,6 @@ func (s *dasItemSet) isInit() bool {
 	return len(s.itemArray) > 0
 }
 
-func (s *dasItemSet) isItemAlready(c string) bool {
-	s.RLock()
-	defer s.RUnlock()
-
-	_, ok := s.itemMap[c]
-	return ok
-}
-
 // addItem adds the given item to the item set. If the item already
 // exists in the set it won't be added nor overwritten. Instead, the return value
 // will be false. You can use this signal to remove the item with [removeItem]

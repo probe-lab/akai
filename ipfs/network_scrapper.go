@@ -86,7 +86,6 @@ func (s *NetworkScrapper) Serve(ctx context.Context) error {
 			log.Warn("network scrapper context died")
 		case <-s.closeC:
 		}
-		return
 	}()
 
 	var errWg errgroup.Group
@@ -124,7 +123,7 @@ func (s *NetworkScrapper) SyncWithDatabase(ctx context.Context) ([]*models.Sampl
 	if err != nil {
 		return nil, err
 	}
-	if len(items) < 0 {
+	if len(items) <= 0 {
 		log.Warn("no sampleable blobs were found at DB")
 		return []*models.SamplingItem{}, nil
 	}

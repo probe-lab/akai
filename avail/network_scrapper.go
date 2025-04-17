@@ -108,7 +108,6 @@ func (s *NetworkScrapper) Serve(ctx context.Context) error {
 			err = blockTracker.Close(mainCtx)
 			log.Error(err)
 		}
-		return
 	}()
 
 	var errWg errgroup.Group
@@ -184,7 +183,9 @@ func (s *NetworkScrapper) blockTrackerCallBackFn(
 	// if we persist blocks enabled, store the block info in the database
 	dbBlock := block.ToDBBlock(s.network)
 	if s.cfg.TrackBlocksOnDB {
-		err = s.db.PersistNewBlock(ctx, &dbBlock)
+		if err := s.db.PersistNewBlock(ctx, &dbBlock); err != nil {
+			return err
+		}
 	}
 
 	// if, and only if, we want to track this particular segments:
@@ -230,7 +231,7 @@ func (ds *NetworkScrapper) SyncWithDatabase(ctx context.Context) ([]*models.Samp
 	if err != nil {
 		return nil, err
 	}
-	if len(items) < 0 {
+	if len(items) <= 0 {
 		log.Warn("no sampleable blobs were found at DB")
 		return []*models.SamplingItem{}, nil
 	}

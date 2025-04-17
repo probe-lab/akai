@@ -83,7 +83,6 @@ func (s *NetworkScrapper) Serve(ctx context.Context) error {
 			log.Warn("network scrapper context died")
 		case <-s.closeC:
 		}
-		return
 	}()
 
 	var errWg errgroup.Group
