@@ -34,15 +34,19 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          
+
+      - uses: extractions/setup-just@v3
+        with:
+          just-version: "1.40.0"
+
       - name: Build Tool
-        run: make build
+        run: just build
 
       - name: Run tests
-        run: | 
-          make test
-          # TODO: 
+        run: |
+          just test
+          # TODO:
           # - removing the db test, as the integration of Akai with the production
-          # Clickhouse (and the ReplicatedMergedTree) is failing 
+          # Clickhouse (and the ReplicatedMergedTree) is failing
           # - needs to be checked up
           # make test-db
