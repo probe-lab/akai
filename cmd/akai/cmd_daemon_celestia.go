@@ -55,7 +55,6 @@ func cmdDaemonCelestiaNamespaceAction(ctx context.Context, cmd *cli.Command) err
 		return fmt.Errorf("the given network doesn't belong to the celestia protocol %s", daemonConfig.Network)
 	}
 	daemonConfig.DataSamplerConfig.Network = daemonConfig.Network
-	cmdDaemonCelestiaNamespaceConf.AkaiAPIServiceConfig.Network = daemonConfig.Network
 
 	networkConfig, err := config.ConfigureNetwork(network)
 	if err != nil {

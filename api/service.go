@@ -175,6 +175,7 @@ func (s *Service) postNewBlockHandler(c *gin.Context) {
 	if err := s.appNewBlockHandler(c.Request.Context(), block); err != nil {
 		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
 		hlog.Error(err)
+		return
 	}
 
 	c.JSON(http.StatusOK, ACK{Status: "ok", Error: ""})
@@ -199,6 +200,7 @@ func (s *Service) postNewItemHandler(c *gin.Context) {
 		err := ErrNetworkNotSupported
 		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
 		hlog.Error(err)
+		return
 	}
 
 	// assume that the item is correct
@@ -230,6 +232,7 @@ func (s *Service) postNewItemsHandler(c *gin.Context) {
 	if err := s.appNewItemsHandler(c.Request.Context(), items); err != nil {
 		c.JSON(http.StatusBadRequest, ACK{Status: "error", Error: err.Error()})
 		hlog.Error(err)
+		return
 	}
 
 	c.JSON(http.StatusOK, ACK{Status: "ok", Error: ""})

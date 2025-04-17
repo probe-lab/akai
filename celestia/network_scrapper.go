@@ -19,7 +19,15 @@ var DefaultNetworkScrapperConfig = &config.CelestiaNetworkScrapperConfig{
 	Network:              config.DefaultCelestiaNetwork.String(),
 	NotChannelBufferSize: 0,
 	SamplerNotifyTimeout: 20 * time.Second,
-	AkaiAPIServiceConfig: api.DefaulServiceConfig,
+	AkaiAPIServiceConfig: &config.AkaiAPIServiceConfig{
+		Network:    config.DefaultCelestiaNetwork.String(),
+		Host:       api.DefaulServiceConfig.Host,
+		Port:       api.DefaulServiceConfig.Port,
+		PrefixPath: api.DefaulServiceConfig.PrefixPath,
+		Timeout:    api.DefaulServiceConfig.Timeout,
+		Mode:       api.DefaulServiceConfig.Mode,
+		Meter:      api.DefaulServiceConfig.Meter,
+	},
 }
 
 type NetworkScrapper struct {

@@ -136,12 +136,13 @@ func validateNetworkFlag(ctx context.Context, cli *cli.Command, s string) error 
 
 func daemonRunBefore(c context.Context, cmd *cli.Command) (context.Context, error) {
 	log.WithFields(log.Fields{
+		"network":           daemonConfig.Network,
 		"database-driver":   daemonConfig.DBconfig.Driver,
 		"database-address":  daemonConfig.DBconfig.Address,
 		"database-user":     daemonConfig.DBconfig.User,
 		"database-database": daemonConfig.DBconfig.Database,
 		"database-tls":      daemonConfig.DBconfig.TLSrequired,
-		"daemon-samplers":   daemonConfig.DataSamplerConfig.Workers,
+		"samplers":          daemonConfig.DataSamplerConfig.Workers,
 		"sampling-timeout":  daemonConfig.DataSamplerConfig.SamplingTimeout,
 	}).Info("starting akai-daemon...")
 	return c, nil

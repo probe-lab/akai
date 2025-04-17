@@ -19,10 +19,18 @@ import (
 var ErrorNotCID = fmt.Errorf("the given key is not a CID")
 
 var DefaultNetworkScrapperConfig = &config.IPFSNetworkScrapperConfig{
-	Network:              config.DefaultAvailNetwork.String(),
+	Network:              config.DefaultIPFSNetwork.String(),
 	NotChannelBufferSize: 10,
 	SamplerNotifyTimeout: 10 * time.Second,
-	AkaiAPIServiceConfig: api.DefaulServiceConfig,
+	AkaiAPIServiceConfig: &config.AkaiAPIServiceConfig{
+		Network:    config.DefaultIPFSNetwork.String(),
+		Host:       api.DefaulServiceConfig.Host,
+		Port:       api.DefaulServiceConfig.Port,
+		PrefixPath: api.DefaulServiceConfig.PrefixPath,
+		Timeout:    api.DefaulServiceConfig.Timeout,
+		Mode:       api.DefaulServiceConfig.Mode,
+		Meter:      api.DefaulServiceConfig.Meter,
+	},
 }
 
 type NetworkScrapper struct {

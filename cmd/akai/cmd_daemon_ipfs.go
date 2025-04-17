@@ -4,15 +4,15 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/probe-lab/akai/celestia"
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/core"
 	"github.com/probe-lab/akai/db"
+	"github.com/probe-lab/akai/ipfs"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
 )
 
-var cmdDaemonIPFSConf = celestia.DefaultNetworkScrapperConfig
+var cmdDaemonIPFSConf = ipfs.DefaultNetworkScrapperConfig
 
 var cmdDaemonIPFS = &cli.Command{
 	Name:   "ipfs",
@@ -47,15 +47,14 @@ func cmdDaemonIPFSAction(ctx context.Context, cmd *cli.Command) error {
 		"akai-http-host": cmdDaemonIPFSConf.AkaiAPIServiceConfig.Host,
 		"akai-http-port": cmdDaemonIPFSConf.AkaiAPIServiceConfig.Port,
 	}).Info("starting IPFS CID tracker...")
-	defer log.Infof("stopped celestia-namespace-tracker for %s", cmdDaemonIPFSConf.Network)
+	defer log.Infof("stopped ipfs-namespace-tracker for %s", cmdDaemonIPFSConf.Network)
 
 	// set all network to be on the same one as the given one
 	network := config.NetworkFromStr(daemonConfig.Network)
 	if network.Protocol != config.ProtocolIPFS {
-		return fmt.Errorf("the given network doesn't belong to the celestia protocol %s", daemonConfig.Network)
+		return fmt.Errorf("the given network doesn't belong to the ipfs protocol %s", daemonConfig.Network)
 	}
 	daemonConfig.DataSamplerConfig.Network = daemonConfig.Network
-	cmdDaemonIPFSConf.AkaiAPIServiceConfig.Network = daemonConfig.Network
 
 	networkConfig, err := config.ConfigureNetwork(network)
 	if err != nil {
@@ -79,7 +78,7 @@ func cmdDaemonIPFSAction(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 
-	netScrapper, err := celestia.NewNetworkScrapper(cmdDaemonIPFSConf, dbSer)
+	netScrapper, err := ipfs.NewNetworkScrapper(cmdDaemonIPFSConf, dbSer)
 	if err != nil {
 		return err
 	}
