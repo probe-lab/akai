@@ -7,10 +7,10 @@ GIT_PACKAGE := "github.com/probe-lab/akai"
 COMMIT := `git rev-parse --short HEAD`
 DATE := `date "+%Y-%m-%dT%H:%M:%SZ"`
 USER := `id -un`
-VERSION := `git describe --tags --abbrev=0 || true`
 
 default:
-	@just --list --jusfile {{justfile()}}
+  @just --list --justfile {{ justfile() }}
+
 
 install:
 	{{GOCC}} install {GIT_PACKAGE}
