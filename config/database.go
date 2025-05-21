@@ -33,7 +33,7 @@ func (d DatabaseDetails) LocalMigrationDSN() string {
 func (d DatabaseDetails) ReplicatedMigrationDSN() string {
 	return fmt.Sprintf(
 		"%s://%s:%s@%s/%s?secure=%t&x-multi-statement=true&x-migrations-table-engine=ReplicatedMergeTree",
-		d.Driver,
+		d.getDriver(),
 		d.User,
 		d.Password,
 		d.Address,
