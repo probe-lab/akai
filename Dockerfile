@@ -7,8 +7,12 @@ WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download
 
+RUN dpkg --add-architecture amd64 \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends gcc-x86-64-linux-gnu libc6-dev-amd64-cross
+
 COPY . ./
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o akai ./cmd/akai
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 CC=x86_64-linux-gnu-gcc go build -o akai ./cmd/akai
 
 # Create lightweight image. Use Debian as base because we have enabled CGO
 # above and hence compile against glibc. This means we can't use alpine.
