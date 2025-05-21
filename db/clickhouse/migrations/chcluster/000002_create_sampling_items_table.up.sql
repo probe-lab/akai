@@ -7,7 +7,7 @@ CREATE TABLE items (
     -- String representation of the item type
     item_type String,
     -- String representation of the type of sampling method that it requires
-    sampling_type String,
+    sample_type String,
     -- Relational link to any chain or network block
     block_link UInt64,
     -- Unique identifying key for the item (CID or DAS_CELL or DHT key)
