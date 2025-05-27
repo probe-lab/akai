@@ -9,7 +9,7 @@ import (
 var (
 	DefaultIPFSNetwork = Network{Protocol: ProtocolIPFS, NetworkName: NetworkNameAmino}
 
-	IPFSDelayBase       = 5 * time.Minute
+	IPFSDelayBase       = 30 * time.Minute
 	IPFSDelayMultiplier = 1
 
 	// TODO: random values
