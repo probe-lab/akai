@@ -33,7 +33,10 @@ import (
 	"github.com/libp2p/go-libp2p/p2p/transport/tcp"
 )
 
-const summaryFreq = 30 * time.Second
+const (
+	summaryFreq        = 30 * time.Second
+	maxProvidersPerRPC = 9999
+)
 
 type DHTHostConfig struct {
 	HostID               int
@@ -266,9 +269,15 @@ func (h *DHTHost) FindProviders(ctx context.Context, key cid.Cid, timeout time.D
 		"host-id": h.id,
 		"cid":     key.Hash().B58String(),
 	}).Debug("looking for providers")
+
 	startT := time.Now()
-	providers, err := h.dhtCli.FindProviders(opCtx, key)
-	return time.Since(startT), providers, err
+	var providers []peer.AddrInfo
+
+	// no limit on the number of providers
+	for p := range h.dhtCli.FindProvidersAsync(opCtx, key, maxProvidersPerRPC) {
+		providers = append(providers, p)
+	}
+	return time.Since(startT), providers, nil
 }
 
 func (h *DHTHost) FindValue(
