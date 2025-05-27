@@ -4,108 +4,40 @@ networks:
 services:
   # Clickhouse database
   clickhouse:
-      image: clickhouse/clickhouse-server:latest
-      user: "$UID:$GID"
-      hostname: clickhouse
-      networks: [ cluster ]
-      environment:
-        - CLICKHOUSE_DB=${AKAI_CH_DB:-akai_default}
-        - CLICKHOUSE_USER=${AKAI_CH_USER:-username}
-        - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
-        - CLICKHOUSE_PASSWORD=${AKAI_CH_PASSWORD:-password}
-      volumes:
-        - ./external/db/clickhouse_data/data:/var/lib/clickhouse/
-        - ./external/db/clickhouse_data/logs:/var/log/clickhouse-server/
-      ports:
-        - "${CH_HTTP_PORT:-8123}:8123"
-        - "${CH_NATIVE_PORT:-9000}:9000"
-        - "${CH_SQL_PORT:-9005}:9005"
-      healthcheck: # executed inside the container
-        test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping
-        interval: 5s
+    image: clickhouse/clickhouse-server:latest
+    user: "$UID:$GID"
+    hostname: clickhouse
+    networks: [cluster]
+    environment:
+      - CLICKHOUSE_DB=${AKAI_CH_DB:-akai_default}
+      - CLICKHOUSE_USER=${AKAI_CH_USER:-username}
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+      - CLICKHOUSE_PASSWORD=${AKAI_CH_PASSWORD:-password}
+    volumes:
+      - ./external/db/clickhouse_avail/data:/var/lib/clickhouse/
+      - ./external/db/clickhouse_avail/logs:/var/log/clickhouse-server/
+    ports:
+      - "${CH_HTTP_PORT:-8123}:8123"
+      - "${CH_NATIVE_PORT:-9000}:9000"
+      - "${CH_SQL_PORT:-9005}:9005"
+    healthcheck: # executed inside the container
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping
+      interval: 5s
 
   # Prometheus for real-time metrics
   prometheus:
     image: prom/prometheus:latest
     user: "${UID}:${GID}"
-    networks: [ cluster ]
+    networks: [cluster]
     volumes:
       - ./external/prometheus/:/etc/prometheus/
       - ./external/db/prometheus:/prometheus/data
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-      - '--web.listen-address=${PROMETHEUS_ADDRESS:-localhost:9090}'
-      - '--storage.tsdb.retention.time=1y'
-      - '--web.enable-remote-write-receiver'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.listen-address=${PROMETHEUS_ADDRESS:-localhost:9090}"
+      - "--storage.tsdb.retention.time=1y"
+      - "--web.enable-remote-write-receiver"
     ports:
       - "9090:9090"
-
-  # Akai block-tracker
-  akai-block-tracker:
-    build:  
-      context: ./
-      dockerfile: Dockerfile
-    networks: [ cluster ]
-    depends_on:
-      - clickhouse
-      - akai-daemon
-    environment:
-      # root 
-      - AKAI_LOG_LEVEL=${AKAI_LOG_LEVEL}
-      - AKAI_LOG_FORMAT=${AKAI_LOG_FORMAT}
-      - AKAI_LOG_SOURCE=${AKAI_LOG_SOURCE}
-      - AKAI_LOG_NO_COLOR=${AKAI_LOG_NO_COLOR}
-      - AKAI_METRICS_ADDR=${AKAI_METRICS_ADDR}
-      - AKAI_METRICS_PORT=${AKAI_METRICS_PORT}
-      # avail-block-tracker
-      - AKAI_NETWORK=$(AKAI_NETWORK)
-      - AKAI_BLOCK_TRACKER_TEXT_CONSUMER=$(AKAI_BLOCK_TRACKER_TEXT_CONSUMER)
-      - AKAI_BLOCK_TRACKER_API_CONSUMER=$(AKAI_BLOCK_TRACKER_API_CONSUMER)
-      - AKAI_AVAIL_HTTP_HOST=$(AKAI_AVAIL_HTTP_HOST)
-      - AKAI_AVAIL_HTTP_PORT=$(AKAI_AVAIL_HTTP_PORT)
-      - AKAI_AVAIL_HTTP_TIMEOUT=$(AKAI_AVAIL_HTTP_TIMEOUT)
-      - AKAI_HTTP_HOST=$(AKAI_HTTP_HOST)
-      - AKAI_HTTP_PORT=$(AKAI_HTTP_PORT)
-      - AKAI_HTTP_TIMEOUT=$(AKAI_HTTP_TIMEOUT)
-      - AKAI_DAEMON_DB_TLS=${AKAI_DAEMON_DB_TLS}
-    command: akai avail-block-tracker
-    ports:
-      - "${AKAI_HTTP_PORT:-8080}:8080"
-      - "${AKAI_METRICS_PORT:-9080}:9080"
-      - "${AKAI_HOST_PORT:-9020}:9020"
-
-  # Akai daemon
-  akai-daemon:
-    build:  
-      context: ./
-      dockerfile: Dockerfile
-    networks: [ cluster ]
-    depends_on:
-      - clickhouse
-    environment:
-      # root 
-      - AKAI_LOG_LEVEL=${AKAI_LOG_LEVEL}
-      - AKAI_LOG_FORMAT=${AKAI_LOG_FORMAT}
-      - AKAI_LOG_SOURCE=${AKAI_LOG_SOURCE}
-      - AKAI_LOG_NO_COLOR=${AKAI_LOG_NO_COLOR}
-      - AKAI_METRICS_ADDR=${AKAI_METRICS_ADDR}
-      - AKAI_METRICS_PORT=${AKAI_METRICS_PORT}
-      # daemon
-      - AKAI_DAEMON_SAMPLERS=${AKAI_DAEMON_SAMPLERS}
-      - AKAI_DAEMON_SAMPLING_TIMEOUT=${AKAI_DAEMON_SAMPLING_TIMEOUT}
-      - AKAI_SERVICE_NETWORK=${AKAI_SERVICE_NETWORK}
-      - AKAI_DAEMON_API_HTTP_HOST=${AKAI_DAEMON_API_HTTP_HOST}
-      - AKAI_DAEMON_API_HTTP_PORT=${AKAI_DAEMON_API_HTTP_PORT}
-      - AKAI_DAEMON_DB_DRIVER=${AKAI_DAEMON_DB_DRIVER}
-      - AKAI_DAEMON_DB_ADDRESS="${AKAI_CH_HOST}:${AKAI_CH_NATIVE_PORT}"
-      - AKAI_DAEMON_DB_USER=${AKAI_CH_USER}
-      - AKAI_DAEMON_DB_PASSWORD=${AKAI_CH_PASSWORD}
-      - AKAI_DAEMON_DB_DATABASE=${AKAI_CH_DB}
-        
-    command: akai daemon 
-    ports:
-      - "${AKAI_HTTP_PORT:-8080}:8080"
-      - "${AKAI_METRICS_PORT:-9080}:9080"
-      - "${AKAI_HOST_PORT:-9020}:9020"
