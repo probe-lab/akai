@@ -20,6 +20,8 @@ func (t SamplingType) String() string {
 		return "FIND_PEERS"
 	case SampleValue:
 		return "FIND_VALUE"
+	case SampleIPNSname:
+		return "FIND_IPNS_VALUE"
 	case SampleUnknown:
 		return "UNKNOWN_OPERATION"
 	default:
@@ -39,6 +41,8 @@ func SamplingTypeFromStr(s string) SamplingType {
 		return SamplePeers
 	case "FIND_VALUE":
 		return SampleValue
+	case "FIND_IPNS_VALUE":
+		return SampleIPNSname
 	case "UNKNOWN_OPERATION":
 		return SampleUnknown
 	default:
@@ -53,6 +57,7 @@ const (
 	SampleValue
 	SamplePeers
 	SamplePeerInfo
+	SampleIPNSname
 )
 
 type AkaiDataSamplerConfig struct {
