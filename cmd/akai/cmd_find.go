@@ -25,16 +25,14 @@ var cmdFindOP = &cli.Command{
 		cmdFindValue,
 		cmdFindPeers,
 		cmdFindPeerInfo,
+		cmdFindIPNS,
 	},
 }
 
 var cmdFindOPFlags = []cli.Flag{
 	&cli.StringFlag{
-		Name:    "network",
-		Aliases: []string{"n"},
-		Sources: cli.ValueSourceChain{
-			Chain: []cli.ValueSource{cli.EnvVar("AKAI_PING_NETWORK")},
-		},
+		Name:        "network",
+		Aliases:     []string{"n"},
 		Usage:       "The network where the Akai will be launched.",
 		DefaultText: config.ListAllNetworkCombinations(),
 		Value:       findOP.Network,
@@ -42,32 +40,23 @@ var cmdFindOPFlags = []cli.Flag{
 		Action:      validateNetworkFlag,
 	},
 	&cli.StringFlag{
-		Name:    "key",
-		Aliases: []string{"k"},
-		Sources: cli.ValueSourceChain{
-			Chain: []cli.ValueSource{cli.EnvVar("AKAI_PING_KEY")},
-		},
+		Name:        "key",
+		Aliases:     []string{"k"},
 		Usage:       "Key for the DHT operation that will be taken place (CID, peerID, key, etc.)",
 		Value:       findOP.Key,
 		Destination: &findOP.Key,
 	},
 	&cli.DurationFlag{
-		Name:    "timeout",
-		Aliases: []string{"t"},
-		Sources: cli.ValueSourceChain{
-			Chain: []cli.ValueSource{cli.EnvVar("AKAI_PING_TIMEOUT")},
-		},
+		Name:        "timeout",
+		Aliases:     []string{"t"},
 		Usage:       "Duration for the DHT find-providers operation (20s, 1min)",
 		DefaultText: "20sec",
 		Value:       findOP.Timeout,
 		Destination: &findOP.Timeout,
 	},
 	&cli.IntFlag{
-		Name:    "retries",
-		Aliases: []string{"r"},
-		Sources: cli.ValueSourceChain{
-			Chain: []cli.ValueSource{cli.EnvVar("AKAI_PING_RETRIES")},
-		},
+		Name:        "retries",
+		Aliases:     []string{"r"},
 		Usage:       "Number of attempts that akai will try to fetch the content",
 		Value:       findOP.Retries,
 		Destination: &findOP.Retries,
