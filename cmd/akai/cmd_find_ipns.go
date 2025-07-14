@@ -94,6 +94,8 @@ func cmdFindIPNSAction(ctx context.Context, cmd *cli.Command) error {
 				"timestamp":   t,
 				"key":         findOP.Key,
 				"duration_ms": res.OpDuration,
+				"ttl":         res.TTL,
+				"is-valid":    res.IsValid,
 				"path":        res.Value,
 				"error":       "no-error",
 			}).Infof("find providers done: (retry: %d)", retry)

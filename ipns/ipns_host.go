@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ipfs/boxo/ipns"
+	"github.com/ipfs/boxo/path"
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -49,11 +50,17 @@ func (c *IpnsClient) ResolveIPNS(ctx context.Context, name string, keyType strin
 
 	switch keyType {
 	case "cid":
-		dhtKey, err := ComposeIpnsKey(name)
+		key, err := ipns.NameFromString(name)
 		if err != nil {
-			return nil, fmt.Errorf("unable to parse ipns-key to name - %s", err.Error())
+			return nil, err
 		}
-		return c.resolveDHT(ctx, dhtKey)
+		/*
+			dhtKey, err := ComposeIpnsKey(name)
+			if err != nil {
+				return nil, fmt.Errorf("unable to parse ipns-key to name - %s", err.Error())
+			}
+		*/
+		return c.resolveDHT(ctx, string(key.RoutingKey()))
 	case "dns":
 		return c.resolveDNS(ctx, name)
 	default:
@@ -78,46 +85,62 @@ func (c *IpnsClient) resolveDHT(ctx context.Context, name string) (*IpnsValueRes
 		return res, res.Error
 	}
 
-	var record *ipns.Record
 	currentSeq := uint64(0)
-	for _, bytes := range values {
+	for i, bytes := range values {
+		var isValid = false
+		var path path.Path
+		var nextSeq = uint64(0)
+		var ttl time.Duration
+		defer func() {
+			if (path.String() != res.Value && nextSeq > currentSeq) || i == 0 {
+				currentSeq = nextSeq
+				res.Value = path.String()
+				res.TTL = ttl
+				res.IsValid = isValid
+				res.Error = nil
+			}
+		}()
 		// parse the bytes into the IPNS-record structure
 		rec, err := ipns.UnmarshalRecord(bytes)
 		if err != nil {
-			logrus.Error(err)
+			logrus.Errorf("unmarshaling the record from the recv bytes: %s", err.Error())
 			continue
 		}
 
 		var pubkey crypto.PubKey
-		pubkey, err = record.PubKey()
+		pubkey, err = rec.PubKey()
 		if err != nil {
-			logrus.Error(err)
+			logrus.Warnf("retrieving the pubkey from the record: %s", err.Error())
+		} else {
+			// validate the record
+			err = ipns.Validate(rec, pubkey)
+			if err != nil {
+				logrus.Warnf("validating the signature of the record: %s", err.Error())
+				continue
+			} else {
+				isValid = true
+			}
+		}
+
+		// get the value
+		path, err = rec.Value()
+		if err != nil {
+			logrus.Errorf("unable to get cid from record: %s", err.Error())
 			continue
 		}
 
-		// validate the record
-		err = ipns.Validate(record, pubkey)
+		// get the TTL
+		ttl, err = rec.TTL()
 		if err != nil {
-			logrus.Error(err)
-			continue
+			logrus.Warnf("extracting the sequence from the record: %s", err.Error())
 		}
 
 		// check seq number
-		nextSeq, err := rec.Sequence()
+		nextSeq, err = rec.Sequence()
 		if err != nil {
-			logrus.Error(err)
-			continue
-		}
-
-		if nextSeq > currentSeq {
-			record = rec
+			logrus.Warnf("extracting the sequence from the record: %s", err.Error())
 		}
 	}
-
-	logrus.WithFields(logrus.Fields{
-		"duration": res.OpDuration,
-		"record":   record,
-	}).Info("result of fetching the IPNS record")
 	return res, nil
 }
 
@@ -147,7 +170,9 @@ func ComposeIpnsKey(k string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return ipns.NameFromPeer(pid).String(), nil
+	st := ipns.NameFromPeer(pid)
+	s := string(st.RoutingKey())
+	return s, nil
 }
 
 func ResolveDNSLink(ctx context.Context, domain string) (string, error) {
