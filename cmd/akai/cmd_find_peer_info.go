@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -68,14 +69,18 @@ func cmdFindPeerInfoAction(ctx context.Context, cmd *cli.Command) error {
 			} else {
 				errStr = err.Error()
 			}
+
 			log.WithFields(log.Fields{
-				"operation":   config.SamplePeerInfo.String(),
-				"timestamp":   t,
-				"peer_id":     peerID.String(),
-				"maddres":     peerInfo.Addrs,
-				"peer_info":   hostInfo,
-				"duration_ms": duration,
-				"error":       errStr,
+				"operation":        config.SamplePeerInfo.String(),
+				"timestamp":        t,
+				"peer_id":          peerID.String(),
+				"maddress":         peerInfo.Addrs,
+				"peer_info":        hostInfo,
+				"agent_version":    hostInfo["agent_version"].(string),
+				"protocol_version": hostInfo["protocol_version"].(string),
+				"protocols":        hostInfo["protocols"].([]protocol.ID),
+				"duration_ms":      duration,
+				"error":            errStr,
 			}).Infof("find peer info done: (retry: %d)", retry)
 			return nil
 

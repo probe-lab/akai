@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	"sync"
 	"time"
 
@@ -287,6 +289,15 @@ func (ds *DataSampler) sampleItem(
 			}
 		}
 	}
+
+	if peerInfoVisits := resVisit.GetGenericPeerInfoVisit(); peerInfoVisits != nil {
+		for _, visit := range peerInfoVisits {
+			err = ds.db.PersistNewPeerInfoVisit(ctx, visit)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -507,6 +518,71 @@ func sampleByFindPeers(
 	}, nil
 }
 
+func sampleByFindPeerInfo(
+	ctx context.Context,
+	h DHTHost,
+	item *models.SamplingItem,
+	visitRound int,
+	timeout time.Duration,
+) (models.GeneralVisit, error) {
+	visit := models.PeerInfoVisit{
+		VisitRound:      uint64(visitRound),
+		Timestamp:       time.Now(),
+		Network:         item.Network,
+		PeerID:          item.Key,
+		DurationMs:      0,
+		AgentVersion:    "",
+		Protocols:       make([]protocol.ID, 0),
+		ProtocolVersion: "",
+		MultiAddresses:  make([]string, 0),
+		Error:           "",
+	}
+
+	duration, peerInfo, err := h.FindPeer(ctx, peer.ID(item.Key), timeout)
+	switch err {
+	case nil:
+		hostInfo, err := h.ConnectAndIdentifyPeer(ctx, peerInfo, 1, 30*time.Second)
+		errStr := ""
+		if err != nil {
+			visit.Error = err.Error()
+		} else {
+			visit.Error = errStr
+		}
+
+		log.WithFields(log.Fields{
+			"operation":        config.SamplePeerInfo.String(),
+			"timestamp":        duration.Milliseconds(),
+			"peer_id":          peerInfo.ID.String(),
+			"maddres":          peerInfo.Addrs,
+			"peer_info":        hostInfo,
+			"agent_version":    hostInfo["agent_version"].(string),
+			"protocol_version": hostInfo["protocol_version"].(string),
+			"protocols":        hostInfo["protocols"].([]protocol.ID),
+			"multi_addressess": hostInfo["multi_addresses"].([]string),
+			"duration_ms":      duration,
+			"error":            errStr,
+		}).Infof("find peer info operation done")
+
+		// apply remaining values
+		visit.AgentVersion = hostInfo["agent_version"].(string)
+		visit.ProtocolVersion = hostInfo["protocol_version"].(string)
+		for _, pr := range hostInfo["protocols"].([]protocol.ID) {
+			visit.Protocols = append(visit.Protocols, pr)
+		}
+		for _, ma := range hostInfo["multiAddresses"].([]string) {
+			visit.MultiAddresses = append(visit.MultiAddresses, ma)
+		}
+
+	default:
+		log.WithFields(log.Fields{})
+	}
+	return models.GeneralVisit{
+		GenericPeerInfoVisit: []*models.PeerInfoVisit{
+			&visit,
+		},
+	}, nil
+}
+
 func sampleByFindValue(
 	ctx context.Context,
 	h DHTHost,
@@ -577,6 +653,9 @@ func samplingFnFromType(sampleType config.SamplingType) (SamplerFunction, error)
 
 	case config.SamplePeers:
 		return sampleByFindPeers, nil
+
+	case config.SamplePeerInfo:
+		return sampleByFindPeerInfo, nil
 
 	default:
 		return func(

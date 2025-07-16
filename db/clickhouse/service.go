@@ -52,6 +52,7 @@ type ClickHouseDB struct {
 		samplingItems       *queryBatcher[models.SamplingItem]
 		sampleGenericVisits *queryBatcher[models.SampleGenericVisit]
 		sampleValueVisits   *queryBatcher[models.SampleValueVisit]
+		peerInfoVisits      *queryBatcher[models.PeerInfoVisit]
 	}
 
 	// caches to speedup querides
@@ -450,6 +451,17 @@ func (db *ClickHouseDB) PersistNewSampleValueVisit(ctx context.Context, visit *m
 	flushable := db.qBatchers.sampleValueVisits.addItem(visit)
 	if flushable {
 		err := db.flushBatcherIfNeeded(ctx, db.qBatchers.sampleValueVisits)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (db *ClickHouseDB) PersistNewPeerInfoVisit(ctx context.Context, visit *models.PeerInfoVisit) error {
+	flushable := db.qBatchers.peerInfoVisits.addItem(visit)
+	if flushable {
+		err := db.flushBatcherIfNeeded(ctx, db.qBatchers.peerInfoVisits)
 		if err != nil {
 			return err
 		}
