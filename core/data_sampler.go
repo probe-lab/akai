@@ -538,7 +538,12 @@ func sampleByFindPeerInfo(
 		Error:           "",
 	}
 
-	duration, peerInfo, err := h.FindPeer(ctx, peer.ID(item.Key), timeout)
+	peerID, err := peer.Decode(item.Key)
+	if err != nil {
+		return models.GeneralVisit{}, err
+	}
+
+	duration, peerInfo, err := h.FindPeer(ctx, peerID, timeout)
 	switch err {
 	case nil:
 		hostInfo, err := h.ConnectAndIdentifyPeer(ctx, peerInfo, 1, 30*time.Second)
