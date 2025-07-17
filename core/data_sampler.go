@@ -242,7 +242,7 @@ func (ds *DataSampler) runSampler(ctx context.Context, samplerID int64) {
 			wlog.Debugf("sampling %s", task.item.Key)
 			err := ds.sampleItem(ctx, task.visitRound, task.item, ds.cfg.SamplingTimeout)
 			if err != nil {
-				log.Panicf("error persinting sampling visit - %s", err)
+				log.Panicf("error persisting sampling visit - %s - key: %s", err, task.item.Key)
 			}
 
 		case <-ctx.Done():
@@ -586,11 +586,7 @@ func sampleByFindPeerInfo(
 		visit.ProtocolVersion = protocolVersion
 	}
 	visit.Protocols = append(visit.Protocols, hostInfo["protocols"].([]protocol.ID)...)
-	
-	// Convert multiaddr.Multiaddr to []multiaddr.Multiaddr 
-	for _, addr := range peerInfo.Addrs {
-		visit.MultiAddresses = append(visit.MultiAddresses, addr)
-	}
+	visit.MultiAddresses = append(visit.MultiAddresses, peerInfo.Addrs...)
 
 	return models.GeneralVisit{
 		GenericPeerInfoVisit: []*models.PeerInfoVisit{
