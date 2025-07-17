@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/multiformats/go-multiaddr"
 	"sync"
 	"time"
 
@@ -530,11 +531,11 @@ func sampleByFindPeerInfo(
 		Timestamp:       time.Now(),
 		Network:         item.Network,
 		PeerID:          item.Key,
-		DurationMs:      0,
+		Duration:        0,
 		AgentVersion:    "",
 		Protocols:       make([]protocol.ID, 0),
 		ProtocolVersion: "",
-		MultiAddresses:  make([]string, 0),
+		MultiAddresses:  make([]multiaddr.Multiaddr, 0),
 		Error:           "",
 	}
 
@@ -543,44 +544,54 @@ func sampleByFindPeerInfo(
 		return models.GeneralVisit{}, err
 	}
 
+	log.WithFields(log.Fields{"timeout": timeout})
+
 	duration, peerInfo, err := h.FindPeer(ctx, peerID, timeout)
-	switch err {
-	case nil:
-		hostInfo, err := h.ConnectAndIdentifyPeer(ctx, peerInfo, 1, 30*time.Second)
-		errStr := ""
-		if err != nil {
-			visit.Error = err.Error()
-		} else {
-			visit.Error = errStr
-		}
-
+	visit.Duration = duration
+	if err != nil {
 		log.WithFields(log.Fields{
-			"operation":        config.SamplePeerInfo.String(),
-			"timestamp":        duration.Milliseconds(),
-			"peer_id":          peerInfo.ID.String(),
-			"maddres":          peerInfo.Addrs,
-			"peer_info":        hostInfo,
-			"agent_version":    hostInfo["agent_version"].(string),
-			"protocol_version": hostInfo["protocol_version"].(string),
-			"protocols":        hostInfo["protocols"].([]protocol.ID),
-			"multi_addressess": hostInfo["multi_addresses"].([]string),
-			"duration_ms":      duration,
-			"error":            errStr,
-		}).Infof("find peer info operation done")
-
-		// apply remaining values
-		visit.AgentVersion = hostInfo["agent_version"].(string)
-		visit.ProtocolVersion = hostInfo["protocol_version"].(string)
-		for _, pr := range hostInfo["protocols"].([]protocol.ID) {
-			visit.Protocols = append(visit.Protocols, pr)
-		}
-		for _, ma := range hostInfo["multiAddresses"].([]string) {
-			visit.MultiAddresses = append(visit.MultiAddresses, ma)
-		}
-
-	default:
-		log.WithFields(log.Fields{})
+			"error": err,
+		}).Warnf("find peer info operation could not be completed")
+		visit.Error = err.Error()
+		return models.GeneralVisit{
+			GenericPeerInfoVisit: []*models.PeerInfoVisit{
+				&visit,
+			},
+		}, err
 	}
+
+	hostInfo, err := h.ConnectAndIdentifyPeer(ctx, peerInfo, 1, 30*time.Second)
+	errStr := ""
+	if err != nil {
+		visit.Error = err.Error()
+	} else {
+		visit.Error = errStr
+	}
+
+	log.WithFields(log.Fields{
+		"operation":   config.SamplePeerInfo.String(),
+		"timestamp":   duration.Milliseconds(),
+		"peer_id":     peerInfo.ID.String(),
+		"maddres":     peerInfo.Addrs,
+		"peer_info":   hostInfo,
+		"duration_ms": duration,
+		"error":       errStr,
+	}).Infof("find peer info operation done")
+
+	// apply remaining values
+	if agentVersion, ok := hostInfo["agent_version"].(string); ok {
+		visit.AgentVersion = agentVersion
+	}
+	if protocolVersion, ok := hostInfo["protocol_version"].(string); ok {
+		visit.ProtocolVersion = protocolVersion
+	}
+	visit.Protocols = append(visit.Protocols, hostInfo["protocols"].([]protocol.ID)...)
+	
+	// Convert multiaddr.Multiaddr to []multiaddr.Multiaddr 
+	for _, addr := range peerInfo.Addrs {
+		visit.MultiAddresses = append(visit.MultiAddresses, addr)
+	}
+
 	return models.GeneralVisit{
 		GenericPeerInfoVisit: []*models.PeerInfoVisit{
 			&visit,

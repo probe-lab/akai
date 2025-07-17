@@ -1,4 +1,5 @@
 -- DO NOT EDIT: This file was generated with: just generate-local-clickhouse-migrations
+
 -- Stores all the information about any sampling item that arrived at the data sampler
 CREATE TABLE items (
     -- Timestamp of when the item was proposed (idealy), or when did akai become aware of it

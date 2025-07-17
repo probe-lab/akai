@@ -220,7 +220,7 @@ func bootstrapDHT(ctx context.Context, id int, dhtCli *kaddht.IpfsDHT, bootstrap
 		hlog.Warnf("unable to bootstrap the dht-node %s", err.Error())
 	}
 	if routingSize == 0 {
-		hlog.Warn("no error, but empty routing table after bootstraping")
+		hlog.Warn("no error, but empty routing table after bootstrapping")
 	}
 	log.WithFields(log.Fields{
 		"successful-bootnodes": fmt.Sprintf("%d/%d", len(succBootnodes), len(bootstrappers)),
@@ -390,12 +390,34 @@ func (h *DHTHost) FindPeer(
 	defer cancel()
 
 	log.WithFields(log.Fields{
-		"host-id": h.id,
+		"host_id": h.id,
 		"peer_id": peerID.String(),
 	}).Debug("looking for info of a peer")
 	startT := time.Now()
-	pInfo, err := h.dhtCli.FindPeer(opCtx, peerID)
-	return time.Since(startT), pInfo, err
+
+	type result struct {
+		pInfo peer.AddrInfo
+		err   error
+	}
+
+	resultCh := make(chan result, 1)
+	go func() {
+		pInfo, err := h.dhtCli.FindPeer(opCtx, peerID)
+		resultCh <- result{pInfo: pInfo, err: err}
+	}()
+
+	// Use both context timeout and timer to ensure timeout is enforced
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	select {
+	case res := <-resultCh:
+		return time.Since(startT), res.pInfo, res.err
+	case <-opCtx.Done():
+		return time.Since(startT), peer.AddrInfo{}, opCtx.Err()
+	case <-timer.C:
+		return time.Since(startT), peer.AddrInfo{}, context.DeadlineExceeded
+	}
 }
 
 // initMetrics initializes various prometheus metrics and stores the meters

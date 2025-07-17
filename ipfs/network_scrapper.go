@@ -156,7 +156,7 @@ func (s *NetworkScrapper) newItemHandler(ctx context.Context, apiItem api.DASIte
 	log.WithFields(log.Fields{
 		"key": apiItem.Key,
 	}).Info("new ipfs-cid arrived to the api")
-	item := s.getSamplingItemFromAPIitem(apiItem)
+	item := s.getSamplingItemFromAPIItem(apiItem)
 	if s.internalItemCache.Contains(apiItem.Key) {
 		return nil
 	}
@@ -195,7 +195,7 @@ func (s *NetworkScrapper) GetSamplingItemStream() chan []*models.SamplingItem {
 	return s.itemNotCh
 }
 
-func (s *NetworkScrapper) getSamplingItemFromAPIitem(apiItem api.DASItem) *models.SamplingItem {
+func (s *NetworkScrapper) getSamplingItemFromAPIItem(apiItem api.DASItem) *models.SamplingItem {
 	metadataStr := ""
 	if len(apiItem.Metadata) >= 0 {
 		bs, err := json.Marshal(apiItem.Metadata)
@@ -205,11 +205,20 @@ func (s *NetworkScrapper) getSamplingItemFromAPIitem(apiItem api.DASItem) *model
 		metadataStr = string(bs)
 	}
 
+	sampleType := ""
+	if apiItem.SampleType != "" {
+		sampleType = apiItem.SampleType
+	} else {
+		sampleType = config.SamplePeers.String()
+	}
+
+	log.Info("sampleType: ", sampleType)
+
 	return &models.SamplingItem{
 		Timestamp:   apiItem.Timestamp,
 		Network:     s.network.String(),
 		ItemType:    config.IPFSCidItemType.String(), // TODO: do we want to select this on the API itself
-		SampleType:  config.SampleProviders.String(), // TODO: do we want to select this on the API itself
+		SampleType:  sampleType,
 		BlockLink:   0,
 		Key:         apiItem.Key,
 		Hash:        "",
@@ -225,7 +234,7 @@ func (s *NetworkScrapper) getSamplingItemFromAPIitem(apiItem api.DASItem) *model
 func (s *NetworkScrapper) getSamplingItemFromAPIitems(segments []api.DASItem) []*models.SamplingItem {
 	agSegs := make([]*models.SamplingItem, len(segments))
 	for i, seg := range segments {
-		agSeg := s.getSamplingItemFromAPIitem(seg)
+		agSeg := s.getSamplingItemFromAPIItem(seg)
 		agSegs[i] = agSeg
 	}
 	return agSegs
