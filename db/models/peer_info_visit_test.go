@@ -67,7 +67,9 @@ func TestPeerInfoVisit_QueryValues(t *testing.T) {
 	timestamp := time.Now()
 	duration := 5 * time.Second
 	protocols := []protocol.ID{"/ipfs/kad/1.0.0", "/ipfs/id/1.0.0"}
-	multiAddrs := []string{"/ip4/127.0.0.1/tcp/4001", "/ip6/::1/tcp/4001"}
+	ip4, _ := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/4001")
+	ip6, _ := multiaddr.NewMultiaddr("/ip6/::1/tcp/4001")
+	multiAddrs := []multiaddr.Multiaddr{ip4, ip6}
 
 	visit := PeerInfoVisit{
 		VisitRound:      42,

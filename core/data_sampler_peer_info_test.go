@@ -2,12 +2,10 @@ package core
 
 import (
 	"context"
-	ma "github.com/multiformats/go-multiaddr"
 	"testing"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/stretchr/testify/require"
 
 	"github.com/probe-lab/akai/config"
@@ -55,7 +53,7 @@ func Test_sampleByFindPeerInfo_Success(t *testing.T) {
 	require.False(t, peerInfoVisit.Timestamp.IsZero())
 }
 
-func Test_sampleByFindPeerInfo_InvalidPeerID(t *testing.T) {
+func Test_sampleByFindPeerInfo_InvalidPeerIDs(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -64,60 +62,75 @@ func Test_sampleByFindPeerInfo_InvalidPeerID(t *testing.T) {
 
 	queryHost := hosts[1]
 
-	item := &models.SamplingItem{
-		Key:        "invalid-peer-id",
-		Network:    config.DefaultNetwork.String(),
-		SampleType: config.SamplePeerInfo.String(),
+	tests := []struct {
+		name              string
+		peerID            string
+		visitRound        int
+		timeout           time.Duration
+		expectError       bool
+		expectEmptyVisit  bool
+		expectVisitFields bool
+	}{
+		{
+			name:              "Invalid peer ID format",
+			peerID:            "invalid-peer-id",
+			visitRound:        1,
+			timeout:           5 * time.Second,
+			expectError:       true,
+			expectEmptyVisit:  true,
+			expectVisitFields: false,
+		},
+		{
+			name:              "Non-existent peer ID",
+			peerID:            "12D3KooWEMxBCsCXMWvisYDtDSiWVnVMWfegrbEK4Tvu1wfU1ER7",
+			visitRound:        2,
+			timeout:           2 * time.Second,
+			expectError:       true,
+			expectEmptyVisit:  false,
+			expectVisitFields: true,
+		},
 	}
 
-	visitRound := 1
-	timeout := 5 * time.Second
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			item := &models.SamplingItem{
+				Key:        tt.peerID,
+				Network:    config.DefaultNetwork.String(),
+				SampleType: config.SamplePeerInfo.String(),
+			}
 
-	visit, err := sampleByFindPeerInfo(ctx, queryHost, item, visitRound, timeout)
-	require.Error(t, err)
-	require.Equal(t, models.GeneralVisit{}, visit)
-}
+			visit, err := sampleByFindPeerInfo(ctx, queryHost, item, tt.visitRound, tt.timeout)
 
-func Test_sampleByFindPeerInfo_PeerNotFound(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+			if tt.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 
-	hosts := composeDemoDHTNetwork(ctx, t, 2)
-	defer stopTestNetwork(t, hosts)
+			if tt.expectEmptyVisit {
+				require.Equal(t, models.GeneralVisit{}, visit)
+				return
+			}
 
-	queryHost := hosts[1]
+			if tt.expectVisitFields {
+				peerInfoVisits := visit.GetGenericPeerInfoVisit()
+				require.NotNil(t, peerInfoVisits)
+				require.Len(t, peerInfoVisits, 1)
 
-	// a remote peer
-	nonExistentPeerID, err := peer.Decode("12D3KooWEMxBCsCXMWvisYDtDSiWVnVMWfegrbEK4Tvu1wfU1ER7")
-	require.NoError(t, err)
-
-	item := &models.SamplingItem{
-		Key:        nonExistentPeerID.String(),
-		Network:    config.DefaultNetwork.String(),
-		SampleType: config.SamplePeerInfo.String(),
+				peerInfoVisit := peerInfoVisits[0]
+				require.Equal(t, uint64(tt.visitRound), peerInfoVisit.VisitRound)
+				require.Equal(t, item.Network, peerInfoVisit.Network)
+				require.Equal(t, item.Key, peerInfoVisit.PeerID)
+				require.Greater(t, peerInfoVisit.Duration, time.Duration(0))
+				require.Empty(t, peerInfoVisit.AgentVersion)
+				require.Empty(t, peerInfoVisit.Protocols)
+				require.Empty(t, peerInfoVisit.ProtocolVersion)
+				require.Empty(t, peerInfoVisit.MultiAddresses)
+				require.NotEmpty(t, peerInfoVisit.Error)
+				require.False(t, peerInfoVisit.Timestamp.IsZero())
+			}
+		})
 	}
-
-	visitRound := 1
-	timeout := 2 * time.Second
-
-	visit, err := sampleByFindPeerInfo(ctx, queryHost, item, visitRound, timeout)
-	require.Error(t, err)
-
-	peerInfoVisits := visit.GetGenericPeerInfoVisit()
-	require.NotNil(t, peerInfoVisits)
-	require.Len(t, peerInfoVisits, 1)
-
-	peerInfoVisit := peerInfoVisits[0]
-	require.Equal(t, uint64(visitRound), peerInfoVisit.VisitRound)
-	require.Equal(t, item.Network, peerInfoVisit.Network)
-	require.Equal(t, item.Key, peerInfoVisit.PeerID)
-	require.Greater(t, peerInfoVisit.Duration, time.Duration(0))
-	require.Empty(t, peerInfoVisit.AgentVersion)
-	require.Empty(t, peerInfoVisit.Protocols)
-	require.Empty(t, peerInfoVisit.ProtocolVersion)
-	require.Empty(t, peerInfoVisit.MultiAddresses)
-	require.NotEmpty(t, peerInfoVisit.Error)
-	require.False(t, peerInfoVisit.Timestamp.IsZero())
 }
 
 func Test_sampleByFindPeerInfo_Timeout(t *testing.T) {
@@ -172,49 +185,4 @@ func Test_sampleByFindPeerInfo_Timeout(t *testing.T) {
 	require.True(t, elapsed <= timeout*2, "Operation should timeout within reasonable time of the specified timeout, got %v", elapsed)
 	require.NotEmpty(t, peerInfoVisit.Error)
 	require.False(t, peerInfoVisit.Timestamp.IsZero())
-}
-
-func Test_sampleByFindPeerInfo_StructureValidation(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	hosts := composeDemoDHTNetwork(ctx, t, 3)
-	defer stopTestNetwork(t, hosts)
-
-	time.Sleep(2 * time.Second)
-
-	targetHost := hosts[1]
-	queryHost := hosts[2]
-
-	item := &models.SamplingItem{
-		Key:        targetHost.Host().ID().String(),
-		Network:    config.DefaultNetwork.String(),
-		SampleType: config.SamplePeerInfo.String(),
-	}
-
-	visitRound := 5
-	timeout := 10 * time.Second
-
-	visit, err := sampleByFindPeerInfo(ctx, queryHost, item, visitRound, timeout)
-	require.NoError(t, err)
-
-	require.Nil(t, visit.GetGenericVisit())
-	require.Nil(t, visit.GetGenericValueVisit())
-	require.NotNil(t, visit.GetGenericPeerInfoVisit())
-
-	peerInfoVisits := visit.GetGenericPeerInfoVisit()
-	require.Len(t, peerInfoVisits, 1)
-
-	peerInfoVisit := peerInfoVisits[0]
-
-	require.Equal(t, uint64(visitRound), peerInfoVisit.VisitRound)
-	require.Equal(t, item.Network, peerInfoVisit.Network)
-	require.Equal(t, item.Key, peerInfoVisit.PeerID)
-	require.IsType(t, time.Duration(0), peerInfoVisit.Duration)
-	require.IsType(t, "", peerInfoVisit.AgentVersion)
-	require.IsType(t, []protocol.ID{}, peerInfoVisit.Protocols)
-	require.IsType(t, "", peerInfoVisit.ProtocolVersion)
-	require.IsType(t, []ma.Multiaddr{}, peerInfoVisit.MultiAddresses)
-	require.IsType(t, "", peerInfoVisit.Error)
-	require.IsType(t, time.Time{}, peerInfoVisit.Timestamp)
 }
