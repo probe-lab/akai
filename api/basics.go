@@ -43,4 +43,5 @@ type DASItem struct {
 	Column      uint64         `json:"column"`
 	Metadata    map[string]any `json:"metadata"`
 	SampleUntil time.Time      `json:"sample_until"`
+	SampleType  string         `json:"sample_type"`
 }

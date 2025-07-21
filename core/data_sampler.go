@@ -3,6 +3,9 @@ package core
 import (
 	"context"
 	"fmt"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
+	"github.com/multiformats/go-multiaddr"
 	"sync"
 	"time"
 
@@ -239,7 +242,7 @@ func (ds *DataSampler) runSampler(ctx context.Context, samplerID int64) {
 			wlog.Debugf("sampling %s", task.item.Key)
 			err := ds.sampleItem(ctx, task.visitRound, task.item, ds.cfg.SamplingTimeout)
 			if err != nil {
-				log.Panicf("error persinting sampling visit - %s", err)
+				log.Panicf("error persisting sampling visit - %s - key: %s", err, task.item.Key)
 			}
 
 		case <-ctx.Done():
@@ -282,6 +285,15 @@ func (ds *DataSampler) sampleItem(
 	if valueVisits := resVisit.GetGenericValueVisit(); valueVisits != nil {
 		for _, visit := range valueVisits {
 			err = ds.db.PersistNewSampleValueVisit(ctx, visit)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if peerInfoVisits := resVisit.GetGenericPeerInfoVisit(); peerInfoVisits != nil {
+		for _, visit := range peerInfoVisits {
+			err = ds.db.PersistNewPeerInfoVisit(ctx, visit)
 			if err != nil {
 				return err
 			}
@@ -507,6 +519,82 @@ func sampleByFindPeers(
 	}, nil
 }
 
+func sampleByFindPeerInfo(
+	ctx context.Context,
+	h DHTHost,
+	item *models.SamplingItem,
+	visitRound int,
+	timeout time.Duration,
+) (models.GeneralVisit, error) {
+	visit := models.PeerInfoVisit{
+		VisitRound:      uint64(visitRound),
+		Timestamp:       time.Now(),
+		Network:         item.Network,
+		PeerID:          item.Key,
+		Duration:        0,
+		AgentVersion:    "",
+		Protocols:       make([]protocol.ID, 0),
+		ProtocolVersion: "",
+		MultiAddresses:  make([]multiaddr.Multiaddr, 0),
+		Error:           "",
+	}
+
+	peerID, err := peer.Decode(item.Key)
+	if err != nil {
+		return models.GeneralVisit{}, err
+	}
+
+	log.WithFields(log.Fields{"timeout": timeout})
+
+	duration, peerInfo, err := h.FindPeer(ctx, peerID, timeout)
+	visit.Duration = duration
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Warnf("find peer info operation could not be completed")
+		visit.Error = err.Error()
+		return models.GeneralVisit{
+			GenericPeerInfoVisit: []*models.PeerInfoVisit{
+				&visit,
+			},
+		}, err
+	}
+
+	hostInfo, err := h.ConnectAndIdentifyPeer(ctx, peerInfo, 1, 30*time.Second)
+	errStr := ""
+	if err != nil {
+		visit.Error = err.Error()
+	} else {
+		visit.Error = errStr
+	}
+
+	log.WithFields(log.Fields{
+		"operation":   config.SamplePeerInfo.String(),
+		"timestamp":   duration.Milliseconds(),
+		"peer_id":     peerInfo.ID.String(),
+		"maddres":     peerInfo.Addrs,
+		"peer_info":   hostInfo,
+		"duration_ms": duration,
+		"error":       errStr,
+	}).Infof("find peer info operation done")
+
+	// apply remaining values
+	if agentVersion, ok := hostInfo["agent_version"].(string); ok {
+		visit.AgentVersion = agentVersion
+	}
+	if protocolVersion, ok := hostInfo["protocol_version"].(string); ok {
+		visit.ProtocolVersion = protocolVersion
+	}
+	visit.Protocols = append(visit.Protocols, hostInfo["protocols"].([]protocol.ID)...)
+	visit.MultiAddresses = append(visit.MultiAddresses, peerInfo.Addrs...)
+
+	return models.GeneralVisit{
+		GenericPeerInfoVisit: []*models.PeerInfoVisit{
+			&visit,
+		},
+	}, nil
+}
+
 func sampleByFindValue(
 	ctx context.Context,
 	h DHTHost,
@@ -577,6 +665,9 @@ func samplingFnFromType(sampleType config.SamplingType) (SamplerFunction, error)
 
 	case config.SamplePeers:
 		return sampleByFindPeers, nil
+
+	case config.SamplePeerInfo:
+		return sampleByFindPeerInfo, nil
 
 	default:
 		return func(

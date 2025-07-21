@@ -52,6 +52,7 @@ type ClickHouseDB struct {
 		samplingItems       *queryBatcher[models.SamplingItem]
 		sampleGenericVisits *queryBatcher[models.SampleGenericVisit]
 		sampleValueVisits   *queryBatcher[models.SampleValueVisit]
+		peerInfoVisits      *queryBatcher[models.PeerInfoVisit]
 	}
 
 	// caches to speedup querides
@@ -114,6 +115,7 @@ func (db *ClickHouseDB) GetAllTables() map[string]struct{} {
 		models.SamplingItemTableName:       {},
 		models.SampleGenericVisitTableName: {},
 		models.SampleValueVisitTableName:   {},
+		models.PeerInfoVisitTableName:      {},
 	}
 }
 
@@ -192,6 +194,9 @@ func (db *ClickHouseDB) getConnectableDrivers(tables map[string]struct{}) map[st
 		case models.SampleValueVisitTableName:
 			driver = sampleValueVisitTableDriver
 
+		case models.PeerInfoVisitTableName:
+			driver = peerInfoVisitsTableDriver
+
 		default:
 			log.Warnf("no driver found for table %s", table)
 			continue
@@ -238,6 +243,14 @@ func (db *ClickHouseDB) composeBatchersForTables(tables map[string]struct{}) err
 			}
 			db.qBatchers.sampleValueVisits = batcher
 
+		case models.PeerInfoVisitTableName:
+			driver := peerInfoVisitsTableDriver
+			batcher, err := newQueryBatcher[models.PeerInfoVisit](driver, MaxFlushInterval, models.PeerInfoVisit{}.BatchingSize())
+			if err != nil {
+				return err
+			}
+			db.qBatchers.peerInfoVisits = batcher
+
 		default:
 			log.Warnf("no driver found for table %s", table)
 			continue
@@ -278,6 +291,10 @@ func (db *ClickHouseDB) flushAllBatchers(ctx context.Context) error {
 		return err
 	}
 	err = db.flushBatcher(ctx, db.qBatchers.sampleValueVisits)
+	if err != nil {
+		return err
+	}
+	err = db.flushBatcher(ctx, db.qBatchers.peerInfoVisits)
 	if err != nil {
 		return err
 	}
@@ -450,6 +467,17 @@ func (db *ClickHouseDB) PersistNewSampleValueVisit(ctx context.Context, visit *m
 	flushable := db.qBatchers.sampleValueVisits.addItem(visit)
 	if flushable {
 		err := db.flushBatcherIfNeeded(ctx, db.qBatchers.sampleValueVisits)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (db *ClickHouseDB) PersistNewPeerInfoVisit(ctx context.Context, visit *models.PeerInfoVisit) error {
+	flushable := db.qBatchers.peerInfoVisits.addItem(visit)
+	if flushable {
+		err := db.flushBatcherIfNeeded(ctx, db.qBatchers.peerInfoVisits)
 		if err != nil {
 			return err
 		}
