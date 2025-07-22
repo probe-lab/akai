@@ -23,7 +23,7 @@ func insertPeerInfoVisitQueryBase() string {
 		visit_round,
 		timestamp,
 		network,
-		peerID,
+		peer_id,
 		duration_ms,
 		agent_version,
 		protocols,
@@ -76,7 +76,7 @@ func convertPeerInfoVisitToInput(visits []*models.PeerInfoVisit) proto.Input {
 		{Name: "visit_round", Data: visitRounds},
 		{Name: "timestamp", Data: timestamps},
 		{Name: "network", Data: networks},
-		{Name: "peerID", Data: peerIDs},
+		{Name: "peer_id", Data: peerIDs},
 		{Name: "duration_ms", Data: durations},
 		{Name: "agent_version", Data: agentVersions},
 		{Name: "protocols", Data: protocols},
@@ -98,7 +98,7 @@ func dropAllPeerInfoVisitsTable(ctx context.Context, client driver.Conn, network
 }
 
 func requestAllPeerInfoVisits(ctx context.Context, client driver.Conn, network string) ([]*models.PeerInfoVisit, error) {
-	query := `SELECT visit_round, timestamp, network, peerID, duration_ms, agent_version, protocols, protocol_version, multi_addresses, error FROM peer_info_visits WHERE network = ? ORDER BY timestamp DESC`
+	query := `SELECT visit_round, timestamp, network, peer_id, duration_ms, agent_version, protocols, protocol_version, multi_addresses, error FROM peer_info_visits WHERE network = ? ORDER BY timestamp DESC`
 
 	log.WithFields(log.Fields{
 		"query":   query,

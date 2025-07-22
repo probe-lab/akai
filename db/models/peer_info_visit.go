@@ -1,6 +1,8 @@
 package models
 
 import (
+	"os"
+	"strconv"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/multiformats/go-multiaddr"
 	"time"
@@ -8,8 +10,17 @@ import (
 
 var (
 	PeerInfoVisitTableName   = "peer_info_visits"
-	PeerInfoVisitBatcherSize = 4096
+	PeerInfoVisitBatcherSize = getPeerInfoBatchSize()
 )
+
+func getPeerInfoBatchSize() int {
+	if envVal := os.Getenv("AKAI_PEER_INFO_BATCH_SIZE"); envVal != "" {
+		if size, err := strconv.Atoi(envVal); err == nil && size > 0 {
+			return size
+		}
+	}
+	return 10
+}
 
 type PeerInfoVisit struct {
 	VisitRound      uint64                `ch:"visit_round" json:"visit_round"`         // Round number of the crawling visit
