@@ -1,10 +1,10 @@
 package models
 
 import (
-	"os"
-	"strconv"
 	"github.com/libp2p/go-libp2p/core/protocol"
 	"github.com/multiformats/go-multiaddr"
+	"os"
+	"strconv"
 	"time"
 )
 
