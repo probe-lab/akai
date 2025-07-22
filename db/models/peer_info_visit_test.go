@@ -1,6 +1,7 @@
 package models
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -101,7 +102,59 @@ func TestPeerInfoVisit_QueryValues(t *testing.T) {
 func TestPeerInfoVisit_BatchingSize(t *testing.T) {
 	visit := PeerInfoVisit{}
 	require.Equal(t, PeerInfoVisitBatcherSize, visit.BatchingSize())
-	require.Equal(t, 4096, visit.BatchingSize())
+}
+
+func TestGetPeerInfoBatchSize(t *testing.T) {
+	tests := []struct {
+		name     string
+		envValue string
+		setEnv   bool
+		expected int
+	}{
+		{
+			name:     "default value",
+			setEnv:   false,
+			expected: 10,
+		},
+		{
+			name:     "valid environment variable",
+			envValue: "25",
+			setEnv:   true,
+			expected: 25,
+		},
+		{
+			name:     "invalid environment variable - non-numeric",
+			envValue: "invalid",
+			setEnv:   true,
+			expected: 10,
+		},
+		{
+			name:     "invalid environment variable - zero",
+			envValue: "0",
+			setEnv:   true,
+			expected: 10,
+		},
+		{
+			name:     "invalid environment variable - negative",
+			envValue: "-5",
+			setEnv:   true,
+			expected: 10,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.setEnv {
+				os.Setenv("AKAI_PEER_INFO_BATCH_SIZE", tt.envValue)
+				defer os.Unsetenv("AKAI_PEER_INFO_BATCH_SIZE")
+			} else {
+				os.Unsetenv("AKAI_PEER_INFO_BATCH_SIZE")
+			}
+
+			result := getPeerInfoBatchSize()
+			require.Equal(t, tt.expected, result)
+		})
+	}
 }
 
 func TestPeerInfoVisit_StructureValidation(t *testing.T) {
@@ -120,7 +173,7 @@ func TestPeerInfoVisit_StructureValidation(t *testing.T) {
 
 	require.True(t, visit.IsComplete())
 	require.Equal(t, "peer_info_visits", visit.TableName())
-	require.Equal(t, 4096, visit.BatchingSize())
+	require.Equal(t, PeerInfoVisitBatcherSize, visit.BatchingSize())
 
 	queryValues := visit.QueryValues()
 	require.Len(t, queryValues, 10)
