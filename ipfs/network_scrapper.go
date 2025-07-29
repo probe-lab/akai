@@ -239,3 +239,7 @@ func (s *NetworkScrapper) getSamplingItemFromAPIitems(segments []api.DASItem) []
 	}
 	return agSegs
 }
+
+func (s *NetworkScrapper) GetQuorum() int {
+	return 1 // we just need to find one value
+}
