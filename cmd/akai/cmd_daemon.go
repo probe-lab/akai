@@ -29,6 +29,7 @@ var cmdDaemon = &cli.Command{
 		cmdDaemonAvailDAStracker,
 		cmdDaemonCelestiaNamespace,
 		cmdDaemonIPFS,
+		cmdDaemonIPNS,
 	},
 }
 
