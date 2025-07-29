@@ -1,6 +1,6 @@
 -- DO NOT EDIT: This file was generated with: just generate-local-clickhouse-migrations
 
--- Stores the results of peer info visits 
+-- Stores the results of peer info visits
 CREATE TABLE peer_info_visits (
     -- Number that identifies the visit round of the sampling
     visit_round UInt64,
@@ -22,6 +22,6 @@ CREATE TABLE peer_info_visits (
     multi_addresses Array(String),
     -- String representation of the error
     error String
-) ENGINE = MergeTree () PRIMARY KEY (network, peer_id, visit_round)
+) ENGINE = MergeTree() PRIMARY KEY (network, peer_id, visit_round)
 PARTITION BY
     toStartOfMonth (timestamp) TTL toDateTime (timestamp) + INTERVAL 180 DAY;
