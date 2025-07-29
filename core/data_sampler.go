@@ -232,7 +232,7 @@ func (ds *DataSampler) runSampler(ctx context.Context, samplerID int64) {
 			wlog.Debugf("sampling %s", task.Item.Key)
 			err := ds.sampleItem(ctx, task, ds.cfg.SamplingTimeout)
 			if err != nil {
-				log.Warnf("error persisting sampling visit - %s - key: %s", err, task.item.Key)
+				log.Warnf("error persisting sampling visit - %s - key: %s", err, task.Item.Key)
 			}
 
 		case <-ctx.Done():
