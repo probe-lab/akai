@@ -1,9 +1,10 @@
 package models
 
 type GeneralVisit struct {
-	GenericVisit         []*SampleGenericVisit
-	GenericValueVisit    []*SampleValueVisit
-	GenericPeerInfoVisit []*PeerInfoVisit
+	GenericVisit           []*SampleGenericVisit
+	GenericValueVisit      []*SampleValueVisit
+	GenericPeerInfoVisit   []*PeerInfoVisit
+	GenericIPNSRecordVisit []*IPNSRecordVisit
 }
 
 func (v *GeneralVisit) GetGenericVisit() []*SampleGenericVisit {
@@ -23,6 +24,13 @@ func (v *GeneralVisit) GetGenericValueVisit() []*SampleValueVisit {
 func (v *GeneralVisit) GetGenericPeerInfoVisit() []*PeerInfoVisit {
 	if v != nil {
 		return v.GenericPeerInfoVisit
+	}
+	return nil
+}
+
+func (v *GeneralVisit) GetGenericIPNSRecordVisit() []*IPNSRecordVisit {
+	if v != nil {
+		return v.GenericIPNSRecordVisit
 	}
 	return nil
 }

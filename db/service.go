@@ -37,6 +37,7 @@ type Database interface {
 	PersistNewSampleGenericVisit(context.Context, *models.SampleGenericVisit) error
 	PersistNewSampleValueVisit(context.Context, *models.SampleValueVisit) error
 	PersistNewPeerInfoVisit(context.Context, *models.PeerInfoVisit) error
+	PersistNewIPNSRecordVisit(context.Context, *models.IPNSRecordVisit) error
 }
 
 var _ Database = (*clickhouse.ClickHouseDB)(nil)
