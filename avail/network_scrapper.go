@@ -218,16 +218,15 @@ func (s *NetworkScrapper) GetSamplingItemStream() chan []*models.SamplingItem {
 }
 
 // syncs up with the database any prior existing sampleable item that we should keep tracking
-func (ds *NetworkScrapper) SyncWithDatabase(ctx context.Context) ([]*models.SamplingItem, error) {
+func (s *NetworkScrapper) SyncWithDatabase(ctx context.Context) ([]*models.SamplingItem, error) {
 	// get all the samples that are still:
 	// - trackeable
 	// - in TTL to sample
 	// - belong to the network
-
 	syncCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	items, err := ds.db.GetSampleableItems(syncCtx)
+	items, err := s.db.GetSampleableItems(syncCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -238,10 +237,14 @@ func (ds *NetworkScrapper) SyncWithDatabase(ctx context.Context) ([]*models.Samp
 
 	sampleItems := make([]*models.SamplingItem, len(items))
 	for i, item := range items {
-		if !ds.internalBlockCache.Contains(item.BlockLink) {
-			ds.internalBlockCache.Add(item.BlockLink, struct{}{})
+		if !s.internalBlockCache.Contains(item.BlockLink) {
+			s.internalBlockCache.Add(item.BlockLink, struct{}{})
 		}
 		sampleItems[i] = &item
 	}
 	return sampleItems, nil
+}
+
+func (s *NetworkScrapper) GetQuorum() int {
+	return 1 // we just need to find one value
 }
