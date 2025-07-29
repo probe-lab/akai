@@ -7,6 +7,7 @@ import (
 	"github.com/probe-lab/akai/celestia"
 	"github.com/probe-lab/akai/db/models"
 	"github.com/probe-lab/akai/ipfs"
+	"github.com/probe-lab/akai/ipns"
 )
 
 // NetworkScrapper is the main interface that each of the network should follow
@@ -14,6 +15,7 @@ import (
 type NetworkScrapper interface {
 	GetSamplingItemStream() chan []*models.SamplingItem
 	SyncWithDatabase(context.Context) ([]*models.SamplingItem, error)
+	GetQuorum() int
 	Serve(context.Context) error
 	Close(context.Context) error
 }
@@ -22,3 +24,4 @@ type NetworkScrapper interface {
 var _ NetworkScrapper = (*avail.NetworkScrapper)(nil)
 var _ NetworkScrapper = (*celestia.NetworkScrapper)(nil)
 var _ NetworkScrapper = (*ipfs.NetworkScrapper)(nil)
+var _ NetworkScrapper = (*ipns.NetworkScrapper)(nil)

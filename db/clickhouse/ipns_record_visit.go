@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
@@ -83,32 +84,32 @@ func convertIPNSRecordVisitToInput(visits []*models.IPNSRecordVisit) proto.Input
 	}
 }
 
-func dropAllIPNSRecordVisitsTable(ctx context.Context, client driver.Conn, network string) error {
-	query := `DELETE FROM ipns_record_visits WHERE network = ?`
+func dropAllIPNSRecordVisitsTable(ctx context.Context, client driver.Conn) error {
+	query := `DELETE FROM ipns_record_visits WHERE true`
 
 	log.WithFields(log.Fields{
-		"query":   query,
-		"network": network,
+		"query": query,
 	}).Debug("dropping all ipns record visits")
 
-	return client.Exec(ctx, query, network)
+	return client.Exec(ctx, query)
 }
 
-func requestAllIPNSRecordVisits(ctx context.Context, client driver.Conn, network string) ([]*models.IPNSRecordVisit, error) {
-	query := `SELECT visit_round, timestamp, record, record_type, quorum, seq_number, ttl_s, is_valid, is_retrievable, result, duration_ms, error FROM ipns_record_visits WHERE network = ? ORDER BY timestamp DESC`
+func requestAllIPNSRecordVisits(ctx context.Context, client driver.Conn) ([]*models.IPNSRecordVisit, error) {
+	query := `SELECT visit_round, timestamp, record, record_type, quorum, seq_number, ttl_s, is_valid, is_retrievable, result, duration_ms, error FROM ipns_record_visits ORDER BY timestamp DESC`
 
 	log.WithFields(log.Fields{
-		"query":   query,
-		"network": network,
+		"query": query,
 	}).Debug("requesting all ipns record visits")
 
-	rows, err := client.Query(ctx, query, network)
+	rows, err := client.Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("querying ipns record visits: %w", err)
 	}
 	defer rows.Close()
 
 	var visits []*models.IPNSRecordVisit
+	var ttl_s float64
+	var duration_ms int64
 	for rows.Next() {
 		visit := &models.IPNSRecordVisit{}
 		err := rows.Scan(
@@ -118,16 +119,18 @@ func requestAllIPNSRecordVisits(ctx context.Context, client driver.Conn, network
 			&visit.RecordType,
 			&visit.Quorum,
 			&visit.SeqNumber,
-			&visit.TTL,
+			&ttl_s,
 			&visit.IsValid,
 			&visit.IsRetrievable,
 			&visit.Result,
-			&visit.Duration,
+			&duration_ms,
 			&visit.Error,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scanning ipns record visit row: %w", err)
 		}
+		visit.TTL = time.Duration(ttl_s) * time.Second
+		visit.Duration = time.Duration(duration_ms) * time.Millisecond
 		visits = append(visits, visit)
 	}
 

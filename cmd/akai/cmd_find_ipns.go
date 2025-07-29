@@ -12,7 +12,7 @@ import (
 
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/core"
-	akaiipns "github.com/probe-lab/akai/ipns"
+	"github.com/probe-lab/akai/db/models"
 )
 
 var findIpnsRecord = struct {
@@ -74,29 +74,43 @@ func cmdFindIPNSAction(ctx context.Context, cmd *cli.Command) error {
 		return errors.Wrap(err, "creating DHT host")
 	}
 
-	ipnsCfg := akaiipns.IpnsConfig{
-		Timeout: findOP.Timeout,
-		Quorum:  int(findIpnsRecord.Quorum),
-	}
-
-	ipnsCli, err := akaiipns.NewIpnsClient(ipnsCfg, dhtHost)
-	if err != nil {
-		return err
-	}
-
 	for retry := int64(1); retry <= findOP.Retries; retry++ {
 		t := time.Now()
-		res, err := ipnsCli.ResolveIPNS(ctx, findOP.Key, findIpnsRecord.KeyType)
+
+		item := &models.SamplingItem{
+			Network: findOP.Network,
+			Key:     findOP.Key,
+		}
+		task := core.SamplingTask{
+			VisitRound: 1,
+			Item:       item,
+			Quorum:     int(findIpnsRecord.Quorum),
+		}
+
+		var err error
+		var res models.GeneralVisit
+		switch findIpnsRecord.KeyType {
+		case "cid":
+			res, err = core.ResolveIPNSRecord(ctx, dhtHost, task, findOP.Timeout)
+		case "dns":
+			res, err = core.ResolveDNS(ctx, dhtHost, task, findOP.Timeout)
+		default:
+			res, err = core.ResolveIPNSRecord(ctx, dhtHost, task, findOP.Timeout)
+		}
 		switch err {
 		case nil:
+			if res.GenericIPNSRecordVisit == nil {
+				return fmt.Errorf("empty response from the IPNS record visit")
+			}
+			r := res.GenericIPNSRecordVisit[0]
 			log.WithFields(log.Fields{
 				"operation":   config.SampleValue.String(),
 				"timestamp":   t,
 				"key":         findOP.Key,
-				"duration_ms": res.OpDuration,
-				"ttl":         res.TTL,
-				"is-valid":    res.IsValid,
-				"path":        res.Value,
+				"duration_ms": r.Duration,
+				"ttl_s":       r.TTL.Seconds(),
+				"is-valid":    r.IsValid,
+				"path":        r.Result,
 				"error":       "no-error",
 			}).Infof("find providers done: (retry: %d)", retry)
 			return nil

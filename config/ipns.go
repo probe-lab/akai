@@ -1,13 +1,10 @@
 package config
 
 import (
-	"strings"
 	"time"
 
 	"github.com/ipfs/boxo/ipns"
-	"github.com/ipfs/go-cid"
 	kaddht "github.com/libp2p/go-libp2p-kad-dht"
-	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 var (
@@ -51,17 +48,10 @@ type IPNSNetworkScrapperConfig struct {
 	AkaiAPIServiceConfig *AkaiAPIServiceConfig
 }
 
-func ComposeIpnsKey(k string) (string, error) {
-	peerIDstr := strings.Trim(k, "/ipns/")
-	c, err := cid.Decode(peerIDstr)
+func ComposeIpnsKey(k string) ([]byte, error) {
+	key, err := ipns.NameFromString(k)
 	if err != nil {
-		return "", err
+		return []byte{}, err
 	}
-	pid, err := peer.FromCid(c)
-	if err != nil {
-		return "", err
-	}
-	st := ipns.NameFromPeer(pid)
-	s := string(st.RoutingKey())
-	return s, nil
+	return key.RoutingKey(), nil
 }
