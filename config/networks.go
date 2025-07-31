@@ -281,7 +281,7 @@ func BootstrappersToMaddr(strs []string) []peer.AddrInfo {
 	for idx, addrStr := range strs {
 		bInfo, err := peer.AddrInfoFromString(addrStr)
 		if err != nil {
-			log.Panic("couldn't retrieve peer-info from bootnode maddr string", err)
+			log.Fatal("couldn't retrieve peer-info from bootnode maddr string", err)
 		}
 		bootnodeInfos[idx] = *bInfo
 	}
