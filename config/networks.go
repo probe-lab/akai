@@ -2,13 +2,13 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
 	record "github.com/libp2p/go-libp2p-record"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	log "github.com/sirupsen/logrus"
 )
 
 var DefaultNetwork = Network{
@@ -281,7 +281,7 @@ func BootstrappersToMaddr(strs []string) []peer.AddrInfo {
 	for idx, addrStr := range strs {
 		bInfo, err := peer.AddrInfoFromString(addrStr)
 		if err != nil {
-			log.Fatal("couldn't retrieve peer-info from bootnode maddr string", err)
+			log.Error("couldn't retrieve peer-info from bootnode maddr string", err)
 		}
 		bootnodeInfos[idx] = *bInfo
 	}
