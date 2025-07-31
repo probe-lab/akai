@@ -174,7 +174,7 @@ func (k *AvailKey) DHTKey() string {
 func (k *AvailKey) Hash() multihash.Multihash {
 	mh, err := multihash.Sum([]byte(k.String()), multihash.SHA2_256, len(k.String()))
 	if err != nil {
-		log.Panic(errors.Wrap(err, "composing sha256 key from avail key"))
+		log.Warn(errors.Wrap(err, "composing sha256 key from avail key"))
 	}
 	return mh
 }

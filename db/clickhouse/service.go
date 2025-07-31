@@ -269,7 +269,7 @@ func (db *ClickHouseDB) periodicBatchesFlusher(ctx context.Context, interval tim
 		case <-flushT.C:
 			err := db.flushAllBatchers(ctx)
 			if err != nil {
-				log.Panic("flushing batchers on periodic rutine", err)
+				log.Warn("flushing batchers on periodic rutine", err)
 			}
 		}
 	}

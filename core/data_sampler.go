@@ -242,7 +242,7 @@ func (ds *DataSampler) runSampler(ctx context.Context, samplerID int64) {
 			wlog.Debugf("sampling %s", task.item.Key)
 			err := ds.sampleItem(ctx, task.visitRound, task.item, ds.cfg.SamplingTimeout)
 			if err != nil {
-				log.Panicf("error persisting sampling visit - %s - key: %s", err, task.item.Key)
+				log.Warnf("error persisting sampling visit - %s - key: %s", err, task.item.Key)
 			}
 
 		case <-ctx.Done():
@@ -331,7 +331,7 @@ func (ds *DataSampler) updateNextVisitTime(item *models.SamplingItem) (visitRoun
 		return visitRound, nextVisitTime.Before(item.SampleUntil)
 
 	default:
-		log.Panic("unable to apply delay for next visit, as the network is not supported")
+		log.Warn("unable to apply delay for next visit, as the network is not supported")
 		return 0, false
 	}
 }
