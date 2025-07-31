@@ -568,6 +568,11 @@ func sampleByFindPeerInfo(
 		visit.Error = errStr
 	}
 
+	disconnectionErr := h.Host().Network().ClosePeer(peerID)
+	if disconnectionErr != nil {
+		return models.GeneralVisit{}, err
+	}
+
 	log.WithFields(log.Fields{
 		"operation":   config.SamplePeerInfo.String(),
 		"timestamp":   duration.Milliseconds(),
