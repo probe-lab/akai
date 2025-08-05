@@ -463,7 +463,7 @@ func (h *DHTHost) internalsDebugger(ctx context.Context) {
 			log.WithFields(log.Fields{
 				"peer-connections": len(peers),
 				"routing-nodes":    h.dhtCli.RoutingTable().Size(),
-			}).Info("connectivity summary:")
+			}).Debug("connectivity summary:")
 			for idx, peer := range peers {
 				attrs := h.getLibp2pHostInfo(peer)
 				log.WithFields(log.Fields{
