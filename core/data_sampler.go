@@ -572,6 +572,7 @@ func sampleByFindPeerInfo(
 	if disconnectionErr != nil {
 		return models.GeneralVisit{}, err
 	}
+	h.Host().Peerstore().RemovePeer(peerID)
 
 	log.WithFields(log.Fields{
 		"operation":   config.SamplePeerInfo.String(),
