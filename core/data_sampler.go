@@ -3,13 +3,9 @@ package core
 import (
 	"context"
 	"fmt"
-	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/protocol"
-	"github.com/multiformats/go-multiaddr"
 	"sync"
 	"time"
 
-	"github.com/ipfs/go-cid"
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/db"
 	"github.com/probe-lab/akai/db/models"
@@ -17,13 +13,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 )
-
-type SamplerFunction func(
-	context.Context,
-	DHTHost,
-	*models.SamplingItem,
-	int,
-	time.Duration) (models.GeneralVisit, error)
 
 var minIterTime = 250 * time.Millisecond
 
@@ -213,8 +202,9 @@ initLoop:
 				ds.itemSet.removeItem(nextItem.Key)
 			}
 			ds.samplingTaskC <- SamplingTask{
-				visitRound: visitRound,
-				item:       nextItem,
+				VisitRound: visitRound,
+				Item:       nextItem,
+				Quorum:     ds.networkScrapper.GetQuorum(),
 			}
 
 			// metrics
@@ -239,10 +229,10 @@ func (ds *DataSampler) runSampler(ctx context.Context, samplerID int64) {
 	for {
 		select {
 		case task := <-ds.samplingTaskC:
-			wlog.Debugf("sampling %s", task.item.Key)
-			err := ds.sampleItem(ctx, task.visitRound, task.item, ds.cfg.SamplingTimeout)
+			wlog.Debugf("sampling %s", task.Item.Key)
+			err := ds.sampleItem(ctx, task, ds.cfg.SamplingTimeout)
 			if err != nil {
-				log.Warnf("error persisting sampling visit - %s - key: %s", err, task.item.Key)
+				log.Warnf("error persisting sampling visit - %s - key: %s", err, task.Item.Key)
 			}
 
 		case <-ctx.Done():
@@ -253,21 +243,20 @@ func (ds *DataSampler) runSampler(ctx context.Context, samplerID int64) {
 
 func (ds *DataSampler) sampleItem(
 	ctx context.Context,
-	visitRound int,
-	item *models.SamplingItem,
+	task SamplingTask,
 	timeout time.Duration,
 ) error {
 	log.WithFields(log.Fields{
-		"Item":             item.Key,
-		"sampleable_until": item.SampleUntil,
+		"Item":             task.Item.Key,
+		"sampleable_until": task.Item.SampleUntil,
 	}).Debug("sampling Item of blob")
 
-	samplerFn, err := samplingFnFromType(config.SamplingTypeFromStr(item.SampleType))
+	samplerFn, err := samplingFnFromType(config.SamplingTypeFromStr(task.Item.SampleType))
 	if err != nil {
 		return err
 	}
 
-	resVisit, err := samplerFn(ctx, ds.h, item, visitRound, timeout)
+	resVisit, err := samplerFn(ctx, ds.h, task, timeout)
 	if err != nil {
 		return err
 	}
@@ -291,9 +280,20 @@ func (ds *DataSampler) sampleItem(
 		}
 	}
 
+	// - PeerInfo Visits
 	if peerInfoVisits := resVisit.GetGenericPeerInfoVisit(); peerInfoVisits != nil {
 		for _, visit := range peerInfoVisits {
 			err = ds.db.PersistNewPeerInfoVisit(ctx, visit)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// - IPNS record Visits
+	if ipnsRecordVisits := resVisit.GetGenericIPNSRecordVisit(); ipnsRecordVisits != nil {
+		for _, visit := range ipnsRecordVisits {
+			err = ds.db.PersistNewIPNSRecordVisit(ctx, visit)
 			if err != nil {
 				return err
 			}
@@ -305,7 +305,7 @@ func (ds *DataSampler) sampleItem(
 func (ds *DataSampler) updateNextVisitTime(item *models.SamplingItem) (visitRound int, validNextVisit bool) {
 	// TODO: Consider having all these network parameters in as single struct per network
 	switch ds.network.Protocol {
-	case config.ProtocolIPFS, config.ProtocolCelestia:
+	case config.ProtocolIPFS, config.ProtocolIPNS, config.ProtocolCelestia:
 		// constant increment of 15/30 mins
 		visitRound, nextVisitTime := computeNextVisitTime(
 			item.Timestamp,
@@ -404,286 +404,4 @@ func (ds *DataSampler) initMetrics() (err error) {
 	}
 
 	return nil
-}
-
-// TODO: in the future, this could be extended to make a "smarter" division of the tasks:
-// - key-space filltering
-// - host selection
-// - or similars
-type SamplingTask struct {
-	visitRound int
-	item       *models.SamplingItem
-}
-
-// logical sampler functions
-func sampleByFindProviders(
-	ctx context.Context,
-	h DHTHost,
-	item *models.SamplingItem,
-	visitRound int,
-	timeout time.Duration,
-) (models.GeneralVisit, error) {
-	// generate the base for the generic visit
-	visit := models.SampleGenericVisit{
-		VisitType:     config.SampleProviders.String(),
-		VisitRound:    uint64(visitRound),
-		Network:       item.Network,
-		Timestamp:     time.Now(),
-		Key:           item.Key,
-		DurationMs:    int64(0),
-		ResponseItems: 0,
-		Peers:         make([]string, 0),
-		Error:         "",
-	}
-
-	contentID, err := cid.Decode(item.Key)
-	if err != nil {
-		visit.Error = "Item key doesn't represent a valid CID"
-	}
-
-	// make the sampling
-	duration, providers, err := h.FindProviders(ctx, contentID, timeout)
-	if err != nil {
-		visit.Error = err.Error()
-	}
-	// apply rest of values
-	visit.DurationMs = duration.Milliseconds()
-	visit.ResponseItems = int32(len(providers))
-	for _, pr := range providers {
-		visit.Peers = append(visit.Peers, pr.ID.String())
-	}
-
-	log.WithFields(log.Fields{
-		"timestamp":   time.Now(),
-		"key":         item.Key,
-		"duration":    duration,
-		"n_providers": len(providers),
-		"providers":   len(visit.Peers),
-		"error":       visit.Error,
-	}).Debug("find providers operation done")
-
-	return models.GeneralVisit{
-		GenericVisit: []*models.SampleGenericVisit{
-			&visit,
-		},
-		GenericValueVisit: nil,
-	}, nil
-}
-
-func sampleByFindPeers(
-	ctx context.Context,
-	h DHTHost,
-	item *models.SamplingItem,
-	visitRound int,
-	timeout time.Duration,
-) (models.GeneralVisit, error) {
-	visit := models.SampleGenericVisit{
-		VisitType:     config.SamplePeers.String(),
-		VisitRound:    uint64(visitRound),
-		Network:       item.Network,
-		Timestamp:     time.Now(),
-		Key:           item.Key,
-		DurationMs:    int64(0),
-		ResponseItems: 0,
-		Peers:         make([]string, 0),
-		Error:         "",
-	}
-
-	// make the sampling
-	duration, peers, err := h.FindPeers(ctx, item.Key, timeout)
-	if err != nil {
-		visit.Error = err.Error()
-	}
-
-	// apply rest of values
-	visit.DurationMs = duration.Milliseconds()
-	visit.ResponseItems = int32(len(peers))
-	for _, pr := range peers {
-		visit.Peers = append(visit.Peers, pr.ID.String())
-	}
-
-	log.WithFields(log.Fields{
-		"timestamp":   time.Now(),
-		"key":         item.Key,
-		"duration":    duration,
-		"n_providers": len(peers),
-		"peer_ids":    ListPeerIDsFromAddrsInfos(peers),
-		"error":       visit.Error,
-	}).Debug("find peers operation done")
-
-	return models.GeneralVisit{
-		GenericVisit: []*models.SampleGenericVisit{
-			&visit,
-		},
-		GenericValueVisit: nil,
-	}, nil
-}
-
-func sampleByFindPeerInfo(
-	ctx context.Context,
-	h DHTHost,
-	item *models.SamplingItem,
-	visitRound int,
-	timeout time.Duration,
-) (models.GeneralVisit, error) {
-	visit := models.PeerInfoVisit{
-		VisitRound:      uint64(visitRound),
-		Timestamp:       time.Now(),
-		Network:         item.Network,
-		PeerID:          item.Key,
-		Duration:        0,
-		AgentVersion:    "",
-		Protocols:       make([]protocol.ID, 0),
-		ProtocolVersion: "",
-		MultiAddresses:  make([]multiaddr.Multiaddr, 0),
-		Error:           "",
-	}
-
-	peerID, err := peer.Decode(item.Key)
-	if err != nil {
-		return models.GeneralVisit{}, err
-	}
-
-	log.WithFields(log.Fields{"timeout": timeout})
-
-	duration, peerInfo, err := h.FindPeer(ctx, peerID, timeout)
-	visit.Duration = duration
-	if err != nil {
-		log.WithFields(log.Fields{
-			"error": err,
-		}).Warnf("find peer info operation could not be completed")
-		visit.Error = err.Error()
-		return models.GeneralVisit{
-			GenericPeerInfoVisit: []*models.PeerInfoVisit{
-				&visit,
-			},
-		}, err
-	}
-
-	hostInfo, err := h.ConnectAndIdentifyPeer(ctx, peerInfo, 1, 30*time.Second)
-	errStr := ""
-	if err != nil {
-		visit.Error = err.Error()
-	} else {
-		visit.Error = errStr
-	}
-
-	disconnectionErr := h.Host().Network().ClosePeer(peerID)
-	if disconnectionErr != nil {
-		return models.GeneralVisit{}, err
-	}
-	h.Host().Peerstore().RemovePeer(peerID)
-
-	log.WithFields(log.Fields{
-		"operation":   config.SamplePeerInfo.String(),
-		"timestamp":   duration.Milliseconds(),
-		"peer_id":     peerInfo.ID.String(),
-		"maddres":     peerInfo.Addrs,
-		"peer_info":   hostInfo,
-		"duration_ms": duration,
-		"error":       errStr,
-	}).Infof("find peer info operation done")
-
-	// apply remaining values
-	if agentVersion, ok := hostInfo["agent_version"].(string); ok {
-		visit.AgentVersion = agentVersion
-	}
-	if protocolVersion, ok := hostInfo["protocol_version"].(string); ok {
-		visit.ProtocolVersion = protocolVersion
-	}
-	visit.Protocols = append(visit.Protocols, hostInfo["protocols"].([]protocol.ID)...)
-	visit.MultiAddresses = append(visit.MultiAddresses, peerInfo.Addrs...)
-
-	return models.GeneralVisit{
-		GenericPeerInfoVisit: []*models.PeerInfoVisit{
-			&visit,
-		},
-	}, nil
-}
-
-func sampleByFindValue(
-	ctx context.Context,
-	h DHTHost,
-	item *models.SamplingItem,
-	visitRound int,
-	timeout time.Duration,
-) (models.GeneralVisit, error) {
-	visit := models.SampleValueVisit{
-		VisitRound:    uint64(visitRound),
-		VisitType:     item.ItemType,
-		Network:       item.Network,
-		Timestamp:     time.Now(),
-		Key:           item.Key,
-		BlockNumber:   item.BlockLink,
-		DASRow:        item.DASRow,
-		DASColumn:     item.DASColumn,
-		DurationMs:    int64(0),
-		IsRetrievable: false,
-		Bytes:         0,
-		Error:         "",
-	}
-
-	// make the sampling
-	duration, bytes, err := h.FindValue(ctx, item.Key, timeout)
-	if err != nil {
-		visit.Error = err.Error()
-	}
-	if len(bytes) > 0 {
-		visit.IsRetrievable = true
-		visit.Bytes = int32(len(bytes))
-		// there is an edgy case where the sampling reports a failure
-		// but the content was retrieved -> Err = ContextDeadlineExceeded
-		// rewrite the error to nil/Empty
-		if err == context.DeadlineExceeded {
-			log.WithFields(log.Fields{
-				"key":   item.Key,
-				"bytes": len(bytes),
-			}).Warn("key retrieved, but context was exceeded")
-			visit.Error = ""
-		}
-	}
-	// apply rest of values
-	visit.DurationMs = duration.Milliseconds()
-
-	log.WithFields(log.Fields{
-		"timestamp": time.Now(),
-		"key":       item.Key,
-		"duration":  duration,
-		"bytes":     len(bytes),
-		"error":     visit.Error,
-	}).Debug("find value operation done")
-
-	return models.GeneralVisit{
-		GenericVisit: nil,
-		GenericValueVisit: []*models.SampleValueVisit{
-			&visit,
-		},
-	}, nil
-}
-
-func samplingFnFromType(sampleType config.SamplingType) (SamplerFunction, error) {
-	switch sampleType {
-	case config.SampleProviders:
-		return sampleByFindProviders, nil
-
-	case config.SampleValue:
-		return sampleByFindValue, nil
-
-	case config.SamplePeers:
-		return sampleByFindPeers, nil
-
-	case config.SamplePeerInfo:
-		return sampleByFindPeerInfo, nil
-
-	default:
-		return func(
-			_ context.Context,
-			_ DHTHost,
-			_ *models.SamplingItem,
-			_ int,
-			_ time.Duration,
-		) (models.GeneralVisit, error) {
-			return models.GeneralVisit{}, nil
-		}, nil
-	}
 }

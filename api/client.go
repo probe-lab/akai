@@ -236,7 +236,7 @@ func (c *Client) PostNewBlock(ctx context.Context, block Block) error {
 		return errors.Wrap(err, "error unmarshaling API's response")
 	}
 	if ack.Status != "ok" {
-		return fmt.Errorf(ack.Error)
+		return fmt.Errorf("%s", ack.Error)
 	}
 	return nil
 }
@@ -255,7 +255,7 @@ func (c *Client) PostNewItem(ctx context.Context, item DASItem) error {
 		return errors.Wrap(err, "error unmarshaling API's response")
 	}
 	if ack.Status != "ok" {
-		return fmt.Errorf(ack.Error)
+		return fmt.Errorf("%s", ack.Error)
 	}
 	return nil
 }
@@ -274,7 +274,7 @@ func (c *Client) PostNewItems(ctx context.Context, items []DASItem) error {
 		return errors.Wrap(err, "error unmarshaling API's response")
 	}
 	if ack.Status != "ok" {
-		return fmt.Errorf(ack.Error)
+		return fmt.Errorf("%s", ack.Error)
 	}
 	return nil
 }

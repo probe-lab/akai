@@ -9,6 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v3"
+	"go.opentelemetry.io/otel"
 
 	"github.com/probe-lab/akai/config"
 	"github.com/probe-lab/akai/core"
@@ -197,7 +198,7 @@ func composeDHTTestHost(t *testing.T, ctx context.Context, port int64, netCfg *c
 		IP:          "127.0.0.1",
 		Port:        port,
 		DialTimeout: 10 * time.Second,
-		Meter:       nil,
+		Meter:       otel.GetMeterProvider().Meter("test"),
 	}
 	dhtHost, err := core.NewDHTHost(ctx, netCfg, dhtHostOpts)
 	require.NoError(t, err)

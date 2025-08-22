@@ -13,7 +13,6 @@ import (
 	"go.opentelemetry.io/otel/metric"
 
 	"github.com/libp2p/go-libp2p"
-	mplex "github.com/libp2p/go-libp2p-mplex"
 	"github.com/libp2p/go-libp2p/core/discovery"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -100,7 +99,6 @@ func NewDHTHost(ctx context.Context, opts *DHTHostConfig, netCfg *config.Network
 		libp2p.DisableRelay(),
 		libp2p.Transport(tcp.NewTCPTransport),
 		libp2p.Transport(quic.NewTransport),
-		libp2p.Muxer(mplex.ID, mplex.DefaultTransport),
 		libp2p.Muxer(yamux.ID, yamux.DefaultTransport),
 	)
 	if err != nil {
@@ -306,6 +304,41 @@ func (h *DHTHost) FindValue(
 		// pass (record value)
 	case <-opCtx.Done():
 		// pass (deadline exceeded)
+	}
+	if len(value) <= 0 && err == nil {
+		if !ok {
+			err = routing.ErrNotFound
+		} else {
+			err = context.DeadlineExceeded
+		}
+	}
+	return time.Since(startT), value, err
+}
+
+func (h *DHTHost) FindQuorumValue(
+	ctx context.Context,
+	key string,
+	timeout time.Duration,
+	quorum int,
+) (t time.Duration, value [][]byte, err error) {
+	opCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	log.WithFields(log.Fields{
+		"host-id": h.id,
+		"key":     key,
+	}).Debug("looking for providers")
+
+	startT := time.Now()
+	outC, err := h.dhtCli.SearchValue(
+		opCtx,
+		key,
+		kaddht.Quorum(quorum),
+	)
+
+	var ok bool
+	for v := range outC {
+		value = append(value, v)
 	}
 	if len(value) <= 0 && err == nil {
 		if !ok {

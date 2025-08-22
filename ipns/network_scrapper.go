@@ -1,4 +1,4 @@
-package celestia
+package ipns
 
 import (
 	"context"
@@ -15,12 +15,15 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var DefaultNetworkScrapperConfig = &config.CelestiaNetworkScrapperConfig{
-	Network:              config.DefaultCelestiaNetwork.String(),
-	NotChannelBufferSize: 0,
-	SamplerNotifyTimeout: 20 * time.Second,
+var ErrorNotValidIPNSRecord = fmt.Errorf("the given key is not a IPNS record / DNS link")
+
+var DefaultNetworkScrapperConfig = &config.IPNSNetworkScrapperConfig{
+	Network:              config.DefaultIPNSNetwork.String(),
+	Quorum:               5, // TODO: not even sure if this is appropriate
+	NotChannelBufferSize: 10,
+	SamplerNotifyTimeout: 10 * time.Second,
 	AkaiAPIServiceConfig: &config.AkaiAPIServiceConfig{
-		Network:    config.DefaultCelestiaNetwork.String(),
+		Network:    config.DefaultIPNSNetwork.String(),
 		Host:       api.DefaulServiceConfig.Host,
 		Port:       api.DefaulServiceConfig.Port,
 		PrefixPath: api.DefaulServiceConfig.PrefixPath,
@@ -31,7 +34,7 @@ var DefaultNetworkScrapperConfig = &config.CelestiaNetworkScrapperConfig{
 }
 
 type NetworkScrapper struct {
-	cfg     *config.CelestiaNetworkScrapperConfig
+	cfg     *config.IPNSNetworkScrapperConfig
 	network config.Network
 	closeC  chan struct{}
 
@@ -42,7 +45,7 @@ type NetworkScrapper struct {
 }
 
 func NewNetworkScrapper(
-	cfg *config.CelestiaNetworkScrapperConfig,
+	cfg *config.IPNSNetworkScrapperConfig,
 	db db.Database,
 ) (*NetworkScrapper, error) {
 
@@ -50,15 +53,15 @@ func NewNetworkScrapper(
 	if err != nil {
 		return nil, err
 	}
-	cache, err := lru.New[string, struct{}](config.CelestiaSetCacheSize)
+	cache, err := lru.New[string, struct{}](100) // todo hardcoded
 	if err != nil {
 		return nil, err
 	}
 	networkScrapper := &NetworkScrapper{
 		cfg:               cfg,
 		network:           config.NetworkFromStr(cfg.Network),
-		internalItemCache: cache,
 		closeC:            make(chan struct{}),
+		internalItemCache: cache,
 		itemNotCh:         make(chan []*models.SamplingItem, cfg.NotChannelBufferSize),
 		db:                db,
 		apiSer:            apiSer,
@@ -102,18 +105,13 @@ func (s *NetworkScrapper) notifySampler(ctx context.Context, samplingItems []*mo
 	notCtx, cancel := context.WithTimeout(ctx, s.cfg.SamplerNotifyTimeout)
 	defer cancel()
 
-	fmt.Println("notify of new items", len(samplingItems))
 	select {
 	case s.itemNotCh <- samplingItems:
-		log.WithField("items", len(samplingItems)).Debug("notified from the Avail NetworkScrapper of new DAS items available")
+		log.WithField("items", len(samplingItems)).Debug("notified from the Avail NetworkScrapper of new IPNS items available")
 		return nil
 	case <-notCtx.Done():
 		return fmt.Errorf("iterrupted the AvailNetworkScrapper -> DataSampler notification due to a timeout")
 	}
-}
-
-func (s *NetworkScrapper) GetSamplingItemStream() chan []*models.SamplingItem {
-	return s.itemNotCh
 }
 
 // syncs up with the database any prior existing sampleable item that we should keep tracking
@@ -126,7 +124,7 @@ func (s *NetworkScrapper) SyncWithDatabase(ctx context.Context) ([]*models.Sampl
 		return nil, err
 	}
 	if len(items) <= 0 {
-		log.Warn("no sampleable items were found at DB")
+		log.Warn("no sampleable blobs were found at DB")
 		return []*models.SamplingItem{}, nil
 	}
 
@@ -140,26 +138,34 @@ func (s *NetworkScrapper) SyncWithDatabase(ctx context.Context) ([]*models.Sampl
 	return sampleItems, nil
 }
 
+func (s *NetworkScrapper) Init(ctx context.Context) error {
+	return nil
+}
+
 func (s *NetworkScrapper) newBlockHandler(ctx context.Context, Block api.Block) error {
 	log.WithFields(log.Fields{
 		"block": Block.Number,
 		"hash":  Block.Hash,
 		"items": len(Block.Items),
-	}).Info("new celestia-block arrived to the api")
-	log.Warn("we don't support celestia blocks at the moment, only DHT namespaces")
+	}).Info("new ipns block-like arrived to the api, not-such items - please use the item Req")
 	return nil
 }
 
 func (s *NetworkScrapper) newItemHandler(ctx context.Context, apiItem api.DASItem) error {
 	log.WithFields(log.Fields{
 		"key": apiItem.Key,
-	}).Info("new celestia-item arrived to the api")
+	}).Info("new ipns-name arrived to the api")
 	item := s.getSamplingItemFromAPIItem(apiItem)
 	if s.internalItemCache.Contains(apiItem.Key) {
 		return nil
 	}
+	// check if the given key is a CID
+	_, err := config.ComposeIpnsKey(apiItem.Key)
+	if err != nil {
+		return ErrorNotValidIPNSRecord
+	}
 	s.internalItemCache.Add(apiItem.Key, struct{}{})
-	err := s.db.PersistNewSamplingItem(ctx, item)
+	err = s.db.PersistNewSamplingItem(ctx, item)
 	if err != nil {
 		return err
 	}
@@ -169,7 +175,7 @@ func (s *NetworkScrapper) newItemHandler(ctx context.Context, apiItem api.DASIte
 func (s *NetworkScrapper) newItemsHandler(ctx context.Context, apiItems []api.DASItem) error {
 	log.WithFields(log.Fields{
 		"items": len(apiItems),
-	}).Info("new celestia namespace items arrived to the daemon")
+	}).Info("new ipns-name/record items arrived to the daemon")
 	items := s.getSamplingItemFromAPIitems(apiItems)
 	for i, item := range items {
 		if s.internalItemCache.Contains(item.Key) {
@@ -177,12 +183,15 @@ func (s *NetworkScrapper) newItemsHandler(ctx context.Context, apiItems []api.DA
 		}
 		s.internalItemCache.Add(item.Key, struct{}{})
 	}
-
 	err := s.db.PersistNewSamplingItems(ctx, items)
 	if err != nil {
 		return err
 	}
 	return s.notifySampler(ctx, items)
+}
+
+func (s *NetworkScrapper) GetSamplingItemStream() chan []*models.SamplingItem {
+	return s.itemNotCh
 }
 
 func (s *NetworkScrapper) getSamplingItemFromAPIItem(apiItem api.DASItem) *models.SamplingItem {
@@ -195,21 +204,25 @@ func (s *NetworkScrapper) getSamplingItemFromAPIItem(apiItem api.DASItem) *model
 		metadataStr = string(bs)
 	}
 
+	itemType := ""
 	sampleType := ""
-	if apiItem.SampleType != "" {
-		sampleType = apiItem.SampleType
-	} else {
-		sampleType = config.SamplePeers.String()
+	switch apiItem.SampleType {
+	case config.SampleIPNSname.String():
+		sampleType = config.SampleIPNSname.String()
+		itemType = config.IPNSRecordItemType.String()
+	case config.SampleDNSlink.String():
+		sampleType = config.SampleDNSlink.String()
+		itemType = config.DNSLinkItemType.String()
+	default:
+		sampleType = config.SampleIPNSname.String()
+		itemType = config.IPNSRecordItemType.String()
 	}
-
-	log.Info("sampleType: ", sampleType)
-
 	return &models.SamplingItem{
 		Timestamp:   apiItem.Timestamp,
 		Network:     s.network.String(),
-		ItemType:    config.CelestiaDHTNamesSpaceItemType.String(), // TODO: do we want to select this on the API itself
+		ItemType:    itemType,
 		SampleType:  sampleType,
-		BlockLink:   apiItem.BlockLink,
+		BlockLink:   0,
 		Key:         apiItem.Key,
 		Hash:        "",
 		DASRow:      uint32(0),
@@ -231,5 +244,5 @@ func (s *NetworkScrapper) getSamplingItemFromAPIitems(segments []api.DASItem) []
 }
 
 func (s *NetworkScrapper) GetQuorum() int {
-	return 1 // we just need to find one value
+	return int(s.cfg.Quorum)
 }

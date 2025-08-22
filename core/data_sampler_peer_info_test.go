@@ -30,10 +30,13 @@ func Test_sampleByFindPeerInfo_Success(t *testing.T) {
 		SampleType: config.SamplePeerInfo.String(),
 	}
 
-	visitRound := 1
+	task := SamplingTask{
+		Item:       item,
+		VisitRound: 1,
+	}
 	timeout := 10 * time.Second
 
-	visit, err := sampleByFindPeerInfo(ctx, queryHost, item, visitRound, timeout)
+	visit, err := SampleByFindPeerInfo(ctx, queryHost, task, timeout)
 	require.NoError(t, err)
 
 	peerInfoVisits := visit.GetGenericPeerInfoVisit()
@@ -41,7 +44,7 @@ func Test_sampleByFindPeerInfo_Success(t *testing.T) {
 	require.Len(t, peerInfoVisits, 1)
 
 	peerInfoVisit := peerInfoVisits[0]
-	require.Equal(t, uint64(visitRound), peerInfoVisit.VisitRound)
+	require.Equal(t, uint64(task.VisitRound), peerInfoVisit.VisitRound)
 	require.Equal(t, item.Network, peerInfoVisit.Network)
 	require.Equal(t, item.Key, peerInfoVisit.PeerID)
 	require.Greater(t, peerInfoVisit.Duration, time.Duration(0))
@@ -98,8 +101,12 @@ func Test_sampleByFindPeerInfo_InvalidPeerIDs(t *testing.T) {
 				Network:    config.DefaultNetwork.String(),
 				SampleType: config.SamplePeerInfo.String(),
 			}
+			task := SamplingTask{
+				VisitRound: tt.visitRound,
+				Item:       item,
+			}
 
-			visit, err := sampleByFindPeerInfo(ctx, queryHost, item, tt.visitRound, tt.timeout)
+			visit, err := SampleByFindPeerInfo(ctx, queryHost, task, tt.timeout)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -153,11 +160,14 @@ func Test_sampleByFindPeerInfo_Timeout(t *testing.T) {
 		SampleType: config.SamplePeerInfo.String(),
 	}
 
-	visitRound := 1
+	task := SamplingTask{
+		VisitRound: 1,
+		Item:       item,
+	}
 	timeout := 1 * time.Microsecond
 
 	start := time.Now()
-	visit, err := sampleByFindPeerInfo(ctx, queryHost, item, visitRound, timeout)
+	visit, err := SampleByFindPeerInfo(ctx, queryHost, task, timeout)
 	elapsed := time.Since(start)
 
 	// The test should complete quickly due to timeout, even if there's an error
@@ -175,7 +185,7 @@ func Test_sampleByFindPeerInfo_Timeout(t *testing.T) {
 	require.Len(t, peerInfoVisits, 1)
 
 	peerInfoVisit := peerInfoVisits[0]
-	require.Equal(t, uint64(visitRound), peerInfoVisit.VisitRound)
+	require.Equal(t, uint64(task.VisitRound), peerInfoVisit.VisitRound)
 	require.Equal(t, item.Network, peerInfoVisit.Network)
 	require.Equal(t, item.Key, peerInfoVisit.PeerID)
 	require.Greater(t, peerInfoVisit.Duration, time.Duration(0))

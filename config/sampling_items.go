@@ -15,6 +15,10 @@ func (i SamplingItemType) String() string {
 		return "UNKNOWN"
 	case IPFSCidItemType:
 		return "IPFS_CID"
+	case IPNSRecordItemType:
+		return "IPNS_RECORD"
+	case DNSLinkItemType:
+		return "IPNS_RECORD"
 	case Libp2pPeerIDItemType:
 		return "LIBP2P_PEER_ID"
 	case AvailDASCellItemType:
@@ -28,8 +32,10 @@ func (i SamplingItemType) String() string {
 
 const (
 	UnknownItemType SamplingItemType = iota
-	// IPFS + Libp2p
+	// IPFS + IPNS + Libp2p
 	IPFSCidItemType
+	IPNSRecordItemType
+	DNSLinkItemType
 	Libp2pPeerIDItemType
 	// Avail
 	AvailDASCellItemType
@@ -43,6 +49,10 @@ func SamplingItemFromStrin(s string) SamplingItemType {
 		return UnknownItemType
 	case "IPFS_CID":
 		return IPFSCidItemType
+	case "IPNS_RECORD":
+		return IPNSRecordItemType
+	case "DNS_LINK":
+		return DNSLinkItemType
 	case "LIBP2P_PEER_ID":
 		return Libp2pPeerIDItemType
 	case "AVAIL_DAS_CELL":
@@ -62,6 +72,10 @@ func ParseDHTKeyType(t SamplingItemType, key string) (any, error) {
 		return nil, ErrorNotValidKeyType
 	case IPFSCidItemType:
 		return cid.Decode(key)
+	case IPNSRecordItemType:
+		return ComposeIpnsKey(key)
+	case DNSLinkItemType:
+		return key, nil
 	case Libp2pPeerIDItemType:
 		return peer.Decode(key)
 	case AvailDASCellItemType:

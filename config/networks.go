@@ -29,6 +29,7 @@ const (
 	ProtocolUnknown  ProtocolType = "UNKNOWN"
 	ProtocolLocal    ProtocolType = "LOCAL"
 	ProtocolIPFS     ProtocolType = "IPFS"
+	ProtocolIPNS     ProtocolType = "IPNS"
 	ProtocolAvail    ProtocolType = "AVAIL"
 	ProtocolCelestia ProtocolType = "CELESTIA"
 )
@@ -52,6 +53,9 @@ var AvailableProtocols map[ProtocolType][]NetworkName = map[ProtocolType][]Netwo
 	ProtocolIPFS: {
 		NetworkNameAmino,
 	},
+	ProtocolIPNS: {
+		NetworkNameAmino,
+	},
 	ProtocolAvail: {
 		NetworkNameTuring,
 		NetworkNameMainnet,
@@ -72,6 +76,8 @@ func ProtocolTypeFromString(s string) ProtocolType {
 		return ProtocolLocal
 	case ProtocolIPFS.String():
 		return ProtocolIPFS
+	case ProtocolIPNS.String():
+		return ProtocolIPNS
 	case ProtocolAvail.String():
 		return ProtocolAvail
 	case ProtocolCelestia.String():
@@ -195,6 +201,16 @@ func ConfigureNetwork(network Network) (*NetworkConfiguration, error) {
 	case ProtocolIPFS:
 		// currently we only support the AMINO DHT
 		dafultIPFSconfig := DefaultIPFSNetworkConfig
+		switch network.NetworkName {
+		case NetworkNameAmino:
+			return &dafultIPFSconfig, nil
+		default:
+			return &NetworkConfiguration{}, fmt.Errorf("unknown network identifier %s for protocol %s", network.NetworkName, network.Protocol)
+		}
+
+	case ProtocolIPNS:
+		// currently we only support the AMINO DHT
+		dafultIPFSconfig := DefaultIPNSNetworkConfig
 		switch network.NetworkName {
 		case NetworkNameAmino:
 			return &dafultIPFSconfig, nil

@@ -34,6 +34,7 @@ type DHTHost interface {
 	FindPeers(context.Context, string, time.Duration) (time.Duration, []peer.AddrInfo, error)
 	FindPeer(context.Context, peer.ID, time.Duration) (time.Duration, peer.AddrInfo, error)
 	FindValue(context.Context, string, time.Duration) (time.Duration, []byte, error)
+	FindQuorumValue(context.Context, string, time.Duration, int) (time.Duration, [][]byte, error)
 	PutValue(context.Context, string, []byte, time.Duration) (time.Duration, error)
 	ConnectAndIdentifyPeer(context.Context, peer.AddrInfo, int, time.Duration) (map[string]any, error)
 }
