@@ -4,6 +4,7 @@ BIN_PATH := "./build"
 BIN := "./build/akai"
 
 GIT_PACKAGE := "github.com/probe-lab/akai"
+REPO_SERVER := "019120760881.dkr.ecr.us-east-1.amazonaws.com"
 COMMIT := `git rev-parse --short HEAD`
 DATE := `date "+%Y-%m-%dT%H:%M:%SZ"`
 USER := `id -un`
@@ -35,7 +36,12 @@ lint:
 	{{GOCC}} test -race -buildvcs -vet=off {{TARGET_PATH}}
 
 docker-build:
-	docker build -t probe-lab/akai:latest -t probe-lab/akai-{{COMMIT}} .
+	docker build -t probe-lab/akai:latest -t probe-lab/akai-{{COMMIT}} -t {{REPO_SERVER}}/probelab:akai-{{COMMIT}} .
+
+docker-push:
+	docker push {{REPO_SERVER}}/probelab:akai-{{COMMIT}}
+	docker rmi {{REPO_SERVER}}/probelab:akai-{{COMMIT}}
+
 
 test:
 	{{GOCC}} test -v ./core
